@@ -116,6 +116,17 @@ for n in people:
     for d in range(7):
         if shifts[(n,d)]: prob += pulp.lpSum(x[(n,d,i)] for i in range(len(shifts[(n,d)])))<=1
 
+# 12-hour close-then-open: if person ends at time b on day d, next-day start a must satisfy
+# (24-b)+a >= 12, i.e. a >= b-12. Applies whenever b > 21 (otherwise b-12 ≤ 9 = min start).
+for n in people:
+    for d in range(6):
+        for i,(a0,b0) in enumerate(shifts[(n,d)]):
+            if b0 <= 21: continue
+            min_next = b0 - 12
+            for j,(a1,b1) in enumerate(shifts[(n,d+1)]):
+                if a1 < min_next:
+                    prob += x[(n,d,i)] + x[(n,d+1,j)] <= 1
+
 # OPT: flatten the per-day (person, shift-index, start, end) tuples ONCE so the hot constraint
 # helpers don't rebuild the people x shifts cross product on every call.
 SD={d:[(n,i,a,b,paid_val(n,a,b)) for n in people for i,(a,b) in enumerate(shifts[(n,d)])] for d in range(7)}
@@ -152,8 +163,8 @@ for d in range(7):
     _SDF[d,'stag9'] =[x[(n,d,i)] for (n,i,a,b,pv) in sd if n not in _no_early and a<=9]
     _SDF[d,'prep9'] =[x[(n,d,i)] for (n,i,a,b,pv) in sd if n in prep and a<=9]
 
-twoTar=[8,8,8,8,8,9,11]; threeTar=[6,6,6,6,7,8,8]; fourTar=[5,5,5,5,6,7,6]
-Otar=[6,6,6,6,6,6,6]; Ltar=[9,9,9,9,10,10,11]; Dtar=[10,10,10,11,14,13,12]; Ctar=[5,5,5,5,6,6,6]
+twoTar=[8,8,8,8,8,9,11]; threeTar=[6,6,6,6,7,8,9]; fourTar=[5,5,5,5,6,7,6]
+Otar=[6,6,6,6,6,6,6]; Ltar=[9,9,9,9,10,10,11]; Dtar=[10,10,10,11,14,13,12]; Ctar=[5,5,5,5,6,6,5]
 
 # Soft-constraint helpers: convert tight equality/ceiling constraints to penalised slack variables.
 # Penalty _CPEN=500 >> max possible objective gain (~80 units) so slacks are zero in any optimal
@@ -184,10 +195,10 @@ for d in range(7):
     prob += pulp.lpSum(_SDF[d,'prep9'])>=1
     if d in (4,5): prob += _cl21>=8
     else:          prob += _cl21>=7
-    # Soft ceilings/targets — penalised, not hard
-    _sc(_h14,twoTar[d]+1,       f'sh14_{d}')
-    _sc(_h15,threeTar[d]+2,     f'sh15_{d}')
-    _sc(_h16,fourTar[d] if d in (0,1,2) else fourTar[d]+2, f'sh16_{d}')
+    # Soft ceilings/targets — penalised, not hard. Ceiling == exact target → soft equality.
+    _sc(_h14,twoTar[d],         f'sh14_{d}')
+    _sc(_h15,threeTar[d],       f'sh15_{d}')
+    _sc(_h16,fourTar[d],        f'sh16_{d}')
     _sf(_cl225,Ctar[d],         f'scl225f_{d}')
     _sc(_cl225,Ctar[d],         f'scl225c_{d}')
     _sc(_op,Otar[d],            f'sop_{d}')
