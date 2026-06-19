@@ -5,6 +5,7 @@ _OUT = os.environ.get('SCHED_OUT', 'schedule.json')   # tests set SCHED_OUT to w
 # (str.replace would hit every '.json' in the path and would no-op when there's no extension).
 _base = _OUT[:-5] if _OUT.endswith('.json') else _OUT
 _OUT_ACTIVE = _base + '_active.json'
+_THREADS=int(os.environ.get('SCHED_THREADS','0'))  # >0 enables HiGHS parallel B&B
 with open('avail_6_29.json') as _f: av=json.load(_f)
 with open('reqoff_6_29.json') as _f: req=json.load(_f)
 with open('forecast_6_29.json') as _f: fc=json.load(_f)
@@ -118,68 +119,92 @@ for n in people:
 # OPT: flatten the per-day (person, shift-index, start, end) tuples ONCE so the hot constraint
 # helpers don't rebuild the people x shifts cross product on every call.
 SD={d:[(n,i,a,b,paid_val(n,a,b)) for n in people for i,(a,b) in enumerate(shifts[(n,d)])] for d in range(7)}
-def hexpr(d,t): return pulp.lpSum(x[(n,d,i)] for (n,i,a,b,pv) in SD[d] if a<=t<b)
-def sumif(d,pred,pool=None):
-    if pool is None:
-        return pulp.lpSum(x[(n,d,i)] for (n,i,a,b,pv) in SD[d] if pred(a,b))
-    return pulp.lpSum(x[(n,d,i)] for (n,i,a,b,pv) in SD[d] if n in pool and pred(a,b))
+_trio={'Gobi Weathers','James Baker','Trinity Stringer'}
+_no_early={'John Martin (Jay)','Bowen Benedict'}
+# OPT: pre-filter SD[d] into named variable lists once; the constraint loop then calls lpSum on a
+# short pre-filtered list instead of scanning all SD[d] entries with a lambda predicate each time.
+_SDF={}
+for d in range(7):
+    sd=SD[d]
+    _SDF[d,'h14']   =[x[(n,d,i)] for (n,i,a,b,pv) in sd if a<=14<b]
+    _SDF[d,'h15']   =[x[(n,d,i)] for (n,i,a,b,pv) in sd if a<=15<b]
+    _SDF[d,'h155']  =[x[(n,d,i)] for (n,i,a,b,pv) in sd if a<=15.5<b]
+    _SDF[d,'h16']   =[x[(n,d,i)] for (n,i,a,b,pv) in sd if a<=16<b]
+    _SDF[d,'h165']  =[x[(n,d,i)] for (n,i,a,b,pv) in sd if a<=16.5<b]
+    _SDF[d,'opener']=[x[(n,d,i)] for (n,i,a,b,pv) in sd if n!='John Martin (Jay)' and a<=10]
+    _SDF[d,'lunch'] =[x[(n,d,i)] for (n,i,a,b,pv) in sd if a<=12<b]
+    _SDF[d,'dinner']=[x[(n,d,i)] for (n,i,a,b,pv) in sd if b>17]
+    _SDF[d,'cl225'] =[x[(n,d,i)] for (n,i,a,b,pv) in sd if b>=22.5]
+    _SDF[d,'cl21']  =[x[(n,d,i)] for (n,i,a,b,pv) in sd if b>21]
+    _SDF[d,'cl215'] =[x[(n,d,i)] for (n,i,a,b,pv) in sd if b>21.5]
+    _SDF[d,'pb_op'] =[x[(n,d,i)] for (n,i,a,b,pv) in sd if n in PB and a<=10]
+    _SDF[d,'pb_cl'] =[x[(n,d,i)] for (n,i,a,b,pv) in sd if n in PB and b>=22]
+    _SDF[d,'w3_ln'] =[x[(n,d,i)] for (n,i,a,b,pv) in sd if n in weak3 and a<=12<b]
+    _SDF[d,'w3_dn'] =[x[(n,d,i)] for (n,i,a,b,pv) in sd if n in weak3 and b>17]
+    _SDF[d,'la1725']=[x[(n,d,i)] for (n,i,a,b,pv) in sd if a==17.25]
+    _SDF[d,'la175'] =[x[(n,d,i)] for (n,i,a,b,pv) in sd if a==17.5]
+    _SDF[d,'la1775']=[x[(n,d,i)] for (n,i,a,b,pv) in sd if a==17.75]
+    _SDF[d,'la18']  =[x[(n,d,i)] for (n,i,a,b,pv) in sd if a==18.0]
+    _SDF[d,'dep20'] =[x[(n,d,i)] for (n,i,a,b,pv) in sd if b==20.0 and n not in PB]
+    _SDF[d,'dep205']=[x[(n,d,i)] for (n,i,a,b,pv) in sd if b==20.5 and n not in PB]
+    _SDF[d,'dep14'] =[x[(n,d,i)] for (n,i,a,b,pv) in sd if b in (14,14.5)]
+    _SDF[d,'trio_cl']=[x[(n,d,i)] for (n,i,a,b,pv) in sd if n in _trio and b>=22]
+    _SDF[d,'stag9'] =[x[(n,d,i)] for (n,i,a,b,pv) in sd if n not in _no_early and a<=9]
+    _SDF[d,'prep9'] =[x[(n,d,i)] for (n,i,a,b,pv) in sd if n in prep and a<=9]
 
 twoTar=[8,8,8,8,8,9,11]; threeTar=[6,6,6,6,7,8,8]; fourTar=[5,5,5,5,6,7,6]
 Otar=[6,6,6,6,6,6,6]; Ltar=[9,9,9,9,10,10,11]; Dtar=[10,10,10,11,14,13,12]; Ctar=[5,5,5,5,6,6,6]
 
-_trio={'Gobi Weathers','James Baker','Trinity Stringer'}
-_no_early={'John Martin (Jay)','Bowen Benedict'}
 for d in range(7):
-    prob += hexpr(d,14)>=twoTar[d]
-    prob += hexpr(d,14)<=twoTar[d]+1
-    prob += hexpr(d,15)>=threeTar[d]
-    prob += hexpr(d,15)<=threeTar[d]+2
-    prob += hexpr(d,16)>=fourTar[d]
+    # cache expressions reused multiple times within this day
+    _h14=pulp.lpSum(_SDF[d,'h14']); _h15=pulp.lpSum(_SDF[d,'h15']); _h16=pulp.lpSum(_SDF[d,'h16'])
+    _cl225=pulp.lpSum(_SDF[d,'cl225']); _cl21=pulp.lpSum(_SDF[d,'cl21'])
+    prob += _h14>=twoTar[d];   prob += _h14<=twoTar[d]+1
+    prob += _h15>=threeTar[d]; prob += _h15<=threeTar[d]+2
+    prob += _h16>=fourTar[d]
     # 4pm: exact target on Mon/Tue/Wed (user wants 5 those days), small band elsewhere
     if d in (0,1,2):
-        prob += hexpr(d,16)<=fourTar[d]
+        prob += _h16<=fourTar[d]
     else:
-        prob += hexpr(d,16)<=fourTar[d]+2
-    prob += hexpr(d,15.5)<=9
-    prob += hexpr(d,16.5)<=8
-    prob += pulp.lpSum(x[(n,d,i)] for (n,i,a,b,pv) in SD[d] if n!='John Martin (Jay)' and a<=10)==Otar[d]
-    prob += sumif(d,lambda a,b: a<=12<b)>=Ltar[d]
-    prob += sumif(d,lambda a,b: b>17)>=Dtar[d]
-    prob += sumif(d,lambda a,b: b>=22.5)>=Ctar[d]
+        prob += _h16<=fourTar[d]+2
+    prob += pulp.lpSum(_SDF[d,'h155'])<=9
+    prob += pulp.lpSum(_SDF[d,'h165'])<=8
+    prob += pulp.lpSum(_SDF[d,'opener'])==Otar[d]
+    prob += pulp.lpSum(_SDF[d,'lunch'])>=Ltar[d]
+    prob += pulp.lpSum(_SDF[d,'dinner'])>=Dtar[d]
+    prob += _cl225>=Ctar[d]
     # Evening floor past 9pm (end>21): Mon-Thu/Sun floor 7. Fri/Sat: tight band AT 8 — floor 8
     # AND capped at 8, so surplus dinner crew is pushed to end exactly at 9:00pm (21.0, which does
     # NOT count as "past 9") rather than running to 10pm and ballooning the count.
-    if d in (4, 5):   # Fri, Sat
-        prob += sumif(d,lambda a,b: b>21)>=8
-        prob += sumif(d,lambda a,b: b>21)<=8
+    if d in (4,5):   # Fri, Sat
+        prob += _cl21>=8; prob += _cl21<=8
     else:
-        prob += sumif(d,lambda a,b: b>21)>=7
-    nineThirtyFloor = 7 if d>=4 else 6
-    prob += sumif(d,lambda a,b: b>21.5)>=nineThirtyFloor
-    prob += sumif(d,lambda a,b: a<=10, PB)>=1
-    prob += sumif(d,lambda a,b: b>=22, PB)>=1
-    prob += sumif(d,lambda a,b: a<=12<b, weak3)<=1
-    prob += sumif(d,lambda a,b: b>17, weak3)<=1
+        prob += _cl21>=7
+    nineThirtyFloor=7 if d>=4 else 6
+    prob += pulp.lpSum(_SDF[d,'cl215'])>=nineThirtyFloor
+    prob += pulp.lpSum(_SDF[d,'pb_op'])>=1
+    prob += pulp.lpSum(_SDF[d,'pb_cl'])>=1
+    prob += pulp.lpSum(_SDF[d,'w3_ln'])<=1
+    prob += pulp.lpSum(_SDF[d,'w3_dn'])<=1
     # Late arrivals: at most 1 person may start at each of 5:15, 5:30, 5:45, and 6:00pm.
-    for _st in (17.25, 17.5, 17.75, 18):
-        prob += pulp.lpSum(x[(n,d,i)] for (n,i,a,b,pv) in SD[d] if a==_st)<=1
+    for _key in ('la1725','la175','la1775','la18'):
+        prob += pulp.lpSum(_SDF[d,_key])<=1
     # Stagger evening departures among FLEXIBLE staff (non-leaders/managers): up to 2 end at 8:00pm
     # and 2 at 8:30pm (8:15/8:45 banned in gen). Fri/Sat allow only 1 at 8:00. Leaders/managers (PB)
     # are exempt — their shifts stand regardless; the cap governs the flexible staff.
-    _cap_8 = 1 if d in (4,5) else 2
-    prob += pulp.lpSum(x[(n,d,i)] for (n,i,a,b,pv) in SD[d] if b==20.0 and n not in PB)<=_cap_8
-    prob += pulp.lpSum(x[(n,d,i)] for (n,i,a,b,pv) in SD[d] if b==20.5 and n not in PB)<=2
+    _cap_8=1 if d in (4,5) else 2
+    prob += pulp.lpSum(_SDF[d,'dep20'])<=_cap_8
+    prob += pulp.lpSum(_SDF[d,'dep205'])<=2
     # NEW CHANGE 2: at most 2 people LEAVE at 2pm or 2:30pm (cap bunched departures)
-    prob += pulp.lpSum(x[(n,d,i)] for (n,i,a,b,pv) in SD[d] if b in (14,14.5))<=2
+    prob += pulp.lpSum(_SDF[d,'dep14'])<=2
     # NEW CHANGE 4: never have >1 of Gobi/James/Trinity closing same day
-    prob += pulp.lpSum(x[(n,d,i)] for (n,i,a,b,pv) in SD[d] if n in _trio and b>=22)<=1
+    prob += pulp.lpSum(_SDF[d,'trio_cl'])<=1
     # CHANGE 7: closers at target (allow exactly Ctar or one under to stay feasible)
-    prob += sumif(d,lambda a,b: b>=22.5)<=Ctar[d]
-    prob += sumif(d,lambda a,b: b>=22.5)>=Ctar[d]-1
+    prob += _cl225<=Ctar[d];  prob += _cl225>=Ctar[d]-1
     # STAGGER: at most 2 openers (ex-Jay/Bowen) may start at <=9
-    prob += pulp.lpSum(x[(n,d,i)] for (n,i,a,b,pv) in SD[d] if n not in _no_early and a<=9)<=2
+    prob += pulp.lpSum(_SDF[d,'stag9'])<=2
     # PREP at 9: at least one prep person starts at <=9 (ensures a prep opener)
-    prob += pulp.lpSum(x[(n,d,i)] for (n,i,a,b,pv) in SD[d] if n in prep and a<=9)>=1
+    prob += pulp.lpSum(_SDF[d,'prep9'])>=1
 
 for n in people:
     if n=='John Martin (Jay)': continue
@@ -282,7 +307,9 @@ short_pref=pulp.lpSum(x[(n,d,i)] for d in range(7) for (n,i,a,b,pv) in SD[d]
 prob += dev + 50*pulp.lpSum(zero_pen) + 8*weak_use + 0.3*short_pref
 
 print(f"Vars: {len(x)}. Solving with HiGHS...")
-prob.solve(pulp.HiGHS(msg=False,timeLimit=240,gapRel=0.01))
+_kw=dict(msg=False,timeLimit=240,gapRel=0.01)
+if _THREADS: _kw['threads']=_THREADS
+prob.solve(pulp.HiGHS(**_kw))
 print("Status:",pulp.LpStatus[prob.status],"| paid",pulp.value(total_paid),"| dev",pulp.value(dev),"| zeros",sum(1 for z in zero_pen if z.value() and z.value()>0.5))
 sol={n:[None]*7 for n in people}
 for d in range(7):
