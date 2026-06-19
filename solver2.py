@@ -1,0 +1,318 @@
+import json, pulp, os
+from collections import defaultdict
+_OUT = os.environ.get('SCHED_OUT', 'schedule.json')   # tests set SCHED_OUT to write elsewhere
+# Derive the "_active" path by stripping a trailing .json only, so the two outputs never collide
+# (str.replace would hit every '.json' in the path and would no-op when there's no extension).
+_base = _OUT[:-5] if _OUT.endswith('.json') else _OUT
+_OUT_ACTIVE = _base + '_active.json'
+with open('avail_6_29.json') as _f: av=json.load(_f)
+with open('reqoff_6_29.json') as _f: req=json.load(_f)
+with open('forecast_6_29.json') as _f: fc=json.load(_f)
+allowed=fc['allowed_hours']
+dn=['Mon','Tue','Wed','Thu','Fri','Sat','Sun']
+PB={'John Martin (Jay)','Myles Palmer','Bowen Benedict','James Baker','Trinity Stringer','Gobi Weathers','Mary Dean'}
+# NO_BREAK = people who do NOT clock out for an unpaid break (no 0.5h deduction).
+# As of the 6/29 week: only the two MANAGERS. The 5 shift leaders now clock out for 30-min breaks.
+NO_BREAK={'John Martin (Jay)','Myles Palmer'}
+TEN_HR=PB|{'Adam Van Bogaert','Mason Doyle','Michael Calderon','Molly Summers','Noah Hiner','Ava Shade','Remi Sullinger','Izzy Simpson','Zac Duffy','Kara Thompson'}
+weak3={'Brian Carver','Bryan Bishop','Jason Britt'}
+weak5=weak3|{'Layton Angermeier','Emily Owens'}
+prep={'Michael Calderon','Tiffany Huffman','Noah Hiner','Gracelyn Dailey','Molly Summers','Reilly Weakley'}
+FT_nonleader={'Adam Van Bogaert','Mason Doyle','Michael Calderon','Molly Summers','Noah Hiner','Ava Shade','Izzy Simpson','Remi Sullinger'}
+
+def avwin(n,d):
+    w=av[n][d]
+    if w=='X' or n in req[dn[d]]: return None
+    if w in('any','open'): return [6,23]
+    return w
+def avail_days(n): return [d for d in range(7) if avwin(n,d)]
+
+fixed={}
+def fx(n,d,a,b): fixed[(n,d)]=[a,b]
+# ===== 6/29-7/5 BACKBONE =====
+# Jay: ONLY Monday this week (vacation rest of week). Mon 6a-3p.
+fx('John Martin (Jay)',0,6,15)
+# Myles: OFF Tuesday AND Wednesday this week. Normal Mon 11-8, Sat/Sun 12-9.
+# Myles: 11a-8p on weekdays (Mon, Thu) and Sunday; 12p-9p Friday and Saturday. Off Tue/Wed. 45h.
+fx('Myles Palmer',0,11,20); fx('Myles Palmer',3,11,20); fx('Myles Palmer',6,11,20)
+fx('Myles Palmer',4,12,21); fx('Myles Palmer',5,12,21)
+# Bowen: set 8-4 Mon-Fri
+for d in range(5): fx('Bowen Benedict',d,8,16)
+# Gobi: Mon 4-11 close, Wed 9-5, Sat 9-5, Sun 3-11. TUE: must work (leader Tue rule) - 
+#   she closed Mon 11pm so 12hr rule -> Tue open >=11. Give Tue 11-5 (mid-day, spaced).
+fx('Gobi Weathers',0,16,23); fx('Gobi Weathers',1,11,17); fx('Gobi Weathers',2,9,17); fx('Gobi Weathers',5,9,17); fx('Gobi Weathers',6,15,23)
+# Mary: 3-11 close Mon-Sat, off Sun
+for d in [1,2,3,4,5]: fx('Mary Dean',d,15,23)  # Tue-Sat (Mon off to respect 5-day max)
+# James: Wed 3-11 close, Sun 8-4 open. TUE: leader Tue rule -> give midday (Trinity closes Tue, so James not close)
+# James: flexible (not pinned) — solver places him; 40h target added below.
+# Trinity: Mon 9-4, Tue 2-11 (close), Fri 5-11, Sat 9-4. WED: leader Wed rule -> James closes Wed,
+#   so Trinity gets a day/mid shift Wed (not close). Trinity Wed 'any' -> 9-4 (open/day).
+fx('Tiffany Huffman',0,9,16)
+# Trinity: Friday close pinned; solver fills her other days to reach the 40h floor below.
+fx('Trinity Stringer',4,17,23)
+# --- Leader Tue/Wed coverage spaced through the day (per instruction) ---
+# TUE leaders: Bowen 8-4 (open), Gobi 11-5 (late morning), James 11-8 (midday), Trinity 2-11 (afternoon-close), Mary 3-11 (close) -> spaced ✓
+# WED leaders: Bowen 8-4 (open), Gobi 9-5 (open/day), Trinity 9-4 (day), James 3-11 (close), Mary 3-11 (close) -> spaced ✓
+
+ANCH_START=[round(6+0.25*i,2) for i in range(int((18-6)/0.25)+1)]   # 6:00a–6:00p every 15 min
+ANCH_END=[round(13+0.25*i,2) for i in range(int((23-13)/0.25)+1)]   # 1:00p–11:00p every 15 min
+def gen(n,d):
+    w=avwin(n,d)
+    if not w: return []
+    lo,hi=w; out=[]; maxlen=10 if n in TEN_HR else 8
+    # Only managers/shift leaders may start before 9am. Everyone else: earliest start 9:00.
+    if n not in PB: lo=max(lo,9)
+    # Molly never works past 5pm
+    if n=='Molly Summers': hi=min(hi,17)
+    for a in ANCH_START:
+        if a<lo or a>hi-4: continue
+        for b in ANCH_END:
+            if b<=a or b>hi: continue
+            L=b-a
+            # Forbidden end times: no shift may end strictly between 5:00pm and 8:00pm, nor at
+            # 8:15pm or 8:45pm (evening departures land only at 8:00, 8:30, or 9:00+). 5:00 & 8:00 ok.
+            # Also no one may end before 2pm (before 3pm on Sunday) — hard rule, no exceptions.
+            if L<4 or L>maxlen or (17 < b < 20) or b in (20.25, 20.75): continue
+            min_end = 15 if d==6 else 14   # Sunday: nobody leaves before 3pm; else 2pm
+            if b<min_end: continue
+            if n=='Adam Van Bogaert' and b!=23: continue   # Adam always closes at 11pm
+            out.append((round(a,2),round(b,2)))
+    return out
+
+prob=pulp.LpProblem('sched',pulp.LpMinimize)
+shifts={}; x={}
+people=list(av)
+pidx={n:i for i,n in enumerate(people)}  # OPT: O(1) index lookup
+# OPT: dedup candidate shifts by coverage signature (rule-preserving).
+# Two shifts that cross the identical set of all constraint thresholds AND have identical
+# paid/raw hours are interchangeable; keep one representative. Preserves exact close-ends and
+# early starts so the 12-hour close-then-open rule is unaffected.
+_TH=[9,10,12,14,15,15.5,16,16.5,17,21,21.5,22,22.5]
+def _sig(a,b,n):
+    s=[a<=t<b for t in _TH]
+    s+=[a<=9,a<=10,a<=12,round(a,2)==17.5,round(a,2)==18,round(b,2) in (14,14.5),
+        b>=22,b>=22.5,b>21,b>21.5,b>17]
+    pd=(b-a) if n in NO_BREAK else ((b-a)-0.5 if (b-a)>=5 else (b-a))
+    s.append(round(pd*4)); s.append(round((b-a)*4))
+    s.append(round(b,2) if b>=21 else 0)        # exact close-end (12hr rule)
+    s.append(round(a,2) if a<=11.25 else 0)     # exact early start (12hr rule)
+    return tuple(s)
+def dedup(cands,n):
+    seen={}; 
+    for (a,b) in cands:
+        k=_sig(a,b,n)
+        if k not in seen: seen[k]=(a,b)
+    return list(seen.values())
+for n in people:
+    for d in range(7):
+        shifts[(n,d)]=[tuple(fixed[(n,d)])] if (n,d) in fixed else dedup(gen(n,d),n)
+        for i in range(len(shifts[(n,d)])):
+            x[(n,d,i)]=pulp.LpVariable(f'x_{pidx[n]}_{d}_{i}',cat='Binary')
+for (n,d) in fixed:
+    if (n,d,0) in x: prob += x[(n,d,0)]==1
+for n in people:
+    for d in range(7):
+        if shifts[(n,d)]: prob += pulp.lpSum(x[(n,d,i)] for i in range(len(shifts[(n,d)])))<=1
+
+# OPT: flatten the per-day (person, shift-index, start, end) tuples ONCE so the hot constraint
+# helpers don't rebuild the people x shifts cross product on every call.
+SD={d:[(n,i,a,b) for n in people for i,(a,b) in enumerate(shifts[(n,d)])] for d in range(7)}
+def hexpr(d,t): return pulp.lpSum(x[(n,d,i)] for (n,i,a,b) in SD[d] if a<=t<b)
+def sumif(d,pred,pool=None):
+    if pool is None:
+        return pulp.lpSum(x[(n,d,i)] for (n,i,a,b) in SD[d] if pred(a,b))
+    return pulp.lpSum(x[(n,d,i)] for (n,i,a,b) in SD[d] if n in pool and pred(a,b))
+
+twoTar=[8,8,8,8,8,9,11]; threeTar=[6,6,6,6,7,8,8]; fourTar=[5,5,5,5,6,7,6]
+Otar=[6,6,6,6,6,6,6]; Ltar=[9,9,9,9,10,10,11]; Dtar=[10,10,10,11,14,13,12]; Ctar=[5,5,5,5,6,6,6]
+
+for d in range(7):
+    prob += hexpr(d,14)>=twoTar[d]
+    prob += hexpr(d,14)<=twoTar[d]+1
+    prob += hexpr(d,15)>=threeTar[d]
+    prob += hexpr(d,15)<=threeTar[d]+2
+    prob += hexpr(d,16)>=fourTar[d]
+    # 4pm: exact target on Mon/Tue/Wed (user wants 5 those days), small band elsewhere
+    if d in (0,1,2):
+        prob += hexpr(d,16)<=fourTar[d]
+    else:
+        prob += hexpr(d,16)<=fourTar[d]+2
+    prob += hexpr(d,15.5)<=9
+    prob += hexpr(d,16.5)<=8
+    prob += pulp.lpSum(x[(n,d,i)] for n in people if n!='John Martin (Jay)' for i,(a,b) in enumerate(shifts[(n,d)]) if a<=10)==Otar[d]
+    prob += sumif(d,lambda a,b: a<=12<b)>=Ltar[d]
+    prob += sumif(d,lambda a,b: b>17)>=Dtar[d]
+    prob += sumif(d,lambda a,b: b>=22.5)>=Ctar[d]
+    # Evening floor past 9pm (end>21): Mon-Thu/Sun floor 7. Fri/Sat: tight band AT 8 — floor 8
+    # AND capped at 8, so surplus dinner crew is pushed to end exactly at 9:00pm (21.0, which does
+    # NOT count as "past 9") rather than running to 10pm and ballooning the count.
+    if d in (4, 5):   # Fri, Sat
+        prob += sumif(d,lambda a,b: b>21)>=8
+        prob += sumif(d,lambda a,b: b>21)<=8
+    else:
+        prob += sumif(d,lambda a,b: b>21)>=7
+    nineThirtyFloor = 7 if d>=4 else 6
+    prob += sumif(d,lambda a,b: b>21.5)>=nineThirtyFloor
+    prob += sumif(d,lambda a,b: a<=10, PB)>=1
+    prob += sumif(d,lambda a,b: b>=22, PB)>=1
+    prob += sumif(d,lambda a,b: a<=12<b, weak3)<=1
+    prob += sumif(d,lambda a,b: b>17, weak3)<=1
+    # Late arrivals: at most 1 person may start at each of 5:15, 5:30, 5:45, and 6:00pm.
+    for _st in (17.25, 17.5, 17.75, 18):
+        prob += pulp.lpSum(x[(n,d,i)] for n in people for i,(a,b) in enumerate(shifts[(n,d)]) if a==_st)<=1
+    # Stagger evening departures among FLEXIBLE staff (non-leaders/managers): up to 2 end at 8:00pm
+    # and 2 at 8:30pm (8:15/8:45 banned in gen). Fri/Sat allow only 1 at 8:00. Leaders/managers (PB)
+    # are exempt — their shifts stand regardless; the cap governs the flexible staff.
+    _cap_8 = 1 if d in (4,5) else 2
+    prob += pulp.lpSum(x[(n,d,i)] for n in people for i,(a,b) in enumerate(shifts[(n,d)])
+                       if b==20.0 and n not in PB)<=_cap_8
+    prob += pulp.lpSum(x[(n,d,i)] for n in people for i,(a,b) in enumerate(shifts[(n,d)])
+                       if b==20.5 and n not in PB)<=2
+    # NEW CHANGE 2: at most 2 people LEAVE at 2pm or 2:30pm (cap bunched departures)
+    prob += pulp.lpSum(x[(n,d,i)] for n in people for i,(a,b) in enumerate(shifts[(n,d)]) if b in (14,14.5))<=2
+    # NEW CHANGE 4: never have >1 of Gobi/James/Trinity closing same day; if Gobi or Trinity
+    #   closes, James must NOT close (move James to mid/open). Enforce: at most 1 of the three closes.
+    prob += pulp.lpSum(x[(n,d,i)] for n in ('Gobi Weathers','James Baker','Trinity Stringer') for i,(a,b) in enumerate(shifts[(n,d)]) if b>=22)<=1
+    # CHANGE 7: closers at target (allow exactly Ctar or one under to stay feasible)
+    prob += sumif(d,lambda a,b: b>=22.5)<=Ctar[d]
+    prob += sumif(d,lambda a,b: b>=22.5)>=Ctar[d]-1
+    # STAGGER: at most 2 openers (ex-Jay) may start before 9:15 (i.e. exactly at 9 or earlier, excluding Bowen-8 anchor)
+    # Count openers starting at <=9.0 (the "9:00 bunch"), cap at 2 (plus Bowen's 8am anchor allowed)
+    prob += pulp.lpSum(x[(n,d,i)] for n in people if n not in ('John Martin (Jay)','Bowen Benedict') for i,(a,b) in enumerate(shifts[(n,d)]) if a<=9)<=2
+    # PREP at 9: at least one prep person starts at <=9 (ensures a prep opener)
+    prob += pulp.lpSum(x[(n,d,i)] for n in prep for i,(a,b) in enumerate(shifts[(n,d)]) if a<=9)>=1
+
+for n in people:
+    if n=='John Martin (Jay)': continue
+    prob += pulp.lpSum(x[(n,d,i)] for d in range(7) for i in range(len(shifts[(n,d)])))<=5
+def hours_expr(n): return pulp.lpSum(x[(n,d,i)]*(b-a) for d in range(7) for i,(a,b) in enumerate(shifts[(n,d)]))
+prob += hours_expr('Trinity Stringer')>=40   # push leader toward 40h (ceiling ~43 within availability)
+prob += hours_expr('Gobi Weathers')>=37      # Gobi's hard max is 37 (12hr rule from Mon close)
+for n in FT_nonleader:
+    if len(avail_days(n))>=5:
+        prob += hours_expr(n)>=35; prob += hours_expr(n)<=40
+    else: prob += hours_expr(n)<=40
+# CHANGE 1: Adam exactly 40h
+prob += hours_expr('Adam Van Bogaert')==40
+# CHANGE 5: Zac Duffy more hours (wants 30+, 10h-OK, available 4 days)
+prob += hours_expr('Zac Duffy')>=28
+# CHANGE 3: Cai, Hayden, Logan more hours (target >=15h each, within their availability)
+for nm,mn in [('Cai Cotton',15),('Hayden Roush',12),('Logan Frias',15)]:
+    prob += hours_expr(nm)>=mn
+for n in people:
+    if n in ('John Martin (Jay)','Myles Palmer'): continue  # managers: no 40h cap
+    prob += hours_expr(n)<=40
+# Myles is REQUIRED to work 45 hours this week
+prob += hours_expr('Myles Palmer')>=45
+prob += hours_expr('James Baker')>=40   # James flexible (unpinned); full-time leader target
+prob += hours_expr('Gracelyn Dailey')>=20; prob += hours_expr('Gracelyn Dailey')<=30  # PT, 20-30h
+# Medium-priority PT: at least 15h each, for those whose availability allows it this week.
+# Excluded: Peyton (Mon-only this week) and Harper (req-off all her available days) — can't reach 15h.
+for _n in ['Shayden Howard','John Dugan','Kayden Anderson','Logan Frias','Richard Raglin',
+           'Sandya Wright','Ryder','Oliver Croasdaile']:
+    prob += hours_expr(_n)>=15
+# INSTRUCTION: every shift leader works Tuesday AND Wednesday (spaced through the day)
+LEADERS_TW=['Bowen Benedict','James Baker','Trinity Stringer','Gobi Weathers','Mary Dean']
+for n in LEADERS_TW:
+    for d in [1,2]:  # Tue, Wed
+        if shifts[(n,d)]:
+            prob += pulp.lpSum(x[(n,d,i)] for i in range(len(shifts[(n,d)])))>=1
+
+# weak5: prefer 1 day each (rulesheet). Hard cap 2; strong objective penalty makes a 2nd day rare.
+for n in weak5:
+    prob += pulp.lpSum(x[(n,d,i)] for d in range(7) for i in range(len(shifts[(n,d)])))<=2
+# Bryan can be held to 1 day without breaking coverage — enforce the prefer-1 rule for him.
+prob += pulp.lpSum(x[('Bryan Bishop',d,i)] for d in range(7) for i in range(len(shifts[('Bryan Bishop',d)])))<=1
+
+# CHANGE 4: 12-hour close-then-open rule — AGGREGATED formulation.
+# A day-d close ending at b1 conflicts with a day-(d+1) shift starting at a2 when (24-b1)+a2 < 12,
+# i.e. a2 < b1 - 12. Since each person works <=1 shift/day, we don't need a constraint per pair.
+# For each distinct close-end time b1 on day d, all next-day shifts starting before (b1-12) are
+# mutually exclusive with the close. One constraint per (person, day, distinct-close-end):
+#   x[close@b1] + sum(x[next-day shifts starting < b1-12]) <= 1
+for n in people:
+    for d in range(6):
+        nxt = shifts[(n,d+1)]
+        if not nxt: continue
+        # group day-d shifts by close-end time (only closes b1>=21 can ever conflict)
+        by_end = defaultdict(list)
+        for i,(a1,b1) in enumerate(shifts[(n,d)]):
+            if b1 >= 21: by_end[b1].append(i)
+        for b1, idxs in by_end.items():
+            thresh = b1 - 12  # next-day starts strictly below this conflict
+            early = [j for j,(a2,b2) in enumerate(nxt) if a2 < thresh]
+            if not early: continue
+            # all of (these closes) + (these early next-day shifts) can host at most ONE selection,
+            # because picking any close forbids any conflicting early open and vice-versa.
+            prob += (pulp.lpSum(x[(n,d,i)] for i in idxs)
+                     + pulp.lpSum(x[(n,d+1,j)] for j in early)) <= 1
+
+# ===== NO ZERO-SHIFT for anyone available (>=1 day avail must get >=1 shift) =====
+# Make it a HARD constraint for everyone with availability, EXCEPT allow the solver to drop
+# someone only if infeasible. Use soft with big penalty to stay feasible.
+zero_pen=[]
+for n in people:
+    if n in ('John Martin (Jay)','Myles Palmer'): continue  # managers handled by fixed
+    ad=avail_days(n)
+    if not ad: continue
+    total_shifts=pulp.lpSum(x[(n,d,i)] for d in range(7) for i in range(len(shifts[(n,d)])))
+    z=pulp.LpVariable(f'zero_{pidx[n]}',cat='Binary')  # 1 if person gets ZERO shifts
+    # total_shifts >= 1 - z  (if z=0, must have >=1)
+    prob += total_shifts >= 1 - z
+    zero_pen.append(z)
+
+# Objective: hit +40, minimize zero-shift people (big penalty), minimize weak5 usage (small)
+def paid_val(n,a,b):
+    r=b-a; return r if n in NO_BREAK else (r-0.5 if r>=5 else r)
+total_paid=pulp.lpSum(x[(n,d,i)]*paid_val(n,*shifts[(n,d)][i]) for n in people for d in range(7) for i in range(len(shifts[(n,d)])))
+# Per-day labor balance: keep each day's paid hours within a reasonable band of its allowed,
+# so the weekly +40 slack doesn't pile onto one day / starve another (esp. with 15-min increments).
+for d in range(7):
+    day_paid=pulp.lpSum(x[(n,d,i)]*paid_val(n,*shifts[(n,d)][i]) for n in people for i in range(len(shifts[(n,d)])))
+    prob += day_paid >= allowed[d]-3      # no day more than 3h under its allowed budget
+    prob += day_paid <= allowed[d]+14     # and not wildly over
+
+TARGET=sum(allowed)+30
+dev=pulp.LpVariable('dev',lowBound=0)
+prob += total_paid-TARGET<=dev
+prob += TARGET-total_paid<=dev
+weak_use=pulp.lpSum(x[(n,d,i)] for n in weak5 for d in range(7) for i in range(len(shifts[(n,d)])))
+# Preference: favor short 4-4.5h shifts (no break) over 5-5.5h shifts (which lose 0.5h to break).
+# Same labor, more days, no break to manage. Light penalty on 5-5.5h shifts for non-managers.
+short_pref=pulp.lpSum(x[(n,d,i)] for n in people if n not in NO_BREAK
+                      for d in range(7) for i,(a,b) in enumerate(shifts[(n,d)]) if 5<=(b-a)<=5.5)
+prob += dev + 50*pulp.lpSum(zero_pen) + 8*weak_use + 0.3*short_pref
+
+print(f"Vars: {len(x)}. Solving with HiGHS...")
+prob.solve(pulp.HiGHS(msg=False,timeLimit=240,gapRel=0.01))
+print("Status:",pulp.LpStatus[prob.status],"| paid",pulp.value(total_paid),"| dev",pulp.value(dev),"| zeros",sum(1 for z in zero_pen if z.value() and z.value()>0.5))
+sol={n:[None]*7 for n in people}
+for n in people:
+    for d in range(7):
+        for i,(a,b) in enumerate(shifts[(n,d)]):
+            if x[(n,d,i)].value() and x[(n,d,i)].value()>0.5: sol[n][d]=[a,b]
+with open(_OUT,'w') as _f: json.dump(sol,_f)
+with open(_OUT_ACTIVE,'w') as _f: json.dump({n:sh for n,sh in sol.items() if any(sh)},_f)
+
+# ---- Compact status summary (replaces a separate audit pass) ----
+def _pd(sh,n):
+    if not sh: return 0
+    r=sh[1]-sh[0]; return r if n in NO_BREAK else (r-0.5 if r>=5 else r)
+def _hd(d,t): return sum(1 for n in sol if sol[n][d] and sol[n][d][0]<=t<sol[n][d][1])
+def _O(d): return sum(1 for n in sol if n!='John Martin (Jay)' and sol[n][d] and sol[n][d][0]<=10)
+def _C(d): return sum(1 for n in sol if sol[n][d] and sol[n][d][1]>=22.5)
+print(f"{'Day':4}{'Var':>6}  O/L/D/C   2pm/3pm/4pm  9p/930")
+miss=[]
+for d in range(7):
+    var=sum(_pd(sol[n][d],n) for n in sol)-allowed[d]
+    L=sum(1 for n in sol if sol[n][d] and sol[n][d][0]<=12<sol[n][d][1])
+    D=sum(1 for n in sol if sol[n][d] and sol[n][d][1]>17)
+    print(f"{dn[d]:4}{var:+6.1f}  {_O(d)}/{L}/{D}/{_C(d)}   {_hd(d,14)}/{_hd(d,15)}/{_hd(d,16)}     {_hd(d,21)}/{_hd(d,21.5)}")
+tot=sum(_pd(sol[n][d],n) for n in sol for d in range(7))-sum(allowed)
+# Key individual hour targets (only flag misses)
+for nm,want in [('Adam Van Bogaert',40),('James Baker',40),('Myles Palmer',45),('Zac Duffy',28)]:
+    h=sum((sh[1]-sh[0]) for sh in sol.get(nm,[]) if sh)
+    tag='' if abs(h-want)<0.01 or (want==28 and h>=28) else f'  <-- want {want}'
+    if tag: miss.append(f'{nm}={h:.1f}{tag}')
+print(f"TOTAL var: {tot:+.1f} | Status {pulp.LpStatus[prob.status]}")
+if miss: print("HOUR MISSES:", '; '.join(miss))
