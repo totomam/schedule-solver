@@ -14,6 +14,8 @@ PB={'John Martin (Jay)','Myles Palmer','Bowen Benedict','James Baker','Trinity S
 # NO_BREAK = people who do NOT clock out for an unpaid break (no 0.5h deduction).
 # As of the 6/29 week: only the two MANAGERS. The 5 shift leaders now clock out for 30-min breaks.
 NO_BREAK={'John Martin (Jay)','Myles Palmer'}
+def paid_val(n,a,b):
+    r=b-a; return r if n in NO_BREAK else (r-0.5 if r>=5 else r)
 TEN_HR=PB|{'Adam Van Bogaert','Mason Doyle','Michael Calderon','Molly Summers','Noah Hiner','Ava Shade','Remi Sullinger','Izzy Simpson','Zac Duffy','Kara Thompson'}
 weak3={'Brian Carver','Bryan Bishop','Jason Britt'}
 weak5=weak3|{'Layton Angermeier','Emily Owens'}
@@ -92,8 +94,7 @@ def _sig(a,b,n):
     s=[a<=t<b for t in _TH]
     s+=[a<=9,a<=10,a<=12,round(a,2)==17.5,round(a,2)==18,round(b,2) in (14,14.5),
         b>=22,b>=22.5,b>21,b>21.5,b>17]
-    pd=(b-a) if n in NO_BREAK else ((b-a)-0.5 if (b-a)>=5 else (b-a))
-    s.append(round(pd*4)); s.append(round((b-a)*4))
+    s.append(round(paid_val(n,a,b)*4)); s.append(round((b-a)*4))
     s.append(round(b,2) if b>=21 else 0)        # exact close-end (12hr rule)
     s.append(round(a,2) if a<=11.25 else 0)     # exact early start (12hr rule)
     return tuple(s)
@@ -116,16 +117,18 @@ for n in people:
 
 # OPT: flatten the per-day (person, shift-index, start, end) tuples ONCE so the hot constraint
 # helpers don't rebuild the people x shifts cross product on every call.
-SD={d:[(n,i,a,b) for n in people for i,(a,b) in enumerate(shifts[(n,d)])] for d in range(7)}
-def hexpr(d,t): return pulp.lpSum(x[(n,d,i)] for (n,i,a,b) in SD[d] if a<=t<b)
+SD={d:[(n,i,a,b,paid_val(n,a,b)) for n in people for i,(a,b) in enumerate(shifts[(n,d)])] for d in range(7)}
+def hexpr(d,t): return pulp.lpSum(x[(n,d,i)] for (n,i,a,b,pv) in SD[d] if a<=t<b)
 def sumif(d,pred,pool=None):
     if pool is None:
-        return pulp.lpSum(x[(n,d,i)] for (n,i,a,b) in SD[d] if pred(a,b))
-    return pulp.lpSum(x[(n,d,i)] for (n,i,a,b) in SD[d] if n in pool and pred(a,b))
+        return pulp.lpSum(x[(n,d,i)] for (n,i,a,b,pv) in SD[d] if pred(a,b))
+    return pulp.lpSum(x[(n,d,i)] for (n,i,a,b,pv) in SD[d] if n in pool and pred(a,b))
 
 twoTar=[8,8,8,8,8,9,11]; threeTar=[6,6,6,6,7,8,8]; fourTar=[5,5,5,5,6,7,6]
 Otar=[6,6,6,6,6,6,6]; Ltar=[9,9,9,9,10,10,11]; Dtar=[10,10,10,11,14,13,12]; Ctar=[5,5,5,5,6,6,6]
 
+_trio={'Gobi Weathers','James Baker','Trinity Stringer'}
+_no_early={'John Martin (Jay)','Bowen Benedict'}
 for d in range(7):
     prob += hexpr(d,14)>=twoTar[d]
     prob += hexpr(d,14)<=twoTar[d]+1
@@ -139,7 +142,7 @@ for d in range(7):
         prob += hexpr(d,16)<=fourTar[d]+2
     prob += hexpr(d,15.5)<=9
     prob += hexpr(d,16.5)<=8
-    prob += pulp.lpSum(x[(n,d,i)] for n in people if n!='John Martin (Jay)' for i,(a,b) in enumerate(shifts[(n,d)]) if a<=10)==Otar[d]
+    prob += pulp.lpSum(x[(n,d,i)] for (n,i,a,b,pv) in SD[d] if n!='John Martin (Jay)' and a<=10)==Otar[d]
     prob += sumif(d,lambda a,b: a<=12<b)>=Ltar[d]
     prob += sumif(d,lambda a,b: b>17)>=Dtar[d]
     prob += sumif(d,lambda a,b: b>=22.5)>=Ctar[d]
@@ -159,28 +162,24 @@ for d in range(7):
     prob += sumif(d,lambda a,b: b>17, weak3)<=1
     # Late arrivals: at most 1 person may start at each of 5:15, 5:30, 5:45, and 6:00pm.
     for _st in (17.25, 17.5, 17.75, 18):
-        prob += pulp.lpSum(x[(n,d,i)] for n in people for i,(a,b) in enumerate(shifts[(n,d)]) if a==_st)<=1
+        prob += pulp.lpSum(x[(n,d,i)] for (n,i,a,b,pv) in SD[d] if a==_st)<=1
     # Stagger evening departures among FLEXIBLE staff (non-leaders/managers): up to 2 end at 8:00pm
     # and 2 at 8:30pm (8:15/8:45 banned in gen). Fri/Sat allow only 1 at 8:00. Leaders/managers (PB)
     # are exempt — their shifts stand regardless; the cap governs the flexible staff.
     _cap_8 = 1 if d in (4,5) else 2
-    prob += pulp.lpSum(x[(n,d,i)] for n in people for i,(a,b) in enumerate(shifts[(n,d)])
-                       if b==20.0 and n not in PB)<=_cap_8
-    prob += pulp.lpSum(x[(n,d,i)] for n in people for i,(a,b) in enumerate(shifts[(n,d)])
-                       if b==20.5 and n not in PB)<=2
+    prob += pulp.lpSum(x[(n,d,i)] for (n,i,a,b,pv) in SD[d] if b==20.0 and n not in PB)<=_cap_8
+    prob += pulp.lpSum(x[(n,d,i)] for (n,i,a,b,pv) in SD[d] if b==20.5 and n not in PB)<=2
     # NEW CHANGE 2: at most 2 people LEAVE at 2pm or 2:30pm (cap bunched departures)
-    prob += pulp.lpSum(x[(n,d,i)] for n in people for i,(a,b) in enumerate(shifts[(n,d)]) if b in (14,14.5))<=2
-    # NEW CHANGE 4: never have >1 of Gobi/James/Trinity closing same day; if Gobi or Trinity
-    #   closes, James must NOT close (move James to mid/open). Enforce: at most 1 of the three closes.
-    prob += pulp.lpSum(x[(n,d,i)] for n in ('Gobi Weathers','James Baker','Trinity Stringer') for i,(a,b) in enumerate(shifts[(n,d)]) if b>=22)<=1
+    prob += pulp.lpSum(x[(n,d,i)] for (n,i,a,b,pv) in SD[d] if b in (14,14.5))<=2
+    # NEW CHANGE 4: never have >1 of Gobi/James/Trinity closing same day
+    prob += pulp.lpSum(x[(n,d,i)] for (n,i,a,b,pv) in SD[d] if n in _trio and b>=22)<=1
     # CHANGE 7: closers at target (allow exactly Ctar or one under to stay feasible)
     prob += sumif(d,lambda a,b: b>=22.5)<=Ctar[d]
     prob += sumif(d,lambda a,b: b>=22.5)>=Ctar[d]-1
-    # STAGGER: at most 2 openers (ex-Jay) may start before 9:15 (i.e. exactly at 9 or earlier, excluding Bowen-8 anchor)
-    # Count openers starting at <=9.0 (the "9:00 bunch"), cap at 2 (plus Bowen's 8am anchor allowed)
-    prob += pulp.lpSum(x[(n,d,i)] for n in people if n not in ('John Martin (Jay)','Bowen Benedict') for i,(a,b) in enumerate(shifts[(n,d)]) if a<=9)<=2
+    # STAGGER: at most 2 openers (ex-Jay/Bowen) may start at <=9
+    prob += pulp.lpSum(x[(n,d,i)] for (n,i,a,b,pv) in SD[d] if n not in _no_early and a<=9)<=2
     # PREP at 9: at least one prep person starts at <=9 (ensures a prep opener)
-    prob += pulp.lpSum(x[(n,d,i)] for n in prep for i,(a,b) in enumerate(shifts[(n,d)]) if a<=9)>=1
+    prob += pulp.lpSum(x[(n,d,i)] for (n,i,a,b,pv) in SD[d] if n in prep and a<=9)>=1
 
 for n in people:
     if n=='John Martin (Jay)': continue
@@ -262,13 +261,12 @@ for n in people:
     zero_pen.append(z)
 
 # Objective: hit +40, minimize zero-shift people (big penalty), minimize weak5 usage (small)
-def paid_val(n,a,b):
-    r=b-a; return r if n in NO_BREAK else (r-0.5 if r>=5 else r)
-total_paid=pulp.lpSum(x[(n,d,i)]*paid_val(n,*shifts[(n,d)][i]) for n in people for d in range(7) for i in range(len(shifts[(n,d)])))
+# SD already carries pv=paid_val(n,a,b) — use it directly everywhere paid hours are needed.
+total_paid=pulp.lpSum(x[(n,d,i)]*pv for d in range(7) for (n,i,a,b,pv) in SD[d])
 # Per-day labor balance: keep each day's paid hours within a reasonable band of its allowed,
 # so the weekly +40 slack doesn't pile onto one day / starve another (esp. with 15-min increments).
 for d in range(7):
-    day_paid=pulp.lpSum(x[(n,d,i)]*paid_val(n,*shifts[(n,d)][i]) for n in people for i in range(len(shifts[(n,d)])))
+    day_paid=pulp.lpSum(x[(n,d,i)]*pv for (n,i,a,b,pv) in SD[d])
     prob += day_paid >= allowed[d]-3      # no day more than 3h under its allowed budget
     prob += day_paid <= allowed[d]+14     # and not wildly over
 
@@ -276,21 +274,21 @@ TARGET=sum(allowed)+30
 dev=pulp.LpVariable('dev',lowBound=0)
 prob += total_paid-TARGET<=dev
 prob += TARGET-total_paid<=dev
-weak_use=pulp.lpSum(x[(n,d,i)] for n in weak5 for d in range(7) for i in range(len(shifts[(n,d)])))
+weak_use=pulp.lpSum(x[(n,d,i)] for d in range(7) for (n,i,a,b,pv) in SD[d] if n in weak5)
 # Preference: favor short 4-4.5h shifts (no break) over 5-5.5h shifts (which lose 0.5h to break).
 # Same labor, more days, no break to manage. Light penalty on 5-5.5h shifts for non-managers.
-short_pref=pulp.lpSum(x[(n,d,i)] for n in people if n not in NO_BREAK
-                      for d in range(7) for i,(a,b) in enumerate(shifts[(n,d)]) if 5<=(b-a)<=5.5)
+short_pref=pulp.lpSum(x[(n,d,i)] for d in range(7) for (n,i,a,b,pv) in SD[d]
+                      if n not in NO_BREAK and 5<=(b-a)<=5.5)
 prob += dev + 50*pulp.lpSum(zero_pen) + 8*weak_use + 0.3*short_pref
 
 print(f"Vars: {len(x)}. Solving with HiGHS...")
 prob.solve(pulp.HiGHS(msg=False,timeLimit=240,gapRel=0.01))
 print("Status:",pulp.LpStatus[prob.status],"| paid",pulp.value(total_paid),"| dev",pulp.value(dev),"| zeros",sum(1 for z in zero_pen if z.value() and z.value()>0.5))
 sol={n:[None]*7 for n in people}
-for n in people:
-    for d in range(7):
-        for i,(a,b) in enumerate(shifts[(n,d)]):
-            if x[(n,d,i)].value() and x[(n,d,i)].value()>0.5: sol[n][d]=[a,b]
+for d in range(7):
+    for (n,i,a,b,pv) in SD[d]:
+        v=x[(n,d,i)].value()
+        if v and v>0.5: sol[n][d]=[a,b]
 with open(_OUT,'w') as _f: json.dump(sol,_f)
 with open(_OUT_ACTIVE,'w') as _f: json.dump({n:sh for n,sh in sol.items() if any(sh)},_f)
 
