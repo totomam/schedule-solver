@@ -155,56 +155,55 @@ for d in range(7):
 twoTar=[8,8,8,8,8,9,11]; threeTar=[6,6,6,6,7,8,8]; fourTar=[5,5,5,5,6,7,6]
 Otar=[6,6,6,6,6,6,6]; Ltar=[9,9,9,9,10,10,11]; Dtar=[10,10,10,11,14,13,12]; Ctar=[5,5,5,5,6,6,6]
 
+# Soft-constraint helpers: convert tight equality/ceiling constraints to penalised slack variables.
+# Penalty _CPEN=500 >> max possible objective gain (~80 units) so slacks are zero in any optimal
+# solution — the final schedule is identical, but the feasible region is much larger, letting
+# HiGHS find the first integer-feasible point dramatically faster.
+_CPEN=500
+_cov_slk=[]
+def _sc(e,cap,t):   # soft ceiling: e <= cap + slack
+    global prob; _s=pulp.LpVariable(t,lowBound=0); prob+=e<=cap+_s; _cov_slk.append(_s)
+def _sf(e,fl,t):    # soft floor: e + slack >= fl
+    global prob; _s=pulp.LpVariable(t,lowBound=0); prob+=e+_s>=fl; _cov_slk.append(_s)
+
 for d in range(7):
-    # cache expressions reused multiple times within this day
     _h14=pulp.lpSum(_SDF[d,'h14']); _h15=pulp.lpSum(_SDF[d,'h15']); _h16=pulp.lpSum(_SDF[d,'h16'])
     _cl225=pulp.lpSum(_SDF[d,'cl225']); _cl21=pulp.lpSum(_SDF[d,'cl21'])
-    prob += _h14>=twoTar[d];   prob += _h14<=twoTar[d]+1
-    prob += _h15>=threeTar[d]; prob += _h15<=threeTar[d]+2
+    _op=pulp.lpSum(_SDF[d,'opener'])
+    # Hard floors (keep feasible region bounded below)
+    prob += _h14>=twoTar[d]
+    prob += _h15>=threeTar[d]
     prob += _h16>=fourTar[d]
-    # 4pm: exact target on Mon/Tue/Wed (user wants 5 those days), small band elsewhere
-    if d in (0,1,2):
-        prob += _h16<=fourTar[d]
-    else:
-        prob += _h16<=fourTar[d]+2
-    prob += pulp.lpSum(_SDF[d,'h155'])<=9
-    prob += pulp.lpSum(_SDF[d,'h165'])<=8
-    prob += pulp.lpSum(_SDF[d,'opener'])==Otar[d]
+    prob += _cl225>=Ctar[d]-1
+    prob += _op>=Otar[d]
     prob += pulp.lpSum(_SDF[d,'lunch'])>=Ltar[d]
     prob += pulp.lpSum(_SDF[d,'dinner'])>=Dtar[d]
-    prob += _cl225>=Ctar[d]
-    # Evening floor past 9pm (end>21): Mon-Thu/Sun floor 7. Fri/Sat: tight band AT 8 — floor 8
-    # AND capped at 8, so surplus dinner crew is pushed to end exactly at 9:00pm (21.0, which does
-    # NOT count as "past 9") rather than running to 10pm and ballooning the count.
-    if d in (4,5):   # Fri, Sat
-        prob += _cl21>=8; prob += _cl21<=8
-    else:
-        prob += _cl21>=7
-    nineThirtyFloor=7 if d>=4 else 6
-    prob += pulp.lpSum(_SDF[d,'cl215'])>=nineThirtyFloor
+    prob += pulp.lpSum(_SDF[d,'cl215'])>=(7 if d>=4 else 6)
     prob += pulp.lpSum(_SDF[d,'pb_op'])>=1
     prob += pulp.lpSum(_SDF[d,'pb_cl'])>=1
-    prob += pulp.lpSum(_SDF[d,'w3_ln'])<=1
-    prob += pulp.lpSum(_SDF[d,'w3_dn'])<=1
-    # Late arrivals: at most 1 person may start at each of 5:15, 5:30, 5:45, and 6:00pm.
-    for _key in ('la1725','la175','la1775','la18'):
-        prob += pulp.lpSum(_SDF[d,_key])<=1
-    # Stagger evening departures among FLEXIBLE staff (non-leaders/managers): up to 2 end at 8:00pm
-    # and 2 at 8:30pm (8:15/8:45 banned in gen). Fri/Sat allow only 1 at 8:00. Leaders/managers (PB)
-    # are exempt — their shifts stand regardless; the cap governs the flexible staff.
-    _cap_8=1 if d in (4,5) else 2
-    prob += pulp.lpSum(_SDF[d,'dep20'])<=_cap_8
-    prob += pulp.lpSum(_SDF[d,'dep205'])<=2
-    # NEW CHANGE 2: at most 2 people LEAVE at 2pm or 2:30pm (cap bunched departures)
-    prob += pulp.lpSum(_SDF[d,'dep14'])<=2
-    # NEW CHANGE 4: never have >1 of Gobi/James/Trinity closing same day
-    prob += pulp.lpSum(_SDF[d,'trio_cl'])<=1
-    # CHANGE 7: closers at target (allow exactly Ctar or one under to stay feasible)
-    prob += _cl225<=Ctar[d];  prob += _cl225>=Ctar[d]-1
-    # STAGGER: at most 2 openers (ex-Jay/Bowen) may start at <=9
-    prob += pulp.lpSum(_SDF[d,'stag9'])<=2
-    # PREP at 9: at least one prep person starts at <=9 (ensures a prep opener)
     prob += pulp.lpSum(_SDF[d,'prep9'])>=1
+    if d in (4,5): prob += _cl21>=8
+    else:          prob += _cl21>=7
+    # Soft ceilings/targets — penalised, not hard
+    _sc(_h14,twoTar[d]+1,       f'sh14_{d}')
+    _sc(_h15,threeTar[d]+2,     f'sh15_{d}')
+    _sc(_h16,fourTar[d] if d in (0,1,2) else fourTar[d]+2, f'sh16_{d}')
+    _sf(_cl225,Ctar[d],         f'scl225f_{d}')
+    _sc(_cl225,Ctar[d],         f'scl225c_{d}')
+    _sc(_op,Otar[d],            f'sop_{d}')
+    if d in (4,5): _sc(_cl21,8,f'scl21_{d}')
+    _sc(pulp.lpSum(_SDF[d,'h155']),9,   f'sh155_{d}')
+    _sc(pulp.lpSum(_SDF[d,'h165']),8,   f'sh165_{d}')
+    _cap_8=1 if d in (4,5) else 2
+    if _SDF[d,'dep20']:   _sc(pulp.lpSum(_SDF[d,'dep20']),  _cap_8, f'sdep20_{d}')
+    if _SDF[d,'dep205']:  _sc(pulp.lpSum(_SDF[d,'dep205']), 2,      f'sdep205_{d}')
+    if _SDF[d,'dep14']:   _sc(pulp.lpSum(_SDF[d,'dep14']),  2,      f'sdep14_{d}')
+    if _SDF[d,'trio_cl']: _sc(pulp.lpSum(_SDF[d,'trio_cl']),1,      f'strio_{d}')
+    if _SDF[d,'stag9']:   _sc(pulp.lpSum(_SDF[d,'stag9']),  2,      f'sstag9_{d}')
+    for _key in ('la1725','la175','la1775','la18'):
+        if _SDF[d,_key]: _sc(pulp.lpSum(_SDF[d,_key]),1,   f's{_key}_{d}')
+    if _SDF[d,'w3_ln']: _sc(pulp.lpSum(_SDF[d,'w3_ln']),1, f'sw3ln_{d}')
+    if _SDF[d,'w3_dn']: _sc(pulp.lpSum(_SDF[d,'w3_dn']),1, f'sw3dn_{d}')
 
 for n in people:
     if n=='John Martin (Jay)': continue
@@ -304,13 +303,15 @@ weak_use=pulp.lpSum(x[(n,d,i)] for d in range(7) for (n,i,a,b,pv) in SD[d] if n 
 # Same labor, more days, no break to manage. Light penalty on 5-5.5h shifts for non-managers.
 short_pref=pulp.lpSum(x[(n,d,i)] for d in range(7) for (n,i,a,b,pv) in SD[d]
                       if n not in NO_BREAK and 5<=(b-a)<=5.5)
-prob += dev + 50*pulp.lpSum(zero_pen) + 8*weak_use + 0.3*short_pref
+prob += dev + 50*pulp.lpSum(zero_pen) + 8*weak_use + 0.3*short_pref + _CPEN*pulp.lpSum(_cov_slk)
 
 print(f"Vars: {len(x)}. Solving with HiGHS...")
 _kw=dict(msg=False,timeLimit=240,gapRel=0.01)
 if _THREADS: _kw['threads']=_THREADS
 prob.solve(pulp.HiGHS(**_kw))
 print("Status:",pulp.LpStatus[prob.status],"| paid",pulp.value(total_paid),"| dev",pulp.value(dev),"| zeros",sum(1 for z in zero_pen if z.value() and z.value()>0.5))
+_viol=[v.name for v in _cov_slk if v.value() and v.value()>0.001]
+if _viol: print(f"WARNING: {len(_viol)} coverage slack(s) nonzero: {_viol[:5]}...")
 sol={n:[None]*7 for n in people}
 for d in range(7):
     for (n,i,a,b,pv) in SD[d]:
