@@ -1,3 +1,6 @@
 __pycache__/
 *.pyc
 schedule*.json
+schedule*.xlsx
+test_*.json
+test_*.xlsx
