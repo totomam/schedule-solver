@@ -159,8 +159,8 @@ for d in range(7):
     _SDF[d,'stag9'] =[x[(n,d,i)] for (n,i,a,b,pv) in sd if n not in _no_early and a<=9]
     _SDF[d,'prep9'] =[x[(n,d,i)] for (n,i,a,b,pv) in sd if n in prep and a<=9]
 
-twoTar=[8,8,8,8,8,9,11]; threeTar=[6,6,6,6,7,8,9]; fourTar=[5,5,5,5,6,7,6]
-Otar=[6,6,6,6,6,6,6]; Ltar=[9,9,9,9,10,10,11]; Dtar=[10,10,10,11,14,13,12]; Ctar=[5,5,5,5,6,6,5]
+twoTar=[8,8,8,8,8,9,11]; threeTar=[6,6,6,6,7,8,8]; fourTar=[5,5,5,5,6,7,6]
+Otar=[6,6,6,6,6,6,6]; Ltar=[9,9,9,9,10,10,11]; Dtar=[10,10,10,11,14,13,12]; Ctar=[5,5,5,5,6,6,6]
 
 # Soft-constraint helpers: convert tight equality/ceiling constraints to penalised slack variables.
 # Penalty _CPEN=500 >> max possible objective gain (~80 units) so slacks are zero in any optimal
