@@ -1,5 +1,6 @@
 import json, pulp, os
 from collections import defaultdict
+from datetime import datetime, timedelta
 _OUT = os.environ.get('SCHED_OUT', 'schedule.json')   # tests set SCHED_OUT to write elsewhere
 # Derive the "_active" path by stripping a trailing .json only, so the two outputs never collide
 # (str.replace would hit every '.json' in the path and would no-op when there's no extension).
@@ -57,14 +58,21 @@ fx('Trinity Stringer',4,17,23)
 # TUE leaders: Bowen 8-4 (open), Gobi 11-5 (late morning), James 11-8 (midday), Trinity 2-11 (afternoon-close), Mary 3-11 (close) -> spaced ✓
 # WED leaders: Bowen 8-4 (open), Gobi 9-5 (open/day), Trinity 9-4 (day), James 3-11 (close), Mary 3-11 (close) -> spaced ✓
 
-ANCH_START=[round(6+0.25*i,2) for i in range(int((18-6)/0.25)+1)]   # 6:00a–6:00p every 15 min
-ANCH_END=[round(13+0.25*i,2) for i in range(int((23-13)/0.25)+1)]   # 1:00p–11:00p every 15 min
+# Shift anchors: three real-world windows (9am-noon, 2pm-6pm, 8pm-11pm).
+# Noon-2pm (12:15-1:45) and 6pm-8pm (6:15-7:45) are dead zones — no starts or ends in between.
+# Boundaries (12:00, 14:00, 18:00, 20:00) are valid start/end times.
+ANCH_START = ([round(9  +0.25*i,2) for i in range(int((12-9 )/0.25)+1)]  # 9:00-12:00 (13 values)
+            + [round(14 +0.25*i,2) for i in range(int((18-14)/0.25)+1)]) # 14:00-18:00 (17 values)
+ANCH_END   = ([round(14 +0.25*i,2) for i in range(int((18-14)/0.25)+1)]  # 14:00-18:00 (17 values)
+            + [round(20 +0.25*i,2) for i in range(int((23-20)/0.25)+1)]) # 20:00-23:00 (13 values)
 def gen(n,d):
     w=avwin(n,d)
     if not w: return []
     lo,hi=w; out=[]; maxlen=10 if n in TEN_HR else 8
-    # Only managers/shift leaders may start before 9am. Everyone else: earliest start 9:00.
+    # Only Jay and Bowen may start before 9am freely (fixed early schedules).
+    # All other PB members restricted to 9am min via gen(); fixed-shift overrides still apply.
     if n not in PB: lo=max(lo,9)
+    elif n not in ('John Martin (Jay)','Bowen Benedict'): lo=max(lo,9)
     # Molly never works past 5pm
     if n=='Molly Summers': hi=min(hi,17)
     for a in ANCH_START:
@@ -72,13 +80,12 @@ def gen(n,d):
         for b in ANCH_END:
             if b<=a or b>hi: continue
             L=b-a
-            # Forbidden end times: no shift may end strictly between 5:00pm and 8:00pm, nor at
-            # 8:15pm or 8:45pm (evening departures land only at 8:00, 8:30, or 9:00+). 5:00 & 8:00 ok.
+            # Forbidden end times: dead zone 6pm-8pm (18:15-19:45), plus 8:15pm and 8:45pm
+            # (evening departures land only at 8:00, 8:30, or 9:00+). 6:00pm & 8:00pm ok.
             # Also no one may end before 2pm (before 3pm on Sunday) — hard rule, no exceptions.
-            if L<4 or L>maxlen or (17 < b < 20) or b in (20.25, 20.75): continue
+            if L<4 or L>maxlen or (18 < b < 20) or b in (20.25, 20.75): continue
             min_end = 15 if d==6 else 14   # Sunday: nobody leaves before 3pm; else 2pm
             if b<min_end: continue
-            if n=='Adam Van Bogaert' and b!=23: continue   # Adam always closes at 11pm
             out.append((round(a,2),round(b,2)))
     return out
 
@@ -226,8 +233,9 @@ for n in FT_nonleader:
     if len(avail_days(n))>=5:
         prob += hours_expr(n)>=35; prob += hours_expr(n)<=40
     else: prob += hours_expr(n)<=40
-# CHANGE 1: Adam exactly 40h
-prob += hours_expr('Adam Van Bogaert')==40
+# Adam has req-off Fri this week → 4 avail days (Mon-Thu). Dead zone caps starts at 2pm, max 9h/day.
+# Max achievable raw hours = 4×9h = 36. Target ≥35 (push to full 4-day coverage).
+prob += hours_expr('Adam Van Bogaert')>=35
 # CHANGE 5: Zac Duffy more hours (wants 30+, 10h-OK, available 4 days)
 prob += hours_expr('Zac Duffy')>=28
 # CHANGE 3: Cai, Hayden, Logan more hours (target >=15h each, within their availability)
@@ -317,7 +325,7 @@ short_pref=pulp.lpSum(x[(n,d,i)] for d in range(7) for (n,i,a,b,pv) in SD[d]
 prob += dev + 50*pulp.lpSum(zero_pen) + 8*weak_use + 0.3*short_pref + _CPEN*pulp.lpSum(_cov_slk)
 
 print(f"Vars: {len(x)}. Solving with HiGHS...")
-_kw=dict(msg=False,timeLimit=240,gapRel=0.01)
+_kw=dict(msg=False,timeLimit=240,gapRel=0.01,mip_heuristic_effort=0.25)
 if _THREADS: _kw['threads']=_THREADS
 prob.solve(pulp.HiGHS(**_kw))
 print("Status:",pulp.LpStatus[prob.status],"| paid",pulp.value(total_paid),"| dev",pulp.value(dev),"| zeros",sum(1 for z in zero_pen if z.value() and z.value()>0.5))
@@ -331,25 +339,255 @@ for d in range(7):
 with open(_OUT,'w') as _f: json.dump(sol,_f)
 with open(_OUT_ACTIVE,'w') as _f: json.dump({n:sh for n,sh in sol.items() if any(sh)},_f)
 
-# ---- Compact status summary (replaces a separate audit pass) ----
+# ---- Compact status summary ----
 def _pd(sh,n):
     if not sh: return 0
     r=sh[1]-sh[0]; return r if n in NO_BREAK else (r-0.5 if r>=5 else r)
 def _hd(d,t): return sum(1 for n in sol if sol[n][d] and sol[n][d][0]<=t<sol[n][d][1])
 def _O(d): return sum(1 for n in sol if n!='John Martin (Jay)' and sol[n][d] and sol[n][d][0]<=10)
 def _C(d): return sum(1 for n in sol if sol[n][d] and sol[n][d][1]>=22.5)
-print(f"{'Day':4}{'Var':>6}  O/L/D/C   2pm/3pm/4pm  9p/930")
-miss=[]
+# ★ = over target (excess labor/coverage); ! = under target (shortage); blank = on target
+def _ck(v,t,exact=True):
+    if v>t: return '★'
+    if v<t: return '!'
+    return ' '
+def _ckf(v,t): return '!' if v<t else ' '  # floor only: flag if under
+
+print(f"Day  Var    O   L    D   C  9p 930  2pm  3pm  4pm")
 for d in range(7):
     var=sum(_pd(sol[n][d],n) for n in sol)-allowed[d]
     L=sum(1 for n in sol if sol[n][d] and sol[n][d][0]<=12<sol[n][d][1])
     D=sum(1 for n in sol if sol[n][d] and sol[n][d][1]>17)
-    print(f"{dn[d]:4}{var:+6.1f}  {_O(d)}/{L}/{D}/{_C(d)}   {_hd(d,14)}/{_hd(d,15)}/{_hd(d,16)}     {_hd(d,21)}/{_hd(d,21.5)}")
+    O=_O(d); C=_C(d); h14=_hd(d,14); h15=_hd(d,15); h16=_hd(d,16)
+    cl21=_hd(d,21); cl215=_hd(d,21.5)
+    print(f"{dn[d]:3}{var:+6.1f}  "
+          f"{O}{_ck(O,Otar[d])}"
+          f"{L:3}{_ckf(L,Ltar[d])}"
+          f"{D:4}{_ckf(D,Dtar[d])}"
+          f"{C:3}{_ck(C,Ctar[d])}"
+          f"  {cl21:2}/{cl215:2}"
+          f"  {h14}{_ck(h14,twoTar[d])}"
+          f"{h15:3}{_ck(h15,threeTar[d])}"
+          f"{h16:3}{_ck(h16,fourTar[d])}")
 tot=sum(_pd(sol[n][d],n) for n in sol for d in range(7))-sum(allowed)
-# Key individual hour targets (only flag misses)
-for nm,want in [('Adam Van Bogaert',40),('James Baker',40),('Myles Palmer',45),('Zac Duffy',28)]:
-    h=sum((sh[1]-sh[0]) for sh in sol.get(nm,[]) if sh)
-    tag='' if abs(h-want)<0.01 or (want==28 and h>=28) else f'  <-- want {want}'
-    if tag: miss.append(f'{nm}={h:.1f}{tag}')
 print(f"TOTAL var: {tot:+.1f} | Status {pulp.LpStatus[prob.status]}")
-if miss: print("HOUR MISSES:", '; '.join(miss))
+
+# ---- Inline rules audit ----
+_fails=[]
+# 12h close-then-open
+for n in people:
+    for d in range(6):
+        s0=sol[n][d]; s1=sol[n][d+1]
+        if s0 and s1 and s0[1]>21 and s1[0]<s0[1]-12:
+            _fails.append(f"12h: {n} {dn[d]}end={s0[1]} {dn[d+1]}start={s1[0]}")
+# Leader open and close each day
+for d in range(7):
+    if not any(sol[n][d] and sol[n][d][0]<=10 for n in PB):
+        _fails.append(f"LeaderOpen: {dn[d]} no leader/manager opens")
+    if not any(sol[n][d] and sol[n][d][1]>=22 for n in PB):
+        _fails.append(f"LeaderClose: {dn[d]} no leader/manager closes")
+# Trio at most 1 close per day
+for d in range(7):
+    tc=sum(1 for n in _trio if sol[n][d] and sol[n][d][1]>=22)
+    if tc>1: _fails.append(f"TrioClose: {dn[d]} {tc} of Gobi/James/Trinity closing")
+# Overtime / hours targets
+for n in people:
+    raw=sum(sol[n][d][1]-sol[n][d][0] for d in range(7) if sol[n][d])
+    if n not in ('John Martin (Jay)','Myles Palmer') and raw>40.01:
+        _fails.append(f"OT: {n} {raw:.1f}h")
+    if n=='Adam Van Bogaert' and raw<34.9:
+        _fails.append(f"Adam hours: {raw:.1f} (want ≥35 this week, Fri req-off)")
+    if n=='Zac Duffy' and raw<27.9:
+        _fails.append(f"Zac hours: {raw:.1f} (want 28+)")
+    if n=='Myles Palmer' and raw<44.9:
+        _fails.append(f"Myles hours: {raw:.1f} (want 45)")
+for nm,want in [('James Baker',40),('Trinity Stringer',40),('Gobi Weathers',37)]:
+    raw=sum(sol[nm][d][1]-sol[nm][d][0] for d in range(7) if sol[nm][d])
+    if raw<want-0.1: _fails.append(f"{nm}: {raw:.1f}h (want {want})")
+# No starts before 9am except authorised people
+_pre9_ok={'John Martin (Jay)','Bowen Benedict'}
+for n in people:
+    for d in range(7):
+        sh=sol[n][d]
+        if not sh: continue
+        ok = n in _pre9_ok or (n=='Gobi Weathers' and d==5) or (n=='James Baker' and d==6)
+        if sh[0]<9 and not ok:
+            _fails.append(f"EarlyStart: {n} {dn[d]} {sh[0]}")
+# No one ends before 2pm (3pm Sunday)
+for n in people:
+    for d in range(7):
+        sh=sol[n][d]
+        if sh and sh[1]<(15 if d==6 else 14):
+            _fails.append(f"EarlyEnd: {n} {dn[d]} end={sh[1]}")
+# Molly never past 5pm
+for d in range(7):
+    sh=sol.get('Molly Summers',[None]*7)[d]
+    if sh and sh[1]>17: _fails.append(f"MollyLate: {dn[d]} end={sh[1]}")
+# Coverage slacks (soft constraints violated)
+_sviol=[v.name for v in _cov_slk if v.value() and v.value()>0.001]
+if _sviol: _fails.append(f"CovSlack({len(_sviol)}): {_sviol[:4]}{'...' if len(_sviol)>4 else ''}")
+
+print(f"Audit: {'PASS' if not _fails else str(len(_fails))+' issue(s):'}")
+for _f in _fails: print(f"  {_f}")
+
+# ---- Excel output ----
+def _hfmt(h):
+    hi=int(h); mi=round((h-hi)*60)
+    if mi==60: hi+=1; mi=0
+    if hi<12:   return f'{hi:02d}:{mi:02d}a'
+    elif hi==12: return f'12:{mi:02d}p'
+    else:        return f'{hi-12:02d}:{mi:02d}p'
+
+def _write_xlsx(out_xlsx):
+    try:
+        import openpyxl
+        from openpyxl.styles import Font, PatternFill, Alignment
+        from openpyxl.utils import get_column_letter
+    except ImportError:
+        print("openpyxl not installed — skipping Excel output (pip install openpyxl)"); return
+
+    GRAY = PatternFill('solid', fgColor='404040')
+    WB10 = Font(color='FFFFFF', bold=True, size=10)
+    WB9  = Font(color='FFFFFF', bold=True, size=9)
+    P10  = Font(size=10)
+    BD10 = Font(size=10, bold=True)
+    CTR  = Alignment(horizontal='center')
+
+    wb = openpyxl.Workbook(); ws = wb.active; ws.title = 'Schedule'
+
+    # Week start date for column headers
+    ws_date = fc.get('week_start')
+    if ws_date:
+        dt0 = datetime.strptime(ws_date, '%Y-%m-%d')
+        day_labels = [f'{dn[i]} {(dt0+timedelta(days=i)).strftime("%m/%d")}' for i in range(7)]
+    else:
+        day_labels = list(dn)
+
+    # Column layout: A=name, B-D=Mon, E-G=Tue, ... T-V=Sun, W=Total
+    def _dc(d): return 2+d*3, 3+d*3, 4+d*3  # (TimeIn, TimeOut, Hours) cols for day d
+    hrs_cols = [4+d*3 for d in range(7)]      # D, G, J, M, P, S, V
+
+    # Column widths
+    ws.column_dimensions['A'].width = 22
+    ws.column_dimensions['W'].width = 9
+    for d in range(7):
+        ci, co, ch = _dc(d)
+        ws.column_dimensions[get_column_letter(ci)].width = 7
+        ws.column_dimensions[get_column_letter(co)].width = 7
+        ws.column_dimensions[get_column_letter(ch)].width = 6
+
+    # Row 1 — day headers (merged)
+    def _hdr(r, c, v, fnt, fill=GRAY, aln=None):
+        cell = ws.cell(r, c, v); cell.font = fnt; cell.fill = fill
+        if aln: cell.alignment = aln
+
+    _hdr(1, 1, 'Employee Name', WB10)
+    _hdr(1, 23, 'Total Hours', WB10, aln=CTR)
+    for d in range(7):
+        ci, _, ch = _dc(d)
+        ws.merge_cells(start_row=1, start_column=ci, end_row=1, end_column=ch)
+        _hdr(1, ci, day_labels[d], WB10, aln=CTR)
+
+    # Row 2 — sub-headers
+    for d in range(7):
+        ci, co, ch = _dc(d)
+        for col, label in [(ci,'Time In'),(co,'Time Out'),(ch,'Hours')]:
+            _hdr(2, col, label, WB9, aln=CTR)
+
+    # Employee rows (sorted alphabetically)
+    sorted_ppl = sorted(sol.keys())
+    for idx, n in enumerate(sorted_ppl):
+        r = idx + 3
+        ws.cell(r, 1, n).font = P10
+        for d in range(7):
+            ci, co, ch = _dc(d)
+            sh = sol[n][d]
+            if sh:
+                ws.cell(r, ci, _hfmt(sh[0])).font = P10
+                ws.cell(r, co, _hfmt(sh[1])).font = P10
+                ws.cell(r, ch, round(sh[1]-sh[0], 4)).font = P10
+            else:
+                ws.cell(r, ci, 'X').font = P10
+                ws.cell(r, co, 'X').font = P10
+                ws.cell(r, ch, 0).font = P10
+        hrs_formula = '+'.join(f'{get_column_letter(c)}{r}' for c in hrs_cols)
+        ws.cell(r, 23, f'={hrs_formula}').font = P10
+
+    last_emp = 2 + len(sorted_ppl)
+    sr = last_emp + 2  # blank row then summary
+
+    # Schedule Summary section
+    ws.cell(sr, 1, 'Schedule Summary').font = BD10
+    sr += 1
+
+    summary_fields = [
+        ('Forecasted Sales',      fc.get('forecasted_sales', ['']*7)),
+        ('  Inline Sales',         fc.get('inline_sales', ['']*7)),
+        ('  Digital Sales',        fc.get('digital_sales', ['']*7)),
+        ('Allowed Hours',          allowed),
+        ('  CAP Allowed',          fc.get('cap_allowed', ['']*7)),
+        ('  Inline Sales Allowed', fc.get('inline_sales_allowed', ['']*7)),
+        ('  Digital Sales Allowed',fc.get('digital_sales_allowed', ['']*7)),
+    ]
+    allowed_row = None
+    for label, vals in summary_fields:
+        ws.cell(sr, 1, label)
+        if label == 'Allowed Hours': allowed_row = sr
+        for d in range(7):
+            v = vals[d] if d < len(vals) else ''
+            if v != '': ws.cell(sr, _dc(d)[0], v)
+        ws.cell(sr, 23, f'=SUM(B{sr}:T{sr})')
+        sr += 1
+
+    # Scheduled Hours (paid)
+    paid_row = sr
+    ws.cell(paid_row, 1, 'Scheduled Hours (paid)').font = BD10
+    for d in range(7):
+        paid_d = round(sum(_pd(sol[n][d], n) for n in sol), 4)
+        ws.cell(paid_row, _dc(d)[0], paid_d).font = BD10
+    ws.cell(paid_row, 23, f'=SUM(B{paid_row}:T{paid_row})').font = BD10
+    sr += 1
+
+    # Variance Hours
+    ws.cell(sr, 1, 'Variance Hours')
+    for d in range(7):
+        cl = get_column_letter(_dc(d)[0])
+        ws.cell(sr, _dc(d)[0], f'={cl}{paid_row}-{cl}{allowed_row}')
+    ws.cell(sr, 23, f'=SUM(B{sr}:T{sr})')
+    sr += 1
+
+    # Productivity $/Hr
+    ws.cell(sr, 1, 'Productivity $/Hr')
+    sales_row = last_emp + 3  # Forecasted Sales row
+    for d in range(7):
+        cl = get_column_letter(_dc(d)[0])
+        ws.cell(sr, _dc(d)[0], f'=IF({cl}{paid_row}=0,0,{cl}{sales_row}/{cl}{paid_row})')
+    ws.cell(sr, 23, f'=IF(W{paid_row}=0,0,W{sales_row}/W{paid_row})')
+    sr += 2
+
+    # Validation table
+    ws.cell(sr, 1, 'Final State').font = BD10
+    sr += 1
+    val_hdrs = ['Day','Var','Open','Lunch','Dinner','Close','2pm','3pm','4pm','9pm','9:30pm','10pm']
+    for i, h in enumerate(val_hdrs):
+        c = ws.cell(sr, i+1, h); c.font = WB10; c.fill = GRAY
+    sr += 1
+    for d in range(7):
+        var_d = round(sum(_pd(sol[n][d], n) for n in sol) - allowed[d], 4)
+        L = sum(1 for n in sol if sol[n][d] and sol[n][d][0]<=12<sol[n][d][1])
+        D = sum(1 for n in sol if sol[n][d] and sol[n][d][1]>17)
+        O = _O(d); C = _C(d)
+        h14=_hd(d,14); h15=_hd(d,15); h16=_hd(d,16)
+        cl21=_hd(d,21); cl215=_hd(d,21.5); cl22=_hd(d,22)
+        for i, v in enumerate([dn[d], f'{var_d:+.1f}', O, L, D, C, h14, h15, h16, cl21, cl215, cl22]):
+            ws.cell(sr, i+1, v)
+        sr += 1
+    tot = round(sum(_pd(sol[n][d], n) for n in sol for d in range(7)) - sum(allowed), 4)
+    ws.cell(sr, 1, 'TOTAL').font = BD10
+    ws.cell(sr, 2, f'{tot:+.1f}').font = BD10
+
+    wb.save(out_xlsx)
+    print(f"Excel saved → {out_xlsx}")
+
+_out_xlsx = (_base + '.xlsx')
+_write_xlsx(_out_xlsx)
