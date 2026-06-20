@@ -123,17 +123,6 @@ for n in people:
     for d in range(7):
         if shifts[(n,d)]: prob += pulp.lpSum(x[(n,d,i)] for i in range(len(shifts[(n,d)])))<=1
 
-# 12-hour close-then-open: if person ends at time b on day d, next-day start a must satisfy
-# (24-b)+a >= 12, i.e. a >= b-12. Applies whenever b > 21 (otherwise b-12 ≤ 9 = min start).
-for n in people:
-    for d in range(6):
-        for i,(a0,b0) in enumerate(shifts[(n,d)]):
-            if b0 <= 21: continue
-            min_next = b0 - 12
-            for j,(a1,b1) in enumerate(shifts[(n,d+1)]):
-                if a1 < min_next:
-                    prob += x[(n,d,i)] + x[(n,d+1,j)] <= 1
-
 # OPT: flatten the per-day (person, shift-index, start, end) tuples ONCE so the hot constraint
 # helpers don't rebuild the people x shifts cross product on every call.
 SD={d:[(n,i,a,b,paid_val(n,a,b)) for n in people for i,(a,b) in enumerate(shifts[(n,d)])] for d in range(7)}
@@ -325,7 +314,7 @@ short_pref=pulp.lpSum(x[(n,d,i)] for d in range(7) for (n,i,a,b,pv) in SD[d]
 prob += dev + 50*pulp.lpSum(zero_pen) + 8*weak_use + 0.3*short_pref + _CPEN*pulp.lpSum(_cov_slk)
 
 print(f"Vars: {len(x)}. Solving with HiGHS...")
-_kw=dict(msg=False,timeLimit=240,gapRel=0.01,mip_heuristic_effort=0.25)
+_kw=dict(msg=False,timeLimit=240,gapRel=0.01)
 if _THREADS: _kw['threads']=_THREADS
 prob.solve(pulp.HiGHS(**_kw))
 print("Status:",pulp.LpStatus[prob.status],"| paid",pulp.value(total_paid),"| dev",pulp.value(dev),"| zeros",sum(1 for z in zero_pen if z.value() and z.value()>0.5))
