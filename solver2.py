@@ -47,8 +47,10 @@ for d in range(5): fx('Bowen Benedict',d,8,16)
 fx('Gobi Weathers',0,16,23); fx('Gobi Weathers',1,11,17); fx('Gobi Weathers',2,9,17); fx('Gobi Weathers',5,9,17); fx('Gobi Weathers',6,15,23)
 # Mary: solver places her freely; Sat close pinned (only fixed day)
 fx('Mary Dean',5,15,23)  # Saturday close
-# James: Wed 3-11 close, Sun 8-4 open. TUE: leader Tue rule -> give midday (Trinity closes Tue, so James not close)
-# James: flexible (not pinned) — solver places him; 40h target added below.
+# James: Wed 3-11 close, Sun 8-4 open (8am leader anchor). TUE: leader Tue rule -> give midday (Trinity closes Tue, so James not close)
+# Rule: one shift leader always starts at 8am. Mon-Fri = Bowen; Sun = James; Sat = no leader available before 9am (Gobi 9am).
+fx('James Baker',2,15,23)  # Wed close
+fx('James Baker',6,8,16)   # Sun 8am open
 # Trinity: Mon 9-4, Tue 2-11 (close), Fri 5-11, Sat 9-4. WED: leader Wed rule -> James closes Wed,
 #   so Trinity gets a day/mid shift Wed (not close). Trinity Wed 'any' -> 9-4 (open/day).
 fx('Tiffany Huffman',0,9,16)
