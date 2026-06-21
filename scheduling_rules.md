@@ -256,7 +256,12 @@ Higher forecasted sales → higher targets. Use lunch/dinner targets as your pri
 - When shortening a dinner shift to save hours, pull it back to 5pm; when extending a midday shift, push it to 8pm+
 
 ### Evening closes
-- Stagger closers — some end at 9p, others 10p, others 10:30p, others 11p
+- **Closer end-time distribution (target for each day):**
+  - 2 people until 11:00pm
+  - 2 people until 10:30pm
+  - 1 person until 10:15pm
+  - 1 person until 10:45pm
+- On 5-closer days (Mon–Thu, Sun) the solver will naturally drop one slot (typically 10:45pm).
 - **Adam always closes at 11pm — every shift Adam works ends at 11:00pm (set pattern, Mon-Fri).**
 - Mary closes M-Sat at 11p (now a shift leader)
 - **Late-arrival caps: at most 1 person may start at each of 5:15pm, 5:30pm, 5:45pm, and 6:00pm** (one per slot, four separate caps). Don't stack late dinner starts — spread evening arrivals across earlier start times.

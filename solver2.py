@@ -210,8 +210,12 @@ for d in range(7):
     if _SDF[d,'dep205']:  _sc(pulp.lpSum(_SDF[d,'dep205']), 2,      f'sdep205_{d}')
     if _SDF[d,'dep14']:   _sc(pulp.lpSum(_SDF[d,'dep14']),  2,      f'sdep14_{d}')
     if _SDF[d,'trio_cl']: _sc(pulp.lpSum(_SDF[d,'trio_cl']),1,      f'strio_{d}')
-    for _key in ('e2225','e225','e2275','e23'):
-        if _SDF[d,_key]: _sc(pulp.lpSum(_SDF[d,_key]),2,            f's{_key}_{d}')
+    # Closer end-time staggering: 2×11pm, 2×10:30pm, 1×10:15pm, 1×10:45pm
+    for _key,_tgt in (('e23',2),('e225',2),('e2225',1),('e2275',1)):
+        if _SDF[d,_key]:
+            _e=pulp.lpSum(_SDF[d,_key])
+            _sf(_e,_tgt,f's{_key}f_{d}')
+            _sc(_e,_tgt,f's{_key}c_{d}')
     if _SDF[d,'stag9']:   _sc(pulp.lpSum(_SDF[d,'stag9']),  2,      f'sstag9_{d}')
     for _key in ('la1725','la175','la1775','la18'):
         if _SDF[d,_key]: _sc(pulp.lpSum(_SDF[d,_key]),1,   f's{_key}_{d}')
