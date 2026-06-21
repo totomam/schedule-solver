@@ -403,7 +403,7 @@ for n in people:
         _fails.append(f"Myles hours: {raw:.1f} (want 45)")
 for nm,lo,hi in [('James Baker',39,40),('Trinity Stringer',39,40),('Gobi Weathers',37,40)]:
     raw=sum(sol[nm][d][1]-sol[nm][d][0] for d in range(7) if sol[nm][d])
-    if raw<lo-0.1: _fails.append(f"{nm}: {raw:.1f}h (want {lo}-{hi})")
+    if raw<lo-0.1: _fails.append(f"{nm}: {raw:.2f}h (want {lo}-{hi})")
 # No starts before 9am except authorised people
 _pre9_ok={'John Martin (Jay)','Bowen Benedict'}
 for n in people:
