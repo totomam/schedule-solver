@@ -44,7 +44,7 @@ fx('Myles Palmer',4,12,21); fx('Myles Palmer',5,12,21)
 for d in range(5): fx('Bowen Benedict',d,8,16)
 # Gobi: Mon 4-11 close, Wed 9-5, Sat 9-5, Sun 3-11. TUE: must work (leader Tue rule) - 
 #   she closed Mon 11pm so 12hr rule -> Tue open >=11. Give Tue 11-5 (mid-day, spaced).
-fx('Gobi Weathers',0,16,23); fx('Gobi Weathers',1,11,17); fx('Gobi Weathers',2,9,17); fx('Gobi Weathers',5,9,17); fx('Gobi Weathers',6,15,23)
+fx('Gobi Weathers',0,16,23); fx('Gobi Weathers',1,11,17); fx('Gobi Weathers',2,9,17); fx('Gobi Weathers',5,8,16); fx('Gobi Weathers',6,15,23)
 # Mary: solver places her freely; Sat close pinned (only fixed day)
 fx('Mary Dean',5,15,23)  # Saturday close
 # James: Wed 3-11 close, Sun 8-4 open (8am leader anchor). TUE: leader Tue rule -> give midday (Trinity closes Tue, so James not close)
@@ -71,10 +71,12 @@ def gen(n,d):
     w=avwin(n,d)
     if not w: return []
     lo,hi=w; out=[]; maxlen=10 if n in TEN_HR else 8
-    # Only Jay and Bowen may start before 9am freely (fixed early schedules).
-    # All other PB members restricted to 9am min via gen(); fixed-shift overrides still apply.
+    # Only certain leaders/managers may start before 9am on their designated days.
+    # All others (and leaders on non-designated days) are floored at 9am.
     if n not in PB: lo=max(lo,9)
-    elif n not in ('John Martin (Jay)','Bowen Benedict'): lo=max(lo,9)
+    elif n not in ('John Martin (Jay)','Bowen Benedict'):
+        if not ((n in ('Gobi Weathers','Trinity Stringer') and d==5) or (n=='James Baker' and d==6)):
+            lo=max(lo,9)
     # Molly never works past 5pm
     if n=='Molly Summers': hi=min(hi,17)
     for a in ANCH_START:
@@ -417,7 +419,7 @@ for n in people:
     for d in range(7):
         sh=sol[n][d]
         if not sh: continue
-        ok = n in _pre9_ok or (n=='Gobi Weathers' and d==5) or (n=='James Baker' and d==6)
+        ok = n in _pre9_ok or (n in ('Gobi Weathers','Trinity Stringer') and d==5) or (n=='James Baker' and d==6)
         if sh[0]<9 and not ok:
             _fails.append(f"EarlyStart: {n} {dn[d]} {sh[0]}")
 # No one ends before 2pm (3pm Sunday)
