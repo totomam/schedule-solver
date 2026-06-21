@@ -262,8 +262,8 @@ Higher forecasted sales → higher targets. Use lunch/dinner targets as your pri
   - 1 person until 10:15pm
   - 1 person until 10:45pm
 - On 5-closer days (Mon–Thu, Sun) the solver will naturally drop one slot (typically 10:45pm).
-- **Adam always closes at 11pm — every shift Adam works ends at 11:00pm (set pattern, Mon-Fri).**
-- Mary closes M-Sat at 11p (now a shift leader)
+- **Adam always closes at 11pm — every shift Adam works ends at 11:00pm (set pattern, Mon-Fri).** Enforced in solver gen().
+- Mary: solver places her freely Mon–Fri; **Saturday only** is pinned as a 3–11pm close.
 - **Late-arrival caps: at most 1 person may start at each of 5:15pm, 5:30pm, 5:45pm, and 6:00pm** (one per slot, four separate caps). Don't stack late dinner starts — spread evening arrivals across earlier start times.
 
 ---
@@ -273,7 +273,7 @@ Higher forecasted sales → higher targets. Use lunch/dinner targets as your pri
 ### Set schedules (don't change without reason)
 - **Bowen**: Mon-Fri 8a-4p — **always a full 8a-4p, every day he works. Never short his hours** (don't trim him to 8-3, etc.)
 - **Adam**: Mon-Fri, **always ends at 11pm** (e.g. 4p-11p, or starts earlier when more hours are needed). Adam never ends before 11pm.
-- **Mary**: 3p-11p Mon-Sat (FT)
+- **Mary**: Sat 3p-11p (pinned); other days solver-placed within her 3p-11p avail window
 - **James**: any most days, Wed 3-11, Sun 8-4. **Does not close on any day Gobi or Trinity closes** (move him to mid/open that day).
 - **Trinity**: rotates between AM and PM days; usually Mon 9-4, Tue 2-11, Wed any, Thu any, Fri 5-11, Sat 9-4, Sun off
 - **Gobi**: Mon 4-11, Wed 9-5, Sat 9-5, Sun 3-11. **Tuesday opens at 11a (not 10a)** — opening earlier would break the 12-hour rule after her Monday 11pm close.
