@@ -2,6 +2,9 @@
 
 Complete reference for building the weekly schedule. Given availability sheet, request-off book, and sales forecast — apply these rules to produce the schedule.
 
+**Solver source (GitHub):** `https://raw.githubusercontent.com/totomam/schedule-solver/claude/optimize-fix-issues-fkh4sj/solver2.py`
+At the start of each session, `web_fetch` this URL to get the latest solver code before building or editing anything. If the branch changes, update this URL.
+
 ---
 
 ## 1. INPUTS NEEDED EACH WEEK
@@ -142,7 +145,7 @@ Higher forecasted sales → higher targets. Use lunch/dinner targets as your pri
 | Saturday | +15-20 |
 | Sunday | +10-15 |
 
-**Weekly target: total scheduled variance for the week is +25 to +30 over base allowed hours.** Any value in that window is acceptable — the solver treats the entire range as equally good rather than chasing a single number. Individual day variances will vary (busy days like Fri/Sat/Sun carry more, slow days less). Lower variance from a genuinely thin roster (e.g. a body-constrained day where availability runs out) is acceptable and reflects real availability, not under-scheduling.
+**Weekly target: total scheduled variance for the week is +25 to +30 over base allowed hours.** Any value in that range is acceptable — don't chase a single number. Individual day variances will vary (busy days like Fri/Sat/Sun carry more, slow days less). Lower variance from a genuinely thin roster is acceptable and reflects real availability, not under-scheduling.
 
 ---
 
@@ -307,11 +310,11 @@ When building a new schedule:
    - [ ] No one leaves before 2pm; Sunday no one leaves before 3pm
    - [ ] ≤2 people leave at 2:00/2:30pm; ≤2 people start at 5:30/6:00pm
    - [ ] Molly never past 5pm
-   - [ ] 2/3/4pm hard targets hit exactly (Mon-Thu 8/6/5; Fri-Sat 9/8/7; Sun 11/9/6)
+   - [ ] 2/3/4pm hard targets hit exactly (Mon-Thu 8/6/5; Fri 8/7/6; Sat 9/8/7; Sun 11/8/6)
    - [ ] Lunch hits day-target, dinner hits day-target
    - [ ] Openers (Jay never counts): 6 Mon-Fri, 5 Sat-Sun. Closers exactly 5/day (6 Fri-Sat)
    - [ ] Every available person gets at least one shift
-   - [ ] Weekly total variance lands around +40 (paid hours over allowed)
+   - [ ] Weekly total variance lands in the +25 to +30 range (paid hours over allowed)
    - [ ] No shift under 4h
 
 7. **Build the .xlsx** in reference format (employee rows alphabetical, with Schedule Summary at bottom)
