@@ -44,19 +44,21 @@ fx('Myles Palmer',4,12,21); fx('Myles Palmer',5,12,21)
 for d in range(5): fx('Bowen Benedict',d,8,16)
 # Gobi: Mon 4-11 close, Wed 9-5, Sat 9-5, Sun 3-11. TUE: must work (leader Tue rule) - 
 #   she closed Mon 11pm so 12hr rule -> Tue open >=11. Give Tue 11-5 (mid-day, spaced).
-fx('Gobi Weathers',0,16,23); fx('Gobi Weathers',1,11,17); fx('Gobi Weathers',2,9,17); fx('Gobi Weathers',5,9,17); fx('Gobi Weathers',6,15,23)
-# Mary: 3-11 close Mon-Sat, off Sun
-for d in [1,2,3,4,5]: fx('Mary Dean',d,15,23)  # Tue-Sat (Mon off to respect 5-day max)
-# James: Wed 3-11 close, Sun 8-4 open. TUE: leader Tue rule -> give midday (Trinity closes Tue, so James not close)
-# James: flexible (not pinned) — solver places him; 40h target added below.
+fx('Gobi Weathers',0,16,23); fx('Gobi Weathers',1,11,17); fx('Gobi Weathers',2,9,17); fx('Gobi Weathers',5,8,16); fx('Gobi Weathers',6,15,23)
+# Mary: solver places her freely; Sat close pinned (only fixed day)
+fx('Mary Dean',5,15,23)  # Saturday close
+# James: Wed 3-11 close, Sun 8-4 open (8am leader anchor). TUE: leader Tue rule -> give midday (Trinity closes Tue, so James not close)
+# Rule: one shift leader always starts at 8am. Mon-Fri = Bowen; Sun = James; Sat = no leader available before 9am (Gobi 9am).
+fx('James Baker',2,15,23)  # Wed close
+fx('James Baker',6,8,16)   # Sun 8am open
 # Trinity: Mon 9-4, Tue 2-11 (close), Fri 5-11, Sat 9-4. WED: leader Wed rule -> James closes Wed,
 #   so Trinity gets a day/mid shift Wed (not close). Trinity Wed 'any' -> 9-4 (open/day).
 fx('Tiffany Huffman',0,9,16)
 # Trinity: Friday close pinned; solver fills her other days to reach the 40h floor below.
 fx('Trinity Stringer',4,17,23)
 # --- Leader Tue/Wed coverage spaced through the day (per instruction) ---
-# TUE leaders: Bowen 8-4 (open), Gobi 11-5 (late morning), James 11-8 (midday), Trinity 2-11 (afternoon-close), Mary 3-11 (close) -> spaced ✓
-# WED leaders: Bowen 8-4 (open), Gobi 9-5 (open/day), Trinity 9-4 (day), James 3-11 (close), Mary 3-11 (close) -> spaced ✓
+# TUE leaders: Bowen 8-4 (open), Gobi 11-5 (late morning), James 11-8 (midday), Trinity 2-11 (afternoon-close), Mary solver-placed -> spaced ✓
+# WED leaders: Bowen 8-4 (open), Gobi 9-5 (open/day), Trinity 9-4 (day), James 3-11 (close), Mary solver-placed -> spaced ✓
 
 # Shift anchors: three real-world windows (9am-noon, 2pm-6pm, 8pm-11pm).
 # Noon-2pm (12:15-1:45) and 6pm-8pm (6:15-7:45) are dead zones — no starts or ends in between.
@@ -69,10 +71,12 @@ def gen(n,d):
     w=avwin(n,d)
     if not w: return []
     lo,hi=w; out=[]; maxlen=10 if n in TEN_HR else 8
-    # Only Jay and Bowen may start before 9am freely (fixed early schedules).
-    # All other PB members restricted to 9am min via gen(); fixed-shift overrides still apply.
+    # Only certain leaders/managers may start before 9am on their designated days.
+    # All others (and leaders on non-designated days) are floored at 9am.
     if n not in PB: lo=max(lo,9)
-    elif n not in ('John Martin (Jay)','Bowen Benedict'): lo=max(lo,9)
+    elif n not in ('John Martin (Jay)','Bowen Benedict'):
+        if not ((n in ('Gobi Weathers','Trinity Stringer') and d==5) or (n=='James Baker' and d==6)):
+            lo=max(lo,9)
     # Molly never works past 5pm
     if n=='Molly Summers': hi=min(hi,17)
     for a in ANCH_START:
@@ -84,6 +88,10 @@ def gen(n,d):
             # (evening departures land only at 8:00, 8:30, or 9:00+). 6:00pm & 8:00pm ok.
             # Also no one may end before 2pm (before 3pm on Sunday) — hard rule, no exceptions.
             if L<4 or L>maxlen or (18 < b < 20) or b in (20.25, 20.75): continue
+            # Adam ends at 10:45pm or 11pm only (set pattern)
+            if n=='Adam Van Bogaert' and b not in (22.75,23.0): continue
+            # Shift leaders (non-manager PB): if closing (end ≥10pm), must go to 11pm
+            if n in PB and n not in NO_BREAK and b>=22 and b!=23.0: continue
             min_end = 15 if d==6 else 14   # Sunday: nobody leaves before 3pm; else 2pm
             if b<min_end: continue
             out.append((round(a,2),round(b,2)))
@@ -164,7 +172,7 @@ for d in range(7):
     _SDF[d,'prep9'] =[x[(n,d,i)] for (n,i,a,b,pv) in sd if n in prep and a<=9]
 
 twoTar=[8,8,8,8,8,9,11]; threeTar=[6,6,6,6,7,8,8]; fourTar=[5,5,5,5,6,7,6]
-Otar=[6,6,6,6,6,6,6]; Ltar=[9,9,9,9,10,10,11]; Dtar=[10,10,10,11,14,13,12]; Ctar=[5,5,5,5,6,6,5]
+Otar=[6,6,6,6,6,6,6]; Ltar=[9,9,9,9,10,10,11]; Dtar=[10,10,10,11,14,13,12]; Ctar=[5,5,5,5,6,6,6]
 
 # Soft-constraint helpers: convert tight equality/ceiling constraints to penalised slack variables.
 # Penalty _CPEN=500 >> max possible objective gain (~80 units) so slacks are zero in any optimal
@@ -226,8 +234,8 @@ for n in people:
     if n=='John Martin (Jay)': continue
     prob += pulp.lpSum(x[(n,d,i)] for d in range(7) for i in range(len(shifts[(n,d)])))<=5
 def hours_expr(n): return pulp.lpSum(x[(n,d,i)]*(b-a) for d in range(7) for i,(a,b) in enumerate(shifts[(n,d)]))
-prob += hours_expr('Trinity Stringer')>=40   # push leader toward 40h (ceiling ~43 within availability)
-prob += hours_expr('Gobi Weathers')>=37      # Gobi's hard max is 37 (12hr rule from Mon close)
+prob += hours_expr('Trinity Stringer')>=39   # leader range 39-40 (ceiling via global <=40)
+prob += hours_expr('Gobi Weathers')>=37      # Gobi fixed shifts max at 37h raw — can't reach 39
 for n in FT_nonleader:
     if len(avail_days(n))>=5:
         prob += hours_expr(n)>=35; prob += hours_expr(n)<=40
@@ -236,7 +244,7 @@ for n in FT_nonleader:
 # Max achievable raw hours = 4×9h = 36. Target ≥35 (push to full 4-day coverage).
 prob += hours_expr('Adam Van Bogaert')>=35
 # CHANGE 5: Zac Duffy more hours (wants 30+, 10h-OK, available 4 days)
-prob += hours_expr('Zac Duffy')>=28
+prob += hours_expr('Zac Duffy')>=35
 # CHANGE 3: Cai, Hayden, Logan more hours (target >=15h each, within their availability)
 for nm,mn in [('Cai Cotton',15),('Hayden Roush',12),('Logan Frias',15)]:
     prob += hours_expr(nm)>=mn
@@ -245,7 +253,8 @@ for n in people:
     prob += hours_expr(n)<=40
 # Myles is REQUIRED to work 45 hours this week
 prob += hours_expr('Myles Palmer')>=45
-prob += hours_expr('James Baker')>=40   # James flexible (unpinned); full-time leader target
+prob += hours_expr('James Baker')>=39   # leader range 39-40 (ceiling via global <=40)
+prob += hours_expr('Mary Dean')>=39     # leader range 39-40
 prob += hours_expr('Gracelyn Dailey')>=20; prob += hours_expr('Gracelyn Dailey')<=30  # PT, 20-30h
 # Medium-priority PT: at least 15h each, for those whose availability allows it this week.
 # Excluded: Peyton (Mon-only this week) and Harper (req-off all her available days) — can't reach 15h.
@@ -401,16 +410,16 @@ for n in people:
         _fails.append(f"Zac hours: {raw:.1f} (want 28+)")
     if n=='Myles Palmer' and raw<44.9:
         _fails.append(f"Myles hours: {raw:.1f} (want 45)")
-for nm,want in [('James Baker',40),('Trinity Stringer',40),('Gobi Weathers',37)]:
+for nm,lo,hi in [('James Baker',39,40),('Trinity Stringer',39,40),('Gobi Weathers',37,40),('Mary Dean',39,40)]:
     raw=sum(sol[nm][d][1]-sol[nm][d][0] for d in range(7) if sol[nm][d])
-    if raw<want-0.1: _fails.append(f"{nm}: {raw:.1f}h (want {want})")
+    if raw<lo-0.1: _fails.append(f"{nm}: {raw:.2f}h (want {lo}-{hi})")
 # No starts before 9am except authorised people
 _pre9_ok={'John Martin (Jay)','Bowen Benedict'}
 for n in people:
     for d in range(7):
         sh=sol[n][d]
         if not sh: continue
-        ok = n in _pre9_ok or (n=='Gobi Weathers' and d==5) or (n=='James Baker' and d==6)
+        ok = n in _pre9_ok or (n in ('Gobi Weathers','Trinity Stringer') and d==5) or (n=='James Baker' and d==6)
         if sh[0]<9 and not ok:
             _fails.append(f"EarlyStart: {n} {dn[d]} {sh[0]}")
 # No one ends before 2pm (3pm Sunday)

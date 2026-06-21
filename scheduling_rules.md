@@ -37,8 +37,8 @@ At the start of each session, `web_fetch` this URL to get the latest solver code
 - Per-person cells in the .xlsx show FULL (raw) hours; the bottom "Scheduled Hours (paid)" row shows paid totals after break deductions. This paid model is the correct basis for planning.
 
 ### FT target hours
-- Shift leaders + managers: aim for ~40h (Bowen, James, Trinity, Gobi all aim for 40)
-- Other FT: closer to 40 is ideal but 30-37 acceptable
+- Shift leaders (Bowen, James, Trinity, Gobi, Mary): **39–40h range**. Gobi is capped at ~37h raw by her fixed schedule and the 12h close-then-open rule — she's the exception.
+- Other FT + college kids (Zac): **35–40h range**
 
 ---
 
@@ -103,7 +103,7 @@ At the start of each session, `web_fetch` this URL to get the latest solver code
 - Higher (10+) for days with higher forecasted sales (e.g., Sat target 10)
 
 ### Closers (people working past 10:30pm — i.e., to 11pm close)
-- **Hard target: exactly 5 closers per day, 6 on busy days (Friday & Saturday).** Do not run more than the target — too many closers was a recurring problem. Treat this as a firm number, not a "minimum."
+- **Hard target: exactly 5 closers per day, 6 on Friday, Saturday, and Sunday.** Do not run more than the target — too many closers was a recurring problem. Treat this as a firm number, not a "minimum."
 - **Never have more than one of Gobi, James, or Trinity closing on the same day.** If Gobi or Trinity is closing, move James to a mid or open shift (he does not close that day). At most one of the three closes per day.
 
 ### Evening staffing floor (every day)
@@ -155,7 +155,6 @@ Higher forecasted sales → higher targets. Use lunch/dinner targets as your pri
 - Cai Cotton
 - Tiffany Huffman
 - Izzy Simpson
-- Keegan Smith
 - Kara Thompson
 - Nathan Paasewe
 - Reese Bezehertny
@@ -170,6 +169,7 @@ Higher forecasted sales → higher targets. Use lunch/dinner targets as your pri
 
 ### Middle PT (use as needed for coverage, ~10-15h)
 - Shayden Howard, John Dugan, Kayden Anderson, Peyton Shaw, Amiyah Bartley, Logan Frias, Richard Raglin, Oliver Croasdaile, Harper Flynn
+- **Ryder**: new hire, available any day/time, PT standard (max 8h shifts, takes break, max 5 days per week)
 
 ### New / occasional
 - **Jacob Cothern**: PT, 2 shifts only, available Mon-Thu 5p-9:30p (dinner shifts). Place on the higher-volume of his available days.
@@ -262,8 +262,9 @@ Higher forecasted sales → higher targets. Use lunch/dinner targets as your pri
   - 1 person until 10:15pm
   - 1 person until 10:45pm
 - On 5-closer days (Mon–Thu, Sun) the solver will naturally drop one slot (typically 10:45pm).
-- **Adam always closes at 11pm — every shift Adam works ends at 11:00pm (set pattern, Mon-Fri).**
-- Mary closes M-Sat at 11p (now a shift leader)
+- **Adam always ends at 10:45pm or 11:00pm** (set pattern, Mon-Fri). Enforced in solver gen().
+- **All 5 shift leaders (Bowen, James, Trinity, Gobi, Mary): if on a closing shift (end ≥ 10pm), must go to 11pm** — leaders are in charge and stay until close. Enforced in solver gen().
+- Mary: solver places her freely Mon–Fri; **Saturday only** is pinned as a 3–11pm close.
 - **Late-arrival caps: at most 1 person may start at each of 5:15pm, 5:30pm, 5:45pm, and 6:00pm** (one per slot, four separate caps). Don't stack late dinner starts — spread evening arrivals across earlier start times.
 
 ---
@@ -273,7 +274,7 @@ Higher forecasted sales → higher targets. Use lunch/dinner targets as your pri
 ### Set schedules (don't change without reason)
 - **Bowen**: Mon-Fri 8a-4p — **always a full 8a-4p, every day he works. Never short his hours** (don't trim him to 8-3, etc.)
 - **Adam**: Mon-Fri, **always ends at 11pm** (e.g. 4p-11p, or starts earlier when more hours are needed). Adam never ends before 11pm.
-- **Mary**: 3p-11p Mon-Sat (FT)
+- **Mary**: Sat 3p-11p (pinned); other days solver-placed within her 3p-11p avail window
 - **James**: any most days, Wed 3-11, Sun 8-4. **Does not close on any day Gobi or Trinity closes** (move him to mid/open that day).
 - **Trinity**: rotates between AM and PM days; usually Mon 9-4, Tue 2-11, Wed any, Thu any, Fri 5-11, Sat 9-4, Sun off
 - **Gobi**: Mon 4-11, Wed 9-5, Sat 9-5, Sun 3-11. **Tuesday opens at 11a (not 10a)** — opening earlier would break the 12-hour rule after her Monday 11pm close.
@@ -317,7 +318,7 @@ When building a new schedule:
    - [ ] Molly never past 5pm
    - [ ] 2/3/4pm hard targets hit exactly (Mon-Thu 8/6/5; Fri 8/7/6; Sat 9/8/7; Sun 11/8/6)
    - [ ] Lunch hits day-target, dinner hits day-target
-   - [ ] Openers (Jay never counts): 6 every day. Closers exactly 5/day (6 Fri-Sat)
+   - [ ] Openers (Jay never counts): 6 every day. Closers exactly 5/day (6 Fri-Sat-Sun)
    - [ ] Every available person gets at least one shift
    - [ ] Weekly total variance lands in the +25 to +30 range (paid hours over allowed)
    - [ ] No shift under 4h
