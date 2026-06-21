@@ -142,7 +142,7 @@ Higher forecasted sales → higher targets. Use lunch/dinner targets as your pri
 | Saturday | +15-20 |
 | Sunday | +10-15 |
 
-**Weekly target: the total scheduled variance for the week is +40 over base allowed hours.** Aim to land the week around +40. Individual day variances will vary (busy days like Fri/Sat/Sun carry more, slow days less), but the week as a whole should total roughly +40. Lower variance from a genuinely thin roster (e.g. a body-constrained day where availability runs out) is acceptable and reflects real availability, not under-scheduling.
+**Weekly target: total scheduled variance for the week is +25 to +30 over base allowed hours.** Any value in that window is acceptable — the solver treats the entire range as equally good rather than chasing a single number. Individual day variances will vary (busy days like Fri/Sat/Sun carry more, slow days less). Lower variance from a genuinely thin roster (e.g. a body-constrained day where availability runs out) is acceptable and reflects real availability, not under-scheduling.
 
 ---
 

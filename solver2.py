@@ -292,32 +292,33 @@ for n in people:
     prob += total_shifts >= 1 - z
     zero_pen.append(z)
 
-# Objective: hit +40, minimize zero-shift people (big penalty), minimize weak5 usage (small)
+# Objective: land total paid hours in [allowed+25, allowed+30], minimize zero-shift people,
+# minimize weak5 usage, prefer short shifts. No exact target — any value in the window is fine.
 # SD already carries pv=paid_val(n,a,b) — use it directly everywhere paid hours are needed.
 total_paid=pulp.lpSum(x[(n,d,i)]*pv for d in range(7) for (n,i,a,b,pv) in SD[d])
 # Per-day labor balance: keep each day's paid hours within a reasonable band of its allowed,
-# so the weekly +40 slack doesn't pile onto one day / starve another (esp. with 15-min increments).
+# so the weekly variance doesn't pile onto one day / starve another.
 for d in range(7):
     day_paid=pulp.lpSum(x[(n,d,i)]*pv for (n,i,a,b,pv) in SD[d])
     prob += day_paid >= allowed[d]-3      # no day more than 3h under its allowed budget
     prob += day_paid <= allowed[d]+14     # and not wildly over
 
-TARGET=sum(allowed)+30
-dev=pulp.LpVariable('dev',lowBound=0)
-prob += total_paid-TARGET<=dev
-prob += TARGET-total_paid<=dev
+# Weekly paid hours must land in [allowed+25, allowed+30] — hard range, no penalty term.
+prob += total_paid >= sum(allowed)+25
+prob += total_paid <= sum(allowed)+30
 weak_use=pulp.lpSum(x[(n,d,i)] for d in range(7) for (n,i,a,b,pv) in SD[d] if n in weak5)
 # Preference: favor short 4-4.5h shifts (no break) over 5-5.5h shifts (which lose 0.5h to break).
 # Same labor, more days, no break to manage. Light penalty on 5-5.5h shifts for non-managers.
 short_pref=pulp.lpSum(x[(n,d,i)] for d in range(7) for (n,i,a,b,pv) in SD[d]
                       if n not in NO_BREAK and 5<=(b-a)<=5.5)
-prob += dev + 50*pulp.lpSum(zero_pen) + 8*weak_use + 0.3*short_pref + _CPEN*pulp.lpSum(_cov_slk)
+prob += 50*pulp.lpSum(zero_pen) + 8*weak_use + 0.3*short_pref + _CPEN*pulp.lpSum(_cov_slk)
 
 print(f"Vars: {len(x)}. Solving with HiGHS...")
 _kw=dict(msg=False,timeLimit=240,gapRel=0.25)
 if _THREADS: _kw['threads']=_THREADS
 prob.solve(pulp.HiGHS(**_kw))
-print("Status:",pulp.LpStatus[prob.status],"| paid",pulp.value(total_paid),"| dev",pulp.value(dev),"| zeros",sum(1 for z in zero_pen if z.value() and z.value()>0.5))
+_var=round(pulp.value(total_paid)-sum(allowed),2) if pulp.value(total_paid) else '?'
+print("Status:",pulp.LpStatus[prob.status],"| paid",pulp.value(total_paid),"| var",_var,"| zeros",sum(1 for z in zero_pen if z.value() and z.value()>0.5))
 _viol=[v.name for v in _cov_slk if v.value() and v.value()>0.001]
 if _viol: print(f"WARNING: {len(_viol)} coverage slack(s) nonzero: {_viol[:5]}...")
 sol={n:[None]*7 for n in people}
