@@ -37,8 +37,8 @@ At the start of each session, `web_fetch` this URL to get the latest solver code
 - Per-person cells in the .xlsx show FULL (raw) hours; the bottom "Scheduled Hours (paid)" row shows paid totals after break deductions. This paid model is the correct basis for planning.
 
 ### FT target hours
-- Shift leaders + managers: aim for ~40h (Bowen, James, Trinity, Gobi all aim for 40)
-- Other FT: closer to 40 is ideal but 30-37 acceptable
+- Shift leaders (Bowen, James, Trinity, Gobi, Mary): **39–40h range**. Gobi is capped at ~37h raw by her fixed schedule and the 12h close-then-open rule — she's the exception.
+- Other FT + college kids (Zac): **35–40h range**
 
 ---
 

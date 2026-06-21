@@ -226,8 +226,8 @@ for n in people:
     if n=='John Martin (Jay)': continue
     prob += pulp.lpSum(x[(n,d,i)] for d in range(7) for i in range(len(shifts[(n,d)])))<=5
 def hours_expr(n): return pulp.lpSum(x[(n,d,i)]*(b-a) for d in range(7) for i,(a,b) in enumerate(shifts[(n,d)]))
-prob += hours_expr('Trinity Stringer')>=40   # push leader toward 40h (ceiling ~43 within availability)
-prob += hours_expr('Gobi Weathers')>=37      # Gobi's hard max is 37 (12hr rule from Mon close)
+prob += hours_expr('Trinity Stringer')>=39   # leader range 39-40 (ceiling via global <=40)
+prob += hours_expr('Gobi Weathers')>=37      # Gobi fixed shifts max at 37h raw — can't reach 39
 for n in FT_nonleader:
     if len(avail_days(n))>=5:
         prob += hours_expr(n)>=35; prob += hours_expr(n)<=40
@@ -236,7 +236,7 @@ for n in FT_nonleader:
 # Max achievable raw hours = 4×9h = 36. Target ≥35 (push to full 4-day coverage).
 prob += hours_expr('Adam Van Bogaert')>=35
 # CHANGE 5: Zac Duffy more hours (wants 30+, 10h-OK, available 4 days)
-prob += hours_expr('Zac Duffy')>=28
+prob += hours_expr('Zac Duffy')>=35
 # CHANGE 3: Cai, Hayden, Logan more hours (target >=15h each, within their availability)
 for nm,mn in [('Cai Cotton',15),('Hayden Roush',12),('Logan Frias',15)]:
     prob += hours_expr(nm)>=mn
@@ -245,7 +245,7 @@ for n in people:
     prob += hours_expr(n)<=40
 # Myles is REQUIRED to work 45 hours this week
 prob += hours_expr('Myles Palmer')>=45
-prob += hours_expr('James Baker')>=40   # James flexible (unpinned); full-time leader target
+prob += hours_expr('James Baker')>=39   # leader range 39-40 (ceiling via global <=40)
 prob += hours_expr('Gracelyn Dailey')>=20; prob += hours_expr('Gracelyn Dailey')<=30  # PT, 20-30h
 # Medium-priority PT: at least 15h each, for those whose availability allows it this week.
 # Excluded: Peyton (Mon-only this week) and Harper (req-off all her available days) — can't reach 15h.
@@ -401,9 +401,9 @@ for n in people:
         _fails.append(f"Zac hours: {raw:.1f} (want 28+)")
     if n=='Myles Palmer' and raw<44.9:
         _fails.append(f"Myles hours: {raw:.1f} (want 45)")
-for nm,want in [('James Baker',40),('Trinity Stringer',40),('Gobi Weathers',37)]:
+for nm,lo,hi in [('James Baker',39,40),('Trinity Stringer',39,40),('Gobi Weathers',37,40)]:
     raw=sum(sol[nm][d][1]-sol[nm][d][0] for d in range(7) if sol[nm][d])
-    if raw<want-0.1: _fails.append(f"{nm}: {raw:.1f}h (want {want})")
+    if raw<lo-0.1: _fails.append(f"{nm}: {raw:.1f}h (want {lo}-{hi})")
 # No starts before 9am except authorised people
 _pre9_ok={'John Martin (Jay)','Bowen Benedict'}
 for n in people:
