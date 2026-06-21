@@ -75,7 +75,6 @@ def gen(n,d):
     elif n not in ('John Martin (Jay)','Bowen Benedict'): lo=max(lo,9)
     # Molly never works past 5pm
     if n=='Molly Summers': hi=min(hi,17)
-    # Adam always ends at 11pm (set pattern)
     for a in ANCH_START:
         if a<lo or a>hi-4: continue
         for b in ANCH_END:
@@ -85,7 +84,10 @@ def gen(n,d):
             # (evening departures land only at 8:00, 8:30, or 9:00+). 6:00pm & 8:00pm ok.
             # Also no one may end before 2pm (before 3pm on Sunday) — hard rule, no exceptions.
             if L<4 or L>maxlen or (18 < b < 20) or b in (20.25, 20.75): continue
-            if n=='Adam Van Bogaert' and b!=23.0: continue
+            # Adam ends at 10:45pm or 11pm only (set pattern)
+            if n=='Adam Van Bogaert' and b not in (22.75,23.0): continue
+            # Shift leaders (non-manager PB): if closing (end ≥10pm), must go to 11pm
+            if n in PB and n not in NO_BREAK and b>=22 and b!=23.0: continue
             min_end = 15 if d==6 else 14   # Sunday: nobody leaves before 3pm; else 2pm
             if b<min_end: continue
             out.append((round(a,2),round(b,2)))

@@ -262,7 +262,8 @@ Higher forecasted sales → higher targets. Use lunch/dinner targets as your pri
   - 1 person until 10:15pm
   - 1 person until 10:45pm
 - On 5-closer days (Mon–Thu, Sun) the solver will naturally drop one slot (typically 10:45pm).
-- **Adam always closes at 11pm — every shift Adam works ends at 11:00pm (set pattern, Mon-Fri).** Enforced in solver gen().
+- **Adam always ends at 10:45pm or 11:00pm** (set pattern, Mon-Fri). Enforced in solver gen().
+- **All 5 shift leaders (Bowen, James, Trinity, Gobi, Mary): if on a closing shift (end ≥ 10pm), must go to 11pm** — leaders are in charge and stay until close. Enforced in solver gen().
 - Mary: solver places her freely Mon–Fri; **Saturday only** is pinned as a 3–11pm close.
 - **Late-arrival caps: at most 1 person may start at each of 5:15pm, 5:30pm, 5:45pm, and 6:00pm** (one per slot, four separate caps). Don't stack late dinner starts — spread evening arrivals across earlier start times.
 
