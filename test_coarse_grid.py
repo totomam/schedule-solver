@@ -61,30 +61,30 @@ fx('Trinity Stringer',4,17,23)
 # Shift anchors: three real-world windows (9am-noon, 2pm-6pm, 8pm-11pm).
 # Noon-2pm (12:15-1:45) and 6pm-8pm (6:15-7:45) are dead zones — no starts or ends in between.
 # Boundaries (12:00, 14:00, 18:00, 20:00) are valid start/end times.
-ANCH_START = ([round(9  +0.25*i,2) for i in range(int((12-9 )/0.25)+1)]  # 9:00-12:00 (13 values)
-            + [round(14 +0.25*i,2) for i in range(int((18-14)/0.25)+1)]) # 14:00-18:00 (17 values)
-ANCH_END   = ([round(14 +0.25*i,2) for i in range(int((18-14)/0.25)+1)]  # 14:00-18:00 (17 values)
-            + [round(20 +0.25*i,2) for i in range(int((23-20)/0.25)+1)]) # 20:00-23:00 (13 values)
+# TEST: coarse 30-min grid for people with broad "any" availability
+_FINE_S = ([round(9  +0.25*i,2) for i in range(13)] + [round(14+0.25*i,2) for i in range(17)])
+_FINE_E = ([round(14 +0.25*i,2) for i in range(17)] + [round(20+0.25*i,2) for i in range(13)])
+_CORSE_S = ([round(9  +0.5*i, 2) for i in range(7)]  + [round(14+0.5*i, 2) for i in range(9)])
+_CORSE_E = ([round(14 +0.5*i, 2) for i in range(9)]  + [round(20+0.5*i, 2) for i in range(7)])
+ANCH_START = _FINE_S; ANCH_END = _FINE_E  # kept for compatibility
 def gen(n,d):
     w=avwin(n,d)
     if not w: return []
     lo,hi=w; out=[]; maxlen=10 if n in TEN_HR else 8
-    # Only Jay and Bowen may start before 9am freely (fixed early schedules).
-    # All other PB members restricted to 9am min via gen(); fixed-shift overrides still apply.
     if n not in PB: lo=max(lo,9)
     elif n not in ('John Martin (Jay)','Bowen Benedict'): lo=max(lo,9)
-    # Molly never works past 5pm
     if n=='Molly Summers': hi=min(hi,17)
-    for a in ANCH_START:
+    # Use 30-min grid for broad-availability people to cut variable count
+    use_coarse = av[n][d] in ('any', 'open')
+    a_s = _CORSE_S if use_coarse else _FINE_S
+    a_e = _CORSE_E if use_coarse else _FINE_E
+    for a in a_s:
         if a<lo or a>hi-4: continue
-        for b in ANCH_END:
+        for b in a_e:
             if b<=a or b>hi: continue
             L=b-a
-            # Forbidden end times: dead zone 6pm-8pm (18:15-19:45), plus 8:15pm and 8:45pm
-            # (evening departures land only at 8:00, 8:30, or 9:00+). 6:00pm & 8:00pm ok.
-            # Also no one may end before 2pm (before 3pm on Sunday) — hard rule, no exceptions.
             if L<4 or L>maxlen or (18 < b < 20) or b in (20.25, 20.75): continue
-            min_end = 15 if d==6 else 14   # Sunday: nobody leaves before 3pm; else 2pm
+            min_end = 15 if d==6 else 14
             if b<min_end: continue
             out.append((round(a,2),round(b,2)))
     return out
@@ -156,15 +156,11 @@ for d in range(7):
     _SDF[d,'dep205']=[x[(n,d,i)] for (n,i,a,b,pv) in sd if b==20.5 and n not in PB]
     _SDF[d,'dep14'] =[x[(n,d,i)] for (n,i,a,b,pv) in sd if b in (14,14.5)]
     _SDF[d,'trio_cl']=[x[(n,d,i)] for (n,i,a,b,pv) in sd if n in _trio and b>=22]
-    _SDF[d,'e2225'] =[x[(n,d,i)] for (n,i,a,b,pv) in sd if b==22.25]
-    _SDF[d,'e225']  =[x[(n,d,i)] for (n,i,a,b,pv) in sd if b==22.5]
-    _SDF[d,'e2275'] =[x[(n,d,i)] for (n,i,a,b,pv) in sd if b==22.75]
-    _SDF[d,'e23']   =[x[(n,d,i)] for (n,i,a,b,pv) in sd if b==23.0]
     _SDF[d,'stag9'] =[x[(n,d,i)] for (n,i,a,b,pv) in sd if n not in _no_early and a<=9]
     _SDF[d,'prep9'] =[x[(n,d,i)] for (n,i,a,b,pv) in sd if n in prep and a<=9]
 
 twoTar=[8,8,8,8,8,9,11]; threeTar=[6,6,6,6,7,8,8]; fourTar=[5,5,5,5,6,7,6]
-Otar=[6,6,6,6,6,6,6]; Ltar=[9,9,9,9,10,10,11]; Dtar=[10,10,10,11,14,13,12]; Ctar=[5,5,5,5,6,6,5]
+Otar=[6,6,6,6,6,6,6]; Ltar=[9,9,9,9,10,10,11]; Dtar=[10,10,10,11,14,13,12]; Ctar=[5,5,5,5,6,6,6]
 
 # Soft-constraint helpers: convert tight equality/ceiling constraints to penalised slack variables.
 # Penalty _CPEN=500 >> max possible objective gain (~80 units) so slacks are zero in any optimal
@@ -210,12 +206,6 @@ for d in range(7):
     if _SDF[d,'dep205']:  _sc(pulp.lpSum(_SDF[d,'dep205']), 2,      f'sdep205_{d}')
     if _SDF[d,'dep14']:   _sc(pulp.lpSum(_SDF[d,'dep14']),  2,      f'sdep14_{d}')
     if _SDF[d,'trio_cl']: _sc(pulp.lpSum(_SDF[d,'trio_cl']),1,      f'strio_{d}')
-    # Closer end-time staggering: 2×11pm, 2×10:30pm, 1×10:15pm, 1×10:45pm
-    for _key,_tgt in (('e23',2),('e225',2),('e2225',1),('e2275',1)):
-        if _SDF[d,_key]:
-            _e=pulp.lpSum(_SDF[d,_key])
-            _sf(_e,_tgt,f's{_key}f_{d}')
-            _sc(_e,_tgt,f's{_key}c_{d}')
     if _SDF[d,'stag9']:   _sc(pulp.lpSum(_SDF[d,'stag9']),  2,      f'sstag9_{d}')
     for _key in ('la1725','la175','la1775','la18'):
         if _SDF[d,_key]: _sc(pulp.lpSum(_SDF[d,_key]),1,   f's{_key}_{d}')
@@ -302,33 +292,32 @@ for n in people:
     prob += total_shifts >= 1 - z
     zero_pen.append(z)
 
-# Objective: land total paid hours in [allowed+25, allowed+30], minimize zero-shift people,
-# minimize weak5 usage, prefer short shifts. No exact target — any value in the window is fine.
+# Objective: hit +40, minimize zero-shift people (big penalty), minimize weak5 usage (small)
 # SD already carries pv=paid_val(n,a,b) — use it directly everywhere paid hours are needed.
 total_paid=pulp.lpSum(x[(n,d,i)]*pv for d in range(7) for (n,i,a,b,pv) in SD[d])
 # Per-day labor balance: keep each day's paid hours within a reasonable band of its allowed,
-# so the weekly variance doesn't pile onto one day / starve another.
+# so the weekly +40 slack doesn't pile onto one day / starve another (esp. with 15-min increments).
 for d in range(7):
     day_paid=pulp.lpSum(x[(n,d,i)]*pv for (n,i,a,b,pv) in SD[d])
     prob += day_paid >= allowed[d]-3      # no day more than 3h under its allowed budget
     prob += day_paid <= allowed[d]+14     # and not wildly over
 
-# Weekly paid hours must land in [allowed+25, allowed+30] — hard range, no penalty term.
-prob += total_paid >= sum(allowed)+25
-prob += total_paid <= sum(allowed)+30
+TARGET=sum(allowed)+30
+dev=pulp.LpVariable('dev',lowBound=0)
+prob += total_paid-TARGET<=dev
+prob += TARGET-total_paid<=dev
 weak_use=pulp.lpSum(x[(n,d,i)] for d in range(7) for (n,i,a,b,pv) in SD[d] if n in weak5)
 # Preference: favor short 4-4.5h shifts (no break) over 5-5.5h shifts (which lose 0.5h to break).
 # Same labor, more days, no break to manage. Light penalty on 5-5.5h shifts for non-managers.
 short_pref=pulp.lpSum(x[(n,d,i)] for d in range(7) for (n,i,a,b,pv) in SD[d]
                       if n not in NO_BREAK and 5<=(b-a)<=5.5)
-prob += 50*pulp.lpSum(zero_pen) + 8*weak_use + 0.3*short_pref + _CPEN*pulp.lpSum(_cov_slk)
+prob += dev + 50*pulp.lpSum(zero_pen) + 8*weak_use + 0.3*short_pref + _CPEN*pulp.lpSum(_cov_slk)
 
 print(f"Vars: {len(x)}. Solving with HiGHS...")
-_kw=dict(msg=False,timeLimit=240,gapRel=0.25)
+_kw=dict(msg=False,timeLimit=240,gapRel=0.01)
 if _THREADS: _kw['threads']=_THREADS
 prob.solve(pulp.HiGHS(**_kw))
-_var=round(pulp.value(total_paid)-sum(allowed),2) if pulp.value(total_paid) else '?'
-print("Status:",pulp.LpStatus[prob.status],"| paid",pulp.value(total_paid),"| var",_var,"| zeros",sum(1 for z in zero_pen if z.value() and z.value()>0.5))
+print("Status:",pulp.LpStatus[prob.status],"| paid",pulp.value(total_paid),"| dev",pulp.value(dev),"| zeros",sum(1 for z in zero_pen if z.value() and z.value()>0.5))
 _viol=[v.name for v in _cov_slk if v.value() and v.value()>0.001]
 if _viol: print(f"WARNING: {len(_viol)} coverage slack(s) nonzero: {_viol[:5]}...")
 sol={n:[None]*7 for n in people}

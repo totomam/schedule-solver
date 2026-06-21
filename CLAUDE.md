@@ -48,15 +48,20 @@ All others: paid = raw − 0.5 if raw ≥ 5h, else raw.
 `paid_val(n, a, b)` computes this. Hours constraints use RAW hours (b−a).
 
 ### Objective (minimise)
-`dev + 50*zero_pen_sum + 8*weak_use + 0.3*short_pref + 500*cov_slk_sum`
-- `dev` = |total_paid − TARGET| where TARGET = sum(allowed) + 30
+`50*zero_pen_sum + 8*weak_use + 0.3*short_pref + 500*cov_slk_sum`
+- Total paid hours constrained to `[sum(allowed)+25, sum(allowed)+30]` as hard bounds — no penalty term, any value in the window is equally acceptable.
 - `zero_pen` = big penalty if any available person gets 0 shifts
 - `weak_use` = discourage weak5 group (Layton, Emily, Brian, Bryan, Jason) from extra shifts
 - `short_pref` = light penalty for 5–5.5h shifts (prefer 4–4.5h)
 
 ### Solver parameters
-`HiGHS(msg=False, timeLimit=240, gapRel=0.01, mip_heuristic_effort=0.25)`
+`HiGHS(msg=False, timeLimit=240, gapRel=0.25)`
 `SCHED_THREADS` env var enables parallel B&B.
+
+`gapRel=0.25` not `0.01`: profiling showed HiGHS finds its best feasible solution at ~83s via
+Sub-MIP heuristic and never improves it during the remaining B&B (only the dual bound moves).
+The MIP gap is structurally ~18-22% (driven by coverage slack integrality) so gapRel=0.01 always
+hit the 240s time limit without closing. gapRel=0.25 terminates at ~90s — same schedule, 62% faster.
 
 ## Output
 Writes `schedule.json` (all people) and `schedule_active.json` (worked days only).

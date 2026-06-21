@@ -2,6 +2,9 @@
 
 Complete reference for building the weekly schedule. Given availability sheet, request-off book, and sales forecast — apply these rules to produce the schedule.
 
+**Solver source (GitHub):** `https://raw.githubusercontent.com/totomam/schedule-solver/claude/optimize-fix-issues-fkh4sj/solver2.py`
+At the start of each session, `web_fetch` this URL to get the latest solver code before building or editing anything. If the branch changes, update this URL.
+
 ---
 
 ## 1. INPUTS NEEDED EACH WEEK
@@ -142,7 +145,7 @@ Higher forecasted sales → higher targets. Use lunch/dinner targets as your pri
 | Saturday | +15-20 |
 | Sunday | +10-15 |
 
-**Weekly target: the total scheduled variance for the week is +40 over base allowed hours.** Aim to land the week around +40. Individual day variances will vary (busy days like Fri/Sat/Sun carry more, slow days less), but the week as a whole should total roughly +40. Lower variance from a genuinely thin roster (e.g. a body-constrained day where availability runs out) is acceptable and reflects real availability, not under-scheduling.
+**Weekly target: total scheduled variance for the week is +25 to +30 over base allowed hours.** Any value in that range is acceptable — don't chase a single number. Individual day variances will vary (busy days like Fri/Sat/Sun carry more, slow days less). Lower variance from a genuinely thin roster is acceptable and reflects real availability, not under-scheduling.
 
 ---
 
@@ -228,7 +231,7 @@ Higher forecasted sales → higher targets. Use lunch/dinner targets as your pri
 
 ### Openers — cap (not counting Jay)
 - An opener is anyone who starts work at or before 10:00am. **Jay never counts toward the opener total on any day.**
-- Targets are 6 openers Mon-Fri and 5 Sat-Sun (not counting Jay). Don't exceed the target for the day.
+- Target is 6 openers every day (not counting Jay). Don't exceed the target for the day.
 - If a day is running over, push the extra early-starters to an 11am start — they still cover lunch and dinner, they're just no longer openers.
 
 ### Afternoon headcount (2pm / 3pm / 4pm) — HARD TARGETS
@@ -253,7 +256,12 @@ Higher forecasted sales → higher targets. Use lunch/dinner targets as your pri
 - When shortening a dinner shift to save hours, pull it back to 5pm; when extending a midday shift, push it to 8pm+
 
 ### Evening closes
-- Stagger closers — some end at 9p, others 10p, others 10:30p, others 11p
+- **Closer end-time distribution (target for each day):**
+  - 2 people until 11:00pm
+  - 2 people until 10:30pm
+  - 1 person until 10:15pm
+  - 1 person until 10:45pm
+- On 5-closer days (Mon–Thu, Sun) the solver will naturally drop one slot (typically 10:45pm).
 - **Adam always closes at 11pm — every shift Adam works ends at 11:00pm (set pattern, Mon-Fri).**
 - Mary closes M-Sat at 11p (now a shift leader)
 - **Late-arrival caps: at most 1 person may start at each of 5:15pm, 5:30pm, 5:45pm, and 6:00pm** (one per slot, four separate caps). Don't stack late dinner starts — spread evening arrivals across earlier start times.
@@ -307,11 +315,11 @@ When building a new schedule:
    - [ ] No one leaves before 2pm; Sunday no one leaves before 3pm
    - [ ] ≤2 people leave at 2:00/2:30pm; ≤2 people start at 5:30/6:00pm
    - [ ] Molly never past 5pm
-   - [ ] 2/3/4pm hard targets hit exactly (Mon-Thu 8/6/5; Fri-Sat 9/8/7; Sun 11/9/6)
+   - [ ] 2/3/4pm hard targets hit exactly (Mon-Thu 8/6/5; Fri 8/7/6; Sat 9/8/7; Sun 11/8/6)
    - [ ] Lunch hits day-target, dinner hits day-target
-   - [ ] Openers (Jay never counts): 6 Mon-Fri, 5 Sat-Sun. Closers exactly 5/day (6 Fri-Sat)
+   - [ ] Openers (Jay never counts): 6 every day. Closers exactly 5/day (6 Fri-Sat)
    - [ ] Every available person gets at least one shift
-   - [ ] Weekly total variance lands around +40 (paid hours over allowed)
+   - [ ] Weekly total variance lands in the +25 to +30 range (paid hours over allowed)
    - [ ] No shift under 4h
 
 7. **Build the .xlsx** in reference format (employee rows alphabetical, with Schedule Summary at bottom)
