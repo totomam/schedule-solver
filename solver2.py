@@ -314,7 +314,7 @@ short_pref=pulp.lpSum(x[(n,d,i)] for d in range(7) for (n,i,a,b,pv) in SD[d]
 prob += dev + 50*pulp.lpSum(zero_pen) + 8*weak_use + 0.3*short_pref + _CPEN*pulp.lpSum(_cov_slk)
 
 print(f"Vars: {len(x)}. Solving with HiGHS...")
-_kw=dict(msg=False,timeLimit=240,gapRel=0.01)
+_kw=dict(msg=False,timeLimit=240,gapRel=0.25)
 if _THREADS: _kw['threads']=_THREADS
 prob.solve(pulp.HiGHS(**_kw))
 print("Status:",pulp.LpStatus[prob.status],"| paid",pulp.value(total_paid),"| dev",pulp.value(dev),"| zeros",sum(1 for z in zero_pen if z.value() and z.value()>0.5))
