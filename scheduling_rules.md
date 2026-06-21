@@ -103,7 +103,7 @@ At the start of each session, `web_fetch` this URL to get the latest solver code
 - Higher (10+) for days with higher forecasted sales (e.g., Sat target 10)
 
 ### Closers (people working past 10:30pm — i.e., to 11pm close)
-- **Hard target: exactly 5 closers per day, 6 on busy days (Friday & Saturday).** Do not run more than the target — too many closers was a recurring problem. Treat this as a firm number, not a "minimum."
+- **Hard target: exactly 5 closers per day, 6 on Friday, Saturday, and Sunday.** Do not run more than the target — too many closers was a recurring problem. Treat this as a firm number, not a "minimum."
 - **Never have more than one of Gobi, James, or Trinity closing on the same day.** If Gobi or Trinity is closing, move James to a mid or open shift (he does not close that day). At most one of the three closes per day.
 
 ### Evening staffing floor (every day)
@@ -155,7 +155,6 @@ Higher forecasted sales → higher targets. Use lunch/dinner targets as your pri
 - Cai Cotton
 - Tiffany Huffman
 - Izzy Simpson
-- Keegan Smith
 - Kara Thompson
 - Nathan Paasewe
 - Reese Bezehertny
@@ -170,6 +169,7 @@ Higher forecasted sales → higher targets. Use lunch/dinner targets as your pri
 
 ### Middle PT (use as needed for coverage, ~10-15h)
 - Shayden Howard, John Dugan, Kayden Anderson, Peyton Shaw, Amiyah Bartley, Logan Frias, Richard Raglin, Oliver Croasdaile, Harper Flynn
+- **Ryder**: new hire, available any day/time, PT standard (max 8h shifts, takes break, max 5 days per week)
 
 ### New / occasional
 - **Jacob Cothern**: PT, 2 shifts only, available Mon-Thu 5p-9:30p (dinner shifts). Place on the higher-volume of his available days.
@@ -317,7 +317,7 @@ When building a new schedule:
    - [ ] Molly never past 5pm
    - [ ] 2/3/4pm hard targets hit exactly (Mon-Thu 8/6/5; Fri 8/7/6; Sat 9/8/7; Sun 11/8/6)
    - [ ] Lunch hits day-target, dinner hits day-target
-   - [ ] Openers (Jay never counts): 6 every day. Closers exactly 5/day (6 Fri-Sat)
+   - [ ] Openers (Jay never counts): 6 every day. Closers exactly 5/day (6 Fri-Sat-Sun)
    - [ ] Every available person gets at least one shift
    - [ ] Weekly total variance lands in the +25 to +30 range (paid hours over allowed)
    - [ ] No shift under 4h
