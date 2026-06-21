@@ -231,7 +231,7 @@ Higher forecasted sales → higher targets. Use lunch/dinner targets as your pri
 
 ### Openers — cap (not counting Jay)
 - An opener is anyone who starts work at or before 10:00am. **Jay never counts toward the opener total on any day.**
-- Targets are 6 openers Mon-Fri and 5 Sat-Sun (not counting Jay). Don't exceed the target for the day.
+- Target is 6 openers every day (not counting Jay). Don't exceed the target for the day.
 - If a day is running over, push the extra early-starters to an 11am start — they still cover lunch and dinner, they're just no longer openers.
 
 ### Afternoon headcount (2pm / 3pm / 4pm) — HARD TARGETS
@@ -312,7 +312,7 @@ When building a new schedule:
    - [ ] Molly never past 5pm
    - [ ] 2/3/4pm hard targets hit exactly (Mon-Thu 8/6/5; Fri 8/7/6; Sat 9/8/7; Sun 11/8/6)
    - [ ] Lunch hits day-target, dinner hits day-target
-   - [ ] Openers (Jay never counts): 6 Mon-Fri, 5 Sat-Sun. Closers exactly 5/day (6 Fri-Sat)
+   - [ ] Openers (Jay never counts): 6 every day. Closers exactly 5/day (6 Fri-Sat)
    - [ ] Every available person gets at least one shift
    - [ ] Weekly total variance lands in the +25 to +30 range (paid hours over allowed)
    - [ ] No shift under 4h

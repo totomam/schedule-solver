@@ -156,6 +156,10 @@ for d in range(7):
     _SDF[d,'dep205']=[x[(n,d,i)] for (n,i,a,b,pv) in sd if b==20.5 and n not in PB]
     _SDF[d,'dep14'] =[x[(n,d,i)] for (n,i,a,b,pv) in sd if b in (14,14.5)]
     _SDF[d,'trio_cl']=[x[(n,d,i)] for (n,i,a,b,pv) in sd if n in _trio and b>=22]
+    _SDF[d,'e2225'] =[x[(n,d,i)] for (n,i,a,b,pv) in sd if b==22.25]
+    _SDF[d,'e225']  =[x[(n,d,i)] for (n,i,a,b,pv) in sd if b==22.5]
+    _SDF[d,'e2275'] =[x[(n,d,i)] for (n,i,a,b,pv) in sd if b==22.75]
+    _SDF[d,'e23']   =[x[(n,d,i)] for (n,i,a,b,pv) in sd if b==23.0]
     _SDF[d,'stag9'] =[x[(n,d,i)] for (n,i,a,b,pv) in sd if n not in _no_early and a<=9]
     _SDF[d,'prep9'] =[x[(n,d,i)] for (n,i,a,b,pv) in sd if n in prep and a<=9]
 
@@ -206,6 +210,8 @@ for d in range(7):
     if _SDF[d,'dep205']:  _sc(pulp.lpSum(_SDF[d,'dep205']), 2,      f'sdep205_{d}')
     if _SDF[d,'dep14']:   _sc(pulp.lpSum(_SDF[d,'dep14']),  2,      f'sdep14_{d}')
     if _SDF[d,'trio_cl']: _sc(pulp.lpSum(_SDF[d,'trio_cl']),1,      f'strio_{d}')
+    for _key in ('e2225','e225','e2275','e23'):
+        if _SDF[d,_key]: _sc(pulp.lpSum(_SDF[d,_key]),2,            f's{_key}_{d}')
     if _SDF[d,'stag9']:   _sc(pulp.lpSum(_SDF[d,'stag9']),  2,      f'sstag9_{d}')
     for _key in ('la1725','la175','la1775','la18'):
         if _SDF[d,_key]: _sc(pulp.lpSum(_SDF[d,_key]),1,   f's{_key}_{d}')
