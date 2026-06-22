@@ -237,7 +237,7 @@ def main() -> None:
         hours_under = [i for i in parsed['audit_issues'] if i.startswith('HoursUnder:')]
 
         ok = (parsed['status'] == 'Optimal'
-              and not hard_issues
+              and parsed['audit'] == 'PASS'
               and not parsed['cov_warnings']
               and parsed['zero_shifts'] == 0)
 
