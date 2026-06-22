@@ -59,9 +59,14 @@ fourTar  (at 4pm headcount)      = [5,5,5,5,6,7,6]
 
 ## Per-Person Rules (enforced in gen())
 - **Adam Van Bogaert**: every shift ends at exactly 11pm (23.0)
-- **Shift leaders** (Bowen, James, Trinity, Gobi, Mary): if shift ends ≥10pm, must end at exactly 11pm
+- **All PB** (Bowen, James, Trinity, Gobi, Mary, Jay, Myles): if shift ends ≥10pm, must end at exactly 11pm (23.0)
 - **Molly Summers**: never past 5pm (hi capped at 17)
 - **All PB except Jay/Bowen**: 9am start floor — exceptions: Gobi & Trinity on Sat (d=5), James on Sun (d=6) may start at 8am
+
+## Manager Backstop Role Priorities
+- **Jay = priority OPENER**: penalised (20) for taking closing shifts. If both managers can cover an open, Jay is preferred.
+- **Myles = priority CLOSER**: penalised (20) for taking opening shifts (start ≤10am). If both managers can cover a close, Myles is preferred.
+- Penalty 20 < mgr_offday 30 < coverage floor 500: backstop still fires when needed, correct manager chosen first.
 
 ---
 
@@ -125,7 +130,7 @@ Both are solver-placed (no `fx()` calls). Can close at 11pm when no shift leader
 
 ## Solver Settings
 - `HiGHS(msg=False, timeLimit=240, gapRel=0.25)`
-- Weekly paid hours hard range: `[sum(allowed)+25, sum(allowed)+30]` — no penalty term
+- Weekly paid hours hard range: `[sum(allowed)+25, sum(allowed)+40]` — no penalty term
 - `SCHED_THREADS` env var → parallel B&B (e.g. `SCHED_THREADS=4 python solver2.py`)
 
 ---

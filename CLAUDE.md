@@ -49,7 +49,7 @@ All others: paid = raw − 0.5 if raw ≥ 5h, else raw.
 
 ### Objective (minimise)
 `50*zero_pen_sum + 8*weak_use + 0.3*short_pref + 500*cov_slk_sum`
-- Total paid hours constrained to `[sum(allowed)+25, sum(allowed)+30]` as hard bounds — no penalty term, any value in the window is equally acceptable.
+- Total paid hours constrained to `[sum(allowed)+25, sum(allowed)+40]` as hard bounds — no penalty term, any value in the window is equally acceptable.
 - `zero_pen` = big penalty if any available person gets 0 shifts
 - `weak_use` = discourage weak5 group (Layton, Emily, Brian, Bryan, Jason) from extra shifts
 - `short_pref` = light penalty for 5–5.5h shifts (prefer 4–4.5h)
