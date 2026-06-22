@@ -1,8 +1,9 @@
 # Paddock Schedule Rules
 
-Complete reference for building the weekly schedule. For humans — full narrative, examples, and process checklist.
+Complete reference for building the weekly schedule. Given availability sheet, request-off book, and sales forecast — apply these rules to produce the schedule.
 
-**AI/solver reference (fetch this first in any AI session):** `https://raw.githubusercontent.com/totomam/schedule-solver/main/ai_reference.md`
+**Solver source (GitHub):** `https://raw.githubusercontent.com/totomam/schedule-solver/main/solver2.py`
+At the start of each session, `web_fetch` this URL to get the latest solver code before building or editing anything. If the branch changes, update this URL.
 
 ---
 
