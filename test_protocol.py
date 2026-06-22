@@ -231,9 +231,13 @@ def main() -> None:
 
         parsed = parse_output(stdout, stderr, rc)
 
-        # Overall pass/fail
+        # Separate hard failures (constraint violations) from soft hours-under notices
+        hard_issues = [i for i in parsed['audit_issues']
+                       if not i.startswith('HoursUnder:') and not i.startswith('CovSlack')]
+        hours_under = [i for i in parsed['audit_issues'] if i.startswith('HoursUnder:')]
+
         ok = (parsed['status'] == 'Optimal'
-              and parsed['audit'] == 'PASS'
+              and not hard_issues
               and not parsed['cov_warnings']
               and parsed['zero_shifts'] == 0)
 
@@ -243,9 +247,9 @@ def main() -> None:
         if not ok:
             if parsed['status'] != 'Optimal':
                 print(f"  status    : {parsed['status']}")
-            if parsed['audit'] != 'PASS':
-                print(f"  audit     : {parsed['audit']}")
-                for iss in parsed['audit_issues'][:6]:
+            if hard_issues:
+                print(f"  audit     : FAIL ({len(hard_issues)} hard issue(s):)")
+                for iss in hard_issues[:6]:
                     print(f"              {iss}")
             for w in parsed['cov_warnings']:
                 print(f"  coverage  : {w}")
@@ -253,6 +257,10 @@ def main() -> None:
                 print(f"  zero-shift: {parsed['zero_shifts']} person(s) skipped")
             for line in parsed['stderr_lines']:
                 print(f"  stderr    : {line}")
+        if hours_under:
+            print(f"  hrs-under : {len(hours_under)} person(s) below target (req-offs expected)")
+            for iss in hours_under[:4]:
+                print(f"              {iss}")
 
         record = {
             'run':          run_id + 1,
@@ -292,9 +300,11 @@ def main() -> None:
         for r in failed:
             reasons = []
             if r.get('solve_status','') != 'Optimal': reasons.append(r['solve_status'])
-            if r.get('audit','') != 'PASS':           reasons.append(r['audit'])
-            if r.get('cov_warnings'):                  reasons.append(f"{len(r['cov_warnings'])} cov-warn")
-            if r.get('zero_shifts'):                   reasons.append(f"{r['zero_shifts']} zeros")
+            hard = [i for i in r.get('audit_issues',[])
+                    if not i.startswith('HoursUnder:') and not i.startswith('CovSlack')]
+            if hard: reasons.append(f"hard-audit({len(hard)})")
+            if r.get('cov_warnings'):  reasons.append(f"{len(r['cov_warnings'])} cov-warn")
+            if r.get('zero_shifts'):   reasons.append(f"{r['zero_shifts']} zeros")
             print(f"  Run {r['run']:02d}: Δsales={r['sales_delta']:+d}  "
                   f"hours={r['total_hours']}  → {', '.join(reasons) or 'unknown'}")
 

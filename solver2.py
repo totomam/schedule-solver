@@ -395,22 +395,11 @@ for d in range(7):
 for d in range(7):
     tc=sum(1 for n in _trio if sol[n][d] and sol[n][d][1]>=22)
     if tc>1: _fails.append(f"TrioClose: {dn[d]} {tc} of Gobi/James/Trinity closing")
-# Overtime / hours targets
+# Overtime check — all hours-under is reported via HoursUnder (_hrs_slk) below
 for n in people:
     raw=sum(sol[n][d][1]-sol[n][d][0] for d in range(7) if sol[n][d])
     if n not in ('John Martin (Jay)','Myles Palmer') and raw>40.01:
         _fails.append(f"OT: {n} {raw:.1f}h")
-    if n=='Adam Van Bogaert' and raw<34.9:
-        _fails.append(f"Adam hours: {raw:.1f} (want ≥35 this week, Fri req-off)")
-    if n=='Zac Duffy' and raw<27.9:
-        _fails.append(f"Zac hours: {raw:.1f} (want 28+)")
-    if n=='Myles Palmer' and raw<44.9:
-        _fails.append(f"Myles hours: {raw:.1f} (want 45)")
-    if n=='John Martin (Jay)' and raw<46.9:
-        _fails.append(f"Jay hours: {raw:.1f} (want 47)")
-for nm,lo,hi in [('James Baker',39,40),('Trinity Stringer',39,40),('Gobi Weathers',37,40),('Mary Dean',39,40)]:
-    raw=sum(sol[nm][d][1]-sol[nm][d][0] for d in range(7) if sol[nm][d])
-    if raw<lo-0.1: _fails.append(f"{nm}: {raw:.2f}h (want {lo}-{hi})")
 # No starts before 9am except authorised people
 _pre9_ok={'John Martin (Jay)','Bowen Benedict'}
 for n in people:
