@@ -69,7 +69,7 @@ fourTar  (at 4pm headcount)      = [5,5,5,5,6,7,6]
 | Manager | Standard days | Standard shift | Hours | Normal days off |
 |---|---|---|---|---|
 | Jay | Mon/Thu/Fri/Sat/Sun | Mon 6–3, Thu/Fri/Sat 10–8, Sun 11–5 | 47h | Tue/Wed |
-| Myles | Mon/Tue/Wed/Sat/Sun | Mon/Tue/Wed/Sun 11–8, Sat 12–9 | 45h | Thu/Fri |
+| Myles | Mon/Tue/Wed/Sat/Sun | Mon/Sun 12–9, Tue/Wed 11–8, Sat 12–9 | 45h | Thu/Fri |
 
 Both are solver-placed (no `fx()` calls). Can close at 11pm when no shift leader is available; Jay covers if Myles is also unavailable. Days off are flexible — if one requests off, the other adjusts.
 
