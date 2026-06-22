@@ -73,6 +73,15 @@ fourTar  (at 4pm headcount)      = [5,5,5,5,6,7,6]
 
 Both are solver-placed (no `fx()` calls). Can close at 11pm when no shift leader is available; Jay covers if Myles is also unavailable. Days off are flexible — if one requests off, the other adjusts.
 
+**Deviation Rule 1 — day swap on req-off:**
+- Jay requests off Thu or Fri → Myles covers that day; Myles takes a different day off; Jay works Myles's normal off day (Thu or Fri).
+- Myles requests off Tue or Wed → Jay covers that day; Jay takes a different day off; Myles works Jay's normal off day (Tue or Wed).
+- Apply by updating avail JSON: open the covering manager on the new day, mark the requesting manager's original day X.
+
+**Deviation Rule 2 — coverage backstop:**
+- If leaders request off such that a day has no leader opener (≤10am) or closer (≥10pm), a manager fills in.
+- Myles primary, Jay secondary. Solver handles automatically via PB open/close hard constraints + manager avail through 23:00.
+
 ## Fixed Schedules (6/29–7/5 week — update the `fx()` block each week)
 **This week deviations from standard:** Jay on vacation (Mon only); Myles off Tue/Wed this week instead of Thu/Fri.
 

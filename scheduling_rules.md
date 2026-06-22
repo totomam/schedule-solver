@@ -63,6 +63,18 @@ At the start of each session, `web_fetch` this URL to get the latest solver code
 - **Never works past 9pm** unless emergency close
 - Override default only when explicitly needed (e.g., emergency close)
 
+### Manager deviation rules
+
+**Rule 1 — Day swap when a manager requests off a working day:**
+- If **Jay** requests off Thursday or Friday → Myles covers that day instead. Myles then takes a different day off (not his usual Thu/Fri). Jay works Myles's normal off day (Thu or Fri) in exchange.
+- If **Myles** requests off Tuesday or Wednesday → Jay covers that day instead. Jay then takes a different day off (not his usual Tue/Wed). Myles works Jay's normal off day (Tue or Wed) in exchange.
+- Goal: manager hours stay whole (47h / 45h). The avail JSON for that week reflects the swap — open the covering manager on the new day, mark the requesting manager's original day X.
+
+**Rule 2 — Coverage backstop when leaders can't cover open or close:**
+- If shift leaders request off or are otherwise unavailable in a way that leaves a day without a leader opener (≤10am) or closer (≥10pm), a manager covers that slot.
+- Myles is the primary backstop. If Myles is also unavailable for that role, Jay covers.
+- The solver handles this automatically — managers have avail through 23:00 and the PB open/close hard constraints force coverage. No manual action needed unless you're building by hand.
+
 ### Close-then-open rule
 - **Minimum 12 hours between close and next-day open**
 - Example: 11pm close → 11am next day open = ✓ (12h gap)
