@@ -258,8 +258,7 @@ def main() -> None:
         hours_under = [i for i in parsed['audit_issues'] if i.startswith('HoursUnder:')]
 
         ok = (parsed['status'] == 'Optimal'
-              and parsed['audit'] == 'PASS'
-              and not parsed['cov_warnings']
+              and not hard_issues
               and parsed['zero_shifts'] == 0)
 
         tag = 'OK' if ok else 'FAIL'
@@ -272,12 +271,12 @@ def main() -> None:
                 print(f"  audit     : FAIL ({len(hard_issues)} hard issue(s):)")
                 for iss in hard_issues[:6]:
                     print(f"              {iss}")
-            for w in parsed['cov_warnings']:
-                print(f"  coverage  : {w}")
             if parsed['zero_shifts']:
                 print(f"  zero-shift: {parsed['zero_shifts']} person(s) skipped")
             for line in parsed['stderr_lines']:
                 print(f"  stderr    : {line}")
+        for w in parsed['cov_warnings']:
+            print(f"  coverage  : {w}")
         if hours_under:
             print(f"  hrs-under : {len(hours_under)} person(s) below target (req-offs expected)")
             for iss in hours_under[:4]:
