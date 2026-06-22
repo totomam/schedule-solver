@@ -88,8 +88,8 @@ def gen(n,d):
             # (evening departures land only at 8:00, 8:30, or 9:00+). 6:00pm & 8:00pm ok.
             # Also no one may end before 2pm (before 3pm on Sunday) — hard rule, no exceptions.
             if L<4 or L>maxlen or (18 < b < 20) or b in (20.25, 20.75): continue
-            # Adam ends at 10:45pm or 11pm only (set pattern)
-            if n=='Adam Van Bogaert' and b not in (22.75,23.0): continue
+            # Adam always ends at 11pm (set pattern)
+            if n=='Adam Van Bogaert' and b!=23.0: continue
             # Shift leaders (non-manager PB): if closing (end ≥10pm), must go to 11pm
             if n in PB and n not in NO_BREAK and b>=22 and b!=23.0: continue
             min_end = 15 if d==6 else 14   # Sunday: nobody leaves before 3pm; else 2pm
@@ -243,8 +243,7 @@ for n in FT_nonleader:
 # Adam has req-off Fri this week → 4 avail days (Mon-Thu). Dead zone caps starts at 2pm, max 9h/day.
 # Max achievable raw hours = 4×9h = 36. Target ≥35 (push to full 4-day coverage).
 prob += hours_expr('Adam Van Bogaert')>=35
-# CHANGE 5: Zac Duffy more hours (wants 30+, 10h-OK, available 4 days)
-prob += hours_expr('Zac Duffy')>=35
+prob += hours_expr('Zac Duffy')>=30; prob += hours_expr('Zac Duffy')<=35
 # CHANGE 3: Cai, Hayden, Logan more hours (target >=15h each, within their availability)
 for nm,mn in [('Cai Cotton',15),('Hayden Roush',12),('Logan Frias',15)]:
     prob += hours_expr(nm)>=mn

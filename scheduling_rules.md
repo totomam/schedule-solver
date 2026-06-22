@@ -173,7 +173,7 @@ Higher forecasted sales → higher targets. Use lunch/dinner targets as your pri
 
 ### New / occasional
 - **Jacob Cothern**: PT, 2 shifts only, available Mon-Thu 5p-9:30p (dinner shifts). Place on the higher-volume of his available days.
-- **Zac Duffy**: college kid (CK), wants 30+h, treated FT-ish — cleared for 10h shifts. **Target him at 28+ hours** (give him real hours, not a couple of short shifts). Available Mon/Tue/Thu/Sun.
+- **Zac Duffy**: college kid (CK), cleared for 10h shifts. **Target 30–35h range.** Available Mon/Tue/Thu/Sun.
 
 ### Leaving / on way out
 - Get 1-2 shifts max, no need to prioritize hours
@@ -262,7 +262,7 @@ Higher forecasted sales → higher targets. Use lunch/dinner targets as your pri
   - 1 person until 10:15pm
   - 1 person until 10:45pm
 - On 5-closer days (Mon–Thu, Sun) the solver will naturally drop one slot (typically 10:45pm).
-- **Adam always ends at 10:45pm or 11:00pm** (set pattern, Mon-Fri). Enforced in solver gen().
+- **Adam always ends at 11:00pm** (set pattern, Mon-Fri). Enforced in solver gen().
 - **All 5 shift leaders (Bowen, James, Trinity, Gobi, Mary): if on a closing shift (end ≥ 10pm), must go to 11pm** — leaders are in charge and stay until close. Enforced in solver gen().
 - Mary: solver places her freely Mon–Fri; **Saturday only** is pinned as a 3–11pm close.
 - **Late-arrival caps: at most 1 person may start at each of 5:15pm, 5:30pm, 5:45pm, and 6:00pm** (one per slot, four separate caps). Don't stack late dinner starts — spread evening arrivals across earlier start times.
