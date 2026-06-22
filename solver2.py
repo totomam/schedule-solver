@@ -186,7 +186,7 @@ def _sf(e,fl,t):    # soft floor: e + slack >= fl
     global prob; _s=pulp.LpVariable(t,lowBound=0); prob+=e+_s>=fl; _cov_slk.append(_s)
 # Hours floor soft constraints — activated only when req-offs make the target unreachable.
 # _HPEN << _CPEN so coverage always wins, but hours targets are still strongly preferred.
-_HPEN=40
+_HPEN=600
 _hrs_slk=[]
 def _sh(expr,floor,tag):
     global prob; _s=pulp.LpVariable(f'hs_{tag}',lowBound=0); prob+=expr+_s>=floor; _hrs_slk.append((tag,floor,_s))
@@ -249,9 +249,10 @@ def hours_expr(n): return pulp.lpSum(x[(n,d,i)]*(b-a) for d in range(7) for i,(a
 _sh(hours_expr('Trinity Stringer'),39,'Trinity_Stringer')  # leader 39-40h (ceiling via global <=40)
 _sh(hours_expr('Gobi Weathers'),37,'Gobi_Weathers')        # Gobi fixed shifts cap at ~37h raw
 for n in FT_nonleader:
-    # Adam always gets a soft floor regardless of avail-day count (req-offs may reduce him below 5)
+    floor = 40 if n=='Adam Van Bogaert' else 35  # Adam: exactly 40h raw target
+    # Adam always gets a floor regardless of avail-day count; others only when ≥5 avail days
     if len(avail_days(n))>=5 or n=='Adam Van Bogaert':
-        _sh(hours_expr(n),35,n.replace(' ','_'))
+        _sh(hours_expr(n),floor,n.replace(' ','_'))
     prob += hours_expr(n)<=40
 prob += hours_expr('Zac Duffy')<=35; _sh(hours_expr('Zac Duffy'),30,'Zac_Duffy')
 for nm,mn in [('Cai Cotton',15),('Hayden Roush',12),('Logan Frias',15)]:
@@ -266,7 +267,7 @@ prob += hours_expr('John Martin (Jay)')<=54       # ceiling: standard 47h + buff
 _sh(hours_expr('James Baker'),39,'James_Baker')   # leader 39-40h
 _sh(hours_expr('Mary Dean'),39,'Mary_Dean')       # leader 39-40h
 prob += hours_expr('Gracelyn Dailey')<=30; _sh(hours_expr('Gracelyn Dailey'),20,'Gracelyn_Dailey')
-for _n in ['Shayden Howard','John Dugan','Kayden Anderson','Logan Frias','Richard Raglin',
+for _n in ['Shayden Howard','John Dugan','Kayden Anderson','Richard Raglin',
            'Sandya Wright','Ryder','Oliver Croasdaile']:
     _sh(hours_expr(_n),15,_n.replace(' ','_'))
 
@@ -335,9 +336,9 @@ for d in range(7):
     prob += day_paid >= allowed[d]-3      # no day more than 3h under its allowed budget
     prob += day_paid <= allowed[d]+14     # and not wildly over
 
-# Weekly paid hours must land in [allowed+25, allowed+40] — hard range, no penalty term.
+# Weekly paid hours must land in [allowed+25, allowed+30] — hard range, no penalty term.
 prob += total_paid >= sum(allowed)+25
-prob += total_paid <= sum(allowed)+40
+prob += total_paid <= sum(allowed)+30
 weak_use=pulp.lpSum(x[(n,d,i)] for d in range(7) for (n,i,a,b,pv) in SD[d] if n in weak5)
 # Preference: favor short 4-4.5h shifts (no break) over 5-5.5h shifts (which lose 0.5h to break).
 # Same labor, more days, no break to manage. Light penalty on 5-5.5h shifts for non-managers.

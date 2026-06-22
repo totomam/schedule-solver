@@ -163,7 +163,7 @@ Higher forecasted sales → higher targets. Use lunch/dinner targets as your pri
 | Saturday | +15-20 |
 | Sunday | +10-15 |
 
-**Weekly target: total scheduled variance for the week is +25 to +40 over base allowed hours.** Any value in that range is acceptable — don’t chase a single number. Individual day variances will vary (busy days like Fri/Sat/Sun carry more, slow days less). Lower variance from a genuinely thin roster is acceptable and reflects real availability, not under-scheduling.
+**Weekly target: total scheduled variance for the week is +25 to +30 over base allowed hours.** Any value in that range is acceptable — don’t chase a single number. Individual day variances will vary (busy days like Fri/Sat/Sun carry more, slow days less). Lower variance from a genuinely thin roster is acceptable and reflects real availability, not under-scheduling.
 
 ---
 
@@ -338,7 +338,7 @@ When building a new schedule:
    - [ ] Lunch hits day-target, dinner hits day-target
    - [ ] Openers (Jay never counts): 6 every day. Closers exactly 5/day (6 Fri-Sat-Sun)
    - [ ] Every available person gets at least one shift
-   - [ ] Weekly total variance lands in the +25 to +40 range (paid hours over allowed)
+   - [ ] Weekly total variance lands in the +25 to +30 range (paid hours over allowed)
    - [ ] No shift under 4h
 
 7. **Build the .xlsx** in reference format (employee rows alphabetical, with Schedule Summary at bottom)

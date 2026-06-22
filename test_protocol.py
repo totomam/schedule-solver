@@ -57,12 +57,24 @@ _TEN_HR = _PB_ALL | {
 def _max_achievable_raw(person: str, reqoff: dict) -> float:
     """Max raw hours a person could work this week given their avail windows and req-offs."""
     max_shift = 10.0 if person in _TEN_HR else 8.0
+    # Per-person hard caps that reduce the effective max shift regardless of avail window
+    if person == 'Molly Summers':
+        max_shift = min(max_shift, 8.0)  # never past 5pm; earliest start 9am → 8h ceiling
     day_maxes = []
     for d, day in enumerate(DAYS):
         w = AVAIL[person][d]
         if w == 'X' or person in reqoff.get(day, []):
             continue
-        window = 17.0 if w in ('any', 'open') else float(w[1] - w[0])
+        if w in ('any', 'open'):
+            lo, hi = 6.0, 23.0
+        else:
+            lo, hi = float(w[0]), float(w[1])
+        # Apply solver's per-person floor/ceiling rules
+        if person not in (_JAY, 'Bowen Benedict'):
+            lo = max(lo, 9.0)   # 9am start floor for most people
+        if person == 'Molly Summers':
+            hi = min(hi, 17.0)
+        window = max(0.0, hi - lo)
         day_maxes.append(min(window, max_shift))
     day_maxes.sort(reverse=True)
     limit = 7 if person == _JAY else 5  # Jay has no 5-day cap
