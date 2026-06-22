@@ -23,7 +23,7 @@ At the start of each session, `web_fetch` this URL to get the latest solver code
 - Both are solver-placed (no fixed shifts). Can close at 11pm on any day no shift leader is available; Jay covers if Myles is also unavailable. Days off are flexible — if one requests off, the other adjusts.
 
 ### Non-manager hour caps
-- **Maximum 40h** for everyone except Jay and Myles (NO OVERTIME — we don't pay it)
+- **Maximum 40h** for everyone except Jay and Myles (NO OVERTIME — we don’t pay it)
 - **Minimum shift length: 4 hours**
 - **Part-time shifts capped at 8 hours per shift.** Only full-time, shift leaders, managers, and the blanket-approved 10h people (see below) may be scheduled longer than 8h. If a PT shift over 8h is genuinely needed, get manager permission first and log it as a one-time exception.
 - **10-hour-OK people** (may work up to 10h without asking): all leaders/managers, plus Adam, Mason, Michael, Molly, Noah Hiner, Ava, Remi, Izzy, Zac. Other PTs need explicit one-time manager approval for anything over 8h.
@@ -35,10 +35,10 @@ At the start of each session, `web_fetch` this URL to get the latest solver code
 - **Everyone else, INCLUDING the 5 shift leaders** (Bowen Benedict, James Baker, Trinity Stringer, Gobi Weathers, Mary Dean): subtract 0.5h from any shift ≥ 5 hours. The shift leaders clock out for a 30-min unpaid break like all hourly staff.
   - Example: 8a-4p (8h raw) shows as 7.5 paid
   - Example: 4:30p-9p (4.5h raw) shows as 4.5 paid (under 5h = no deduction)
-- Per-person cells in the .xlsx show FULL (raw) hours; the bottom "Scheduled Hours (paid)" row shows paid totals after break deductions. This paid model is the correct basis for planning.
+- Per-person cells in the .xlsx show FULL (raw) hours; the bottom “Scheduled Hours (paid)” row shows paid totals after break deductions. This paid model is the correct basis for planning.
 
 ### FT target hours
-- Shift leaders (Bowen, James, Trinity, Gobi, Mary): **39–40h range**. Gobi is capped at ~37h raw by her fixed schedule and the 12h close-then-open rule — she's the exception.
+- Shift leaders (Bowen, James, Trinity, Gobi, Mary): **39–40h range**. Gobi is capped at ~37h raw by her fixed schedule and the 12h close-then-open rule — she’s the exception.
 - Other FT + college kids (Zac): **35–40h range**
 
 ---
@@ -47,7 +47,7 @@ At the start of each session, `web_fetch` this URL to get the latest solver code
 
 ### Jay-specific (default set schedule)
 - **Off Tuesday AND Wednesday** normally
-- **Mon 6a-3p** (9h) — admin time at open, doesn't count as opener
+- **Mon 6a-3p** (9h) — admin time at open, doesn’t count as opener
 - **Thu/Fri/Sat 10a-8p** (10h)
 - **Sun 11a-5p** (6h)
 - **Never works past 9pm** unless absolute emergency close
@@ -66,14 +66,19 @@ At the start of each session, `web_fetch` this URL to get the latest solver code
 ### Manager deviation rules
 
 **Rule 1 — Day swap when a manager requests off a working day:**
-- If **Jay** requests off Thursday or Friday → Myles covers that day instead. Myles then takes a different day off (not his usual Thu/Fri). Jay works Myles's normal off day (Thu or Fri) in exchange.
-- If **Myles** requests off Tuesday or Wednesday → Jay covers that day instead. Jay then takes a different day off (not his usual Tue/Wed). Myles works Jay's normal off day (Tue or Wed) in exchange.
-- Goal: manager hours stay whole (47h / 45h). The avail JSON for that week reflects the swap — open the covering manager on the new day, mark the requesting manager's original day X.
+- If **Jay** requests off Thursday or Friday → Myles covers that day instead. Myles then takes a different day off (not his usual Thu/Fri). Jay works Myles’s normal off day (Thu or Fri) in exchange.
+- If **Myles** requests off Tuesday or Wednesday → Jay covers that day instead. Jay then takes a different day off (not his usual Tue/Wed). Myles works Jay’s normal off day (Tue or Wed) in exchange.
+- Goal: manager hours stay whole (47h / 45h). The avail JSON for that week reflects the swap — open the covering manager on the new day, mark the requesting manager’s original day X.
 
-**Rule 2 — Coverage backstop when leaders can't cover open or close:**
+**Rule 2 — Coverage backstop when leaders can’t cover open or close:**
 - If shift leaders request off or are otherwise unavailable in a way that leaves a day without a leader opener (≤10am) or closer (≥10pm), a manager covers that slot.
-- Myles is the primary backstop. If Myles is also unavailable for that role, Jay covers.
-- The solver handles this automatically — managers have avail through 23:00 and the PB open/close hard constraints force coverage. No manual action needed unless you're building by hand.
+- **Jay is the priority OPENER** (penalised for taking closing shifts). **Myles is the priority CLOSER** (penalised for taking opening shifts). If the preferred manager is also unavailable, the other covers.
+- The solver handles this automatically — managers have avail through 23:00 and the PB open/close hard constraints force coverage. No manual action needed unless you’re building by hand.
+
+**Rule 3 — Both managers off the same day:**
+- If both Jay AND Myles are unavailable on the same day (req’d off or avail=“X”), **every shift leader who IS available that day must work** — no shift leader may request off that day. This guarantees the day always has PB coverage for open and close.
+- In the request-off book: if Jay and Myles are both off a day, do not write any shift leader name under that day.
+- The solver enforces this as a hard constraint and the test protocol blocks the scenario from being generated.
 
 ### Close-then-open rule
 - **Minimum 12 hours between close and next-day open**
@@ -84,7 +89,7 @@ At the start of each session, `web_fetch` this URL to get the latest solver code
 - **Every day MUST have a shift leader or manager opening AND closing**
 - Opening = working at or before 10am
 - Closing = working until 10pm or later
-- Leaders/managers available to anchor open & close: Jay, Bowen, James, Trinity, Gobi, Mary. Plan leader coverage around each leader's days off and any request-offs that week.
+- Leaders/managers available to anchor open & close: Jay, Bowen, James, Trinity, Gobi, Mary. Plan leader coverage around each leader’s days off and any request-offs that week.
 - If no leader is available to close on a given day (rare): Myles can close as an emergency exception.
 
 ---
@@ -92,12 +97,12 @@ At the start of each session, `web_fetch` this URL to get the latest solver code
 ## 4. REQUEST-OFFS & AVAILABILITY (CRITICAL — audit after every change)
 
 - **Availability sheet** = source of truth for when each person CAN work
-- **Request-off book** = source of truth for who CAN'T work that specific day
+- **Request-off book** = source of truth for who CAN’T work that specific day
 - Read **every name on every day** carefully — names can appear on multiple days
 - After any schedule change, **audit BOTH**:
   1. Against the request-off book (names off specific days)
-  2. Against the availability sheet (shifts within each person's hours and on days they're available)
-- "X" or "xx" in availability = not available that day
+  2. Against the availability sheet (shifts within each person’s hours and on days they’re available)
+- “X” or “xx” in availability = not available that day
 - Names commonly off all-week or multi-day get fully removed from those days
 
 ---
@@ -105,10 +110,10 @@ At the start of each session, `web_fetch` this URL to get the latest solver code
 ## 5. COVERAGE TARGETS
 
 ### Openers (people working at or before 10am)
-- **Jay is NEVER counted as an opener, on any day** (admin time). All opener counts and targets below exclude Jay. The summary chart's "Open" column also excludes Jay, so the printed number matches these targets.
+- **Jay is NEVER counted as an opener, on any day** (admin time). All opener counts and targets below exclude Jay. The summary chart’s “Open” column also excludes Jay, so the printed number matches these targets.
 - **Target (not counting Jay): 6 openers every day, Monday through Sunday.**
-- A day may run one under if the bodies genuinely aren't available (weekend availability is the usual bottleneck).
-- **Stagger opener start times to lower labor when possible.** Don't start everyone at 9:00 — only the open truly needs a couple of bodies at the door. Have **2 people start at 9:00** and stagger the rest across **9:15, 9:30, 9:45, 10:00**. This trims paid hours off the slow early-morning window while still ramping coverage into the lunch build. Only bunch multiple people at 9:00 when the day genuinely needs the early hands (e.g. heavy prep or a big forecast).
+- A day may run one under if the bodies genuinely aren’t available (weekend availability is the usual bottleneck).
+- **Stagger opener start times to lower labor when possible.** Don’t start everyone at 9:00 — only the open truly needs a couple of bodies at the door. Have **2 people start at 9:00** and stagger the rest across **9:15, 9:30, 9:45, 10:00**. This trims paid hours off the slow early-morning window while still ramping coverage into the lunch build. Only bunch multiple people at 9:00 when the day genuinely needs the early hands (e.g. heavy prep or a big forecast).
 
 ### Lunch (people working at noon)
 - **Default target: 9 lunch every day if possible**
@@ -116,14 +121,14 @@ At the start of each session, `web_fetch` this URL to get the latest solver code
 - Higher (10+) for days with higher forecasted sales (e.g., Sat target 10)
 
 ### Closers (people working past 10:30pm — i.e., to 11pm close)
-- **Hard target: exactly 5 closers per day, 6 on Friday, Saturday, and Sunday.** Do not run more than the target — too many closers was a recurring problem. Treat this as a firm number, not a "minimum."
+- **Hard target: exactly 5 closers per day, 6 on Friday, Saturday, and Sunday.** Do not run more than the target — too many closers was a recurring problem. Treat this as a firm number, not a “minimum.”
 - **Never have more than one of Gobi, James, or Trinity closing on the same day.** If Gobi or Trinity is closing, move James to a mid or open shift (he does not close that day). At most one of the three closes per day.
 
 ### Evening staffing floor (every day)
 - **9pm: at least 7 people still working past 9:00pm Mon–Thu and Sun.**
-- **Friday & Saturday: hold the past-9pm count at exactly 8** — floor of 8, but capped at 8. To keep it from ballooning (the heavy Fri/Sat dinner crew would otherwise leave ~10 people on past 9), push the surplus dinner-crew shifts to **end at exactly 9:00pm**, since a 9:00 end does not count as "past 9pm." This raises the effective evening floor to 8 while trimming late-evening labor.
+- **Friday & Saturday: hold the past-9pm count at exactly 8** — floor of 8, but capped at 8. To keep it from ballooning (the heavy Fri/Sat dinner crew would otherwise leave ~10 people on past 9), push the surplus dinner-crew shifts to **end at exactly 9:00pm**, since a 9:00 end does not count as “past 9pm.” This raises the effective evening floor to 8 while trimming late-evening labor.
 - **9:30pm: at least 6 people working past 9:30pm Monday–Thursday; at least 7 Friday–Sunday.**
-- Counting follows the standard convention: a person counts toward a time only if they're working *past* it (a shift ending exactly at 9:00pm does not count toward the 9pm floor).
+- Counting follows the standard convention: a person counts toward a time only if they’re working *past* it (a shift ending exactly at 9:00pm does not count toward the 9pm floor).
 - This is broader than the closer count (closers work to 10:30/11pm); it keeps enough hands on the floor through the back half of the dinner rush before close.
 
 ### Dinner (people working past 5pm)
@@ -149,7 +154,7 @@ Higher forecasted sales → higher targets. Use lunch/dinner targets as your pri
 ## 6. VARIANCE TARGETS (paid hours over allowed hours)
 
 | Day | Variance Target |
-|-----|-----------------|
+|-----|------------------|
 | Monday | +5 |
 | Tuesday | +5 |
 | Wednesday | +5 |
@@ -158,7 +163,7 @@ Higher forecasted sales → higher targets. Use lunch/dinner targets as your pri
 | Saturday | +15-20 |
 | Sunday | +10-15 |
 
-**Weekly target: total scheduled variance for the week is +25 to +30 over base allowed hours.** Any value in that range is acceptable — don't chase a single number. Individual day variances will vary (busy days like Fri/Sat/Sun carry more, slow days less). Lower variance from a genuinely thin roster is acceptable and reflects real availability, not under-scheduling.
+**Weekly target: total scheduled variance for the week is +25 to +40 over base allowed hours.** Any value in that range is acceptable — don’t chase a single number. Individual day variances will vary (busy days like Fri/Sat/Sun carry more, slow days less). Lower variance from a genuinely thin roster is acceptable and reflects real availability, not under-scheduling.
 
 ---
 
@@ -172,9 +177,9 @@ Higher forecasted sales → higher targets. Use lunch/dinner targets as your pri
 - Nathan Paasewe
 - Reese Bezehertny
 - Lorelei Regan
-- Gracelyn Dailey — **availability changes every month and is NOT in the standard availability sheet. She prints and brings her own calendar. Always verify her current availability before each build; do NOT assume she's "any"/open.** (Example: for 6/22-6/28 she was available Saturday only.)
+- Gracelyn Dailey — **availability changes every month and is NOT in the standard availability sheet. She prints and brings her own calendar. Always verify her current availability before each build; do NOT assume she’s “any”/open.** (Example: for 6/22-6/28 she was available Saturday only.)
 
-### Weak / limited group — "don't pull their weight," spread out, prefer one day each
+### Weak / limited group — “don’t pull their weight,” spread out, prefer one day each
 - **Full group (all five): Layton Angermeier, Emily Owens, Brian Carver, Bryan Bishop, Jason Britt**
 - **Prefer-one-day rule (applies to ALL FIVE):** schedule each of them just one day/shift per week when possible. Only give a second day if coverage genuinely requires it.
 - **One-per-meal-period rule (applies ONLY to Brian Carver, Bryan Bishop, Jason Britt):** never more than ONE of these three working the same meal period (lunch or dinner) on any given day. Lunch = on the floor at noon; dinner = working past 5pm. Each lunch and each dinner across the week may contain at most one of them. (One-per-meal exceptions can be approved individually.)
@@ -202,10 +207,10 @@ Higher forecasted sales → higher targets. Use lunch/dinner targets as your pri
 
 ### 15-minute increment in/out times (standing rule)
 - **Shift start and end times may be set on any 15-minute increment** (e.g. 9:15a, 10:45a, 2:15p, 3:45p) throughout the entire day, not just on the hour or half-hour.
-- This lets staffing track demand more precisely and squeezes out rounding waste — people start and end closer to when they're actually needed.
+- This lets staffing track demand more precisely and squeezes out rounding waste — people start and end closer to when they’re actually needed.
 - Applies across the whole operating day (open through close), in addition to the forbidden end times (no 6pm/7pm ends, nothing ending before 2pm / 3pm Sunday) and the 4-hour minimum shift length.
 
-### The "just under 5 hours" trick
+### The “just under 5 hours” trick
 - A 4.5h shift = 4.5 paid hours (no break)
 - A 5h shift = 4.5 paid hours (after break)
 - **Same paid hours, but 5h shift gives more coverage**
@@ -234,18 +239,18 @@ Higher forecasted sales → higher targets. Use lunch/dinner targets as your pri
 - The only people scheduled before 9am: **Jay** (Mon 6a), **Bowen** (8a Mon-Fri), **Gobi** (Saturday open), **James** (Sunday 8a). No one else.
 
 ### Morning starts
-- Don't have everyone start at 9am — stagger the openers. At most 2 people start at exactly 9:00 (plus Bowen's 8a anchor); stagger the rest at 9:15a, 9:30a, 9:45a, 10a.
+- Don’t have everyone start at 9am — stagger the openers. At most 2 people start at exactly 9:00 (plus Bowen’s 8a anchor); stagger the rest at 9:15a, 9:30a, 9:45a, 10a.
 - At least one prep person (Michael, Tiffany, Noah, Gracelyn, Molly; Reilly = dough on Sunday) should be among the 9:00 starters.
 - Bowen anchors morning at 8a (set schedule)
 
 ### Afternoon transitions
-- 3p-5p transition window: stagger so coverage doesn't spike
+- 3p-5p transition window: stagger so coverage doesn’t spike
 - Use 3p, 3:30p, 4p, 4:30p, 5p, 5:30p starts
 
 ### Openers — cap (not counting Jay)
 - An opener is anyone who starts work at or before 10:00am. **Jay never counts toward the opener total on any day.**
-- Target is 6 openers every day (not counting Jay). Don't exceed the target for the day.
-- If a day is running over, push the extra early-starters to an 11am start — they still cover lunch and dinner, they're just no longer openers.
+- Target is 6 openers every day (not counting Jay). Don’t exceed the target for the day.
+- If a day is running over, push the extra early-starters to an 11am start — they still cover lunch and dinner, they’re just no longer openers.
 
 ### Afternoon headcount (2pm / 3pm / 4pm) — HARD TARGETS
 - **These are hard targets to hit exactly, not a guide:**
@@ -253,19 +258,19 @@ Higher forecasted sales → higher targets. Use lunch/dinner targets as your pri
   - **Friday: 2pm = 8, 3pm = 7, 4pm = 6**
   - **Saturday: 2pm = 9, 3pm = 8, 4pm = 7**
   - **Sunday: 2pm = 11, 3pm = 8, 4pm = 6**
-- **Counting convention (applies to ALL headcount counts at every clock time):** a person counts toward the headcount at time T only if they are still working *past* T. If their shift ends exactly at T, they do NOT count toward T — they're considered gone. (Floor at T = shifts with start ≤ T AND end > T.) So someone ending at exactly 3:00 counts at 2pm but not 3pm.
-- Build the afternoon to land on these numbers. The 3-5pm peak ceiling still applies (≤8 normal/Fri/Sat; Sunday's 2pm/3pm run higher by design).
+- **Counting convention (applies to ALL headcount counts at every clock time):** a person counts toward the headcount at time T only if they are still working *past* T. If their shift ends exactly at T, they do NOT count toward T — they’re considered gone. (Floor at T = shifts with start ≤ T AND end > T.) So someone ending at exactly 3:00 counts at 2pm but not 3pm.
+- Build the afternoon to land on these numbers. The 3-5pm peak ceiling still applies (≤8 normal/Fri/Sat; Sunday’s 2pm/3pm run higher by design).
 - Mechanics for hitting them cleanly: extend or trim daytime (lunch) shifts to control the 2pm and 3pm counts; stagger when the dinner crew starts (3/4/5pm) to control 3pm and 4pm; this also lets you push saved afternoon hours into dinner and weekend coverage.
 
 ### Departure timing
 - **No one leaves before 2pm** on any day — this is a hard rule with no exceptions. The earliest any non-Sunday shift may end is 2:00pm.
-- **At most 2 people leave at 2:00pm or 2:30pm on any given day.** Don't bunch departures — spread the early-out shifts so no more than two end in that 2:00/2:30 window.
+- **At most 2 people leave at 2:00pm or 2:30pm on any given day.** Don’t bunch departures — spread the early-out shifts so no more than two end in that 2:00/2:30 window.
 - **Sunday: no one leaves before 3pm.** The earliest any Sunday shift may end is 3:00pm. To make the Sunday afternoon drop (11 → 9), send exactly 2 people home *at* 3:00 (they end at 3:00, so they count at 2pm but not 3pm).
 - Forbidden end times: **no shift may end strictly between 5:00pm and 8:00pm** (5:00pm and 8:00pm themselves are fine; ends at 5:15, 5:30, … 7:45 are banned) — unless a shift is specifically pinned otherwise. Also none before 2:00pm (3:00pm Sunday).
 - **Evening-departure stagger:** no one ends at 8:15pm or 8:45pm (banned). At most **2 people end at 8:00pm** and **2 at 8:30pm** — except Friday & Saturday, where at most **1 ends at 8:00pm**. (Managers/leaders on fixed shifts are exempt from these counts; the caps govern the flexible staff the solver places.)
 
 ### Shift end times — NEVER end at 6pm or 7pm
-- **Do not schedule anyone to leave between 5:00pm and 8:00pm** (exclusive) — that's the dinner ramp and rush. A shift should either end at **5:00pm or earlier** (a lunch/midday body, off before dinner ramps) OR **8:00pm or later** (a dinner body that works through the rush). The only exception is a shift specifically pinned to end in that window.
+- **Do not schedule anyone to leave between 5:00pm and 8:00pm** (exclusive) — that’s the dinner ramp and rush. A shift should either end at **5:00pm or earlier** (a lunch/midday body, off before dinner ramps) OR **8:00pm or later** (a dinner body that works through the rush). The only exception is a shift specifically pinned to end in that window.
 - When shortening a dinner shift to save hours, pull it back to 5pm; when extending a midday shift, push it to 8pm+
 
 ### Evening closes
@@ -276,16 +281,16 @@ Higher forecasted sales → higher targets. Use lunch/dinner targets as your pri
   - 1 person until 10:45pm
 - On 5-closer days (Mon–Thu, Sun) the solver will naturally drop one slot (typically 10:45pm).
 - **Adam always ends at 11:00pm** (set pattern, Mon-Fri). Enforced in solver gen().
-- **All 5 shift leaders (Bowen, James, Trinity, Gobi, Mary): if on a closing shift (end ≥ 10pm), must go to 11pm** — leaders are in charge and stay until close. Enforced in solver gen().
+- **All PB (shift leaders AND managers Jay/Myles): if on a closing shift (end ≥ 10pm), must end at exactly 11pm** — leaders are in charge and stay until close; managers on closing backup do the same. Enforced in solver gen().
 - Mary: solver places her freely Mon–Fri; **Saturday only** is pinned as a 3–11pm close.
-- **Late-arrival caps: at most 1 person may start at each of 5:15pm, 5:30pm, 5:45pm, and 6:00pm** (one per slot, four separate caps). Don't stack late dinner starts — spread evening arrivals across earlier start times.
+- **Late-arrival caps: at most 1 person may start at each of 5:15pm, 5:30pm, 5:45pm, and 6:00pm** (one per slot, four separate caps). Don’t stack late dinner starts — spread evening arrivals across earlier start times.
 
 ---
 
 ## 10. FT WEEKLY STRUCTURE (defaults)
 
-### Set schedules (don't change without reason)
-- **Bowen**: Mon-Fri 8a-4p — **always a full 8a-4p, every day he works. Never short his hours** (don't trim him to 8-3, etc.)
+### Set schedules (don’t change without reason)
+- **Bowen**: Mon-Fri 8a-4p — **always a full 8a-4p, every day he works. Never short his hours** (don’t trim him to 8-3, etc.)
 - **Adam**: Mon-Fri, **always ends at 11pm** (e.g. 4p-11p, or starts earlier when more hours are needed). Adam never ends before 11pm.
 - **Mary**: Sat 3p-11p (pinned); other days solver-placed within her 3p-11p avail window
 - **James**: any most days, Wed 3-11, Sun 8-4. **Does not close on any day Gobi or Trinity closes** (move him to mid/open that day).
@@ -320,7 +325,7 @@ When building a new schedule:
 
 6. **Validate**:
    - [ ] All request-offs honored (cross-check against book line-by-line)
-   - [ ] All shifts within each person's availability (cross-check avail sheet; verify Gracelyn's monthly calendar)
+   - [ ] All shifts within each person’s availability (cross-check avail sheet; verify Gracelyn’s monthly calendar)
    - [ ] Every day has leader open AND close
    - [ ] At most ONE of Gobi/James/Trinity closes per day
    - [ ] No close-then-open under 12h (incl. leaders — Gobi opens Tue at 11a)
@@ -333,7 +338,7 @@ When building a new schedule:
    - [ ] Lunch hits day-target, dinner hits day-target
    - [ ] Openers (Jay never counts): 6 every day. Closers exactly 5/day (6 Fri-Sat-Sun)
    - [ ] Every available person gets at least one shift
-   - [ ] Weekly total variance lands in the +25 to +30 range (paid hours over allowed)
+   - [ ] Weekly total variance lands in the +25 to +40 range (paid hours over allowed)
    - [ ] No shift under 4h
 
 7. **Build the .xlsx** in reference format (employee rows alphabetical, with Schedule Summary at bottom)
@@ -343,7 +348,7 @@ When building a new schedule:
 ## 12. ALPHABETICAL NAME MAP (printed schedule vs. nicknames)
 
 | Printed | Goes by |
-|---------|---------|
+|---------|--------|
 | John Martin | Jay |
 | Claire Cotton | Cai |
 | Danielle Sullinger | Remi |
@@ -352,7 +357,7 @@ When building a new schedule:
 | Noah Weathers | Gobi |
 | Izabella Simpson | Izzy |
 
-(In the .xlsx schedule, use the "goes by" name — Jay, Cai, Remi, etc.)
+(In the .xlsx schedule, use the “goes by” name — Jay, Cai, Remi, etc.)
 
 ---
 

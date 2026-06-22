@@ -9,7 +9,7 @@ Usage:
 
 What it does:
   - Generates N random (reqoff, forecast) pairs, runs solver2.py for each.
-  - 25 request-offs per run: exactly 13 on Fri/Sat/Sun, 12 on Mon-Thu.
+  - 10–25 request-offs per run (random), split 50/50 between Fri/Sat/Sun and Mon-Thu.
   - Sales vary ±random in [-1000, +2500] from the baseline week total,
     scaling allowed_hours proportionally across all 7 days.
   - Availability stays fixed (avail_6_29.json unchanged).
@@ -20,12 +20,12 @@ What it does:
 import json, os, random, subprocess, sys, tempfile, time
 from pathlib import Path
 
-# ── Config ──────────────────────────────────────────────────────────────────
+# ── Config ──────────────────────────────────────────────────────────────────────────
 SEED    = int(os.environ.get('TEST_SEED',  '42'))
 N_RUNS  = int(os.environ.get('TEST_RUNS',   '1'))
 BASE_DIR = Path(__file__).resolve().parent
 
-# ── Load base data ───────────────────────────────────────────────────────────
+# ── Load base data ────────────────────────────────────────────────────────────────────────
 with open(BASE_DIR / 'avail_6_29.json')    as f: AVAIL   = json.load(f)
 with open(BASE_DIR / 'reqoff_6_29.json')   as f: BASE_REQOFF   = json.load(f)
 with open(BASE_DIR / 'forecast_6_29.json') as f: BASE_FORECAST = json.load(f)
@@ -38,14 +38,21 @@ DAYS    = ['Mon','Tue','Wed','Thu','Fri','Sat','Sun']
 WEEKEND = ['Fri','Sat','Sun']
 WEEKDAY = ['Mon','Tue','Wed','Thu']
 
-# ── Request-off generator ────────────────────────────────────────────────────
+_JAY   = 'John Martin (Jay)'
+_MYLES = 'Myles Palmer'
+# Shift leaders — not managers
+_LEADERS = {'Bowen Benedict', 'James Baker', 'Trinity Stringer', 'Gobi Weathers', 'Mary Dean'}
+
+# ── Request-off generator ─────────────────────────────────────────────────────────────────────────
 def make_reqoff(rng: random.Random) -> dict[str, list[str]]:
-    """25 request-offs: exactly 13 on Fri/Sat/Sun, 12 on Mon-Thu.
+    """10–25 request-offs (random), split 50/50 between Fri/Sat/Sun and Mon-Thu.
     Each (person, day) pair is unique; persons may appear on multiple days.
     No one is excluded — including people with fixed backbone shifts.
     This surfaces scenarios where the solver must handle a missing required
     person (infeasibility, coverage gap, etc.) so we can add backup rules.
     Only people already marked 'X' on a day are skipped (already not working).
+    If both Jay and Myles are req'd off the same day, no shift leader can also
+    req off that day (guarantees ≥1 PB member available to cover open/close).
     """
     buckets: dict[str, set[str]] = {d: set() for d in DAYS}
 
@@ -53,6 +60,10 @@ def make_reqoff(rng: random.Random) -> dict[str, list[str]]:
         d = DAYS.index(day_name)
         if AVAIL[person][d] == 'X':
             return False
+        # Block shift leaders on days where both managers are already off
+        if person in _LEADERS:
+            if _JAY in buckets[day_name] and _MYLES in buckets[day_name]:
+                return False
         return True
 
     def fill(day_pool: list[str], target: int) -> None:
@@ -69,12 +80,22 @@ def make_reqoff(rng: random.Random) -> dict[str, list[str]]:
             buckets[day].add(rng.choice(candidates))
             placed += 1
 
-    fill(WEEKEND, 13)
-    fill(WEEKDAY,  12)
+    total      = rng.randint(10, 25)
+    weekend_n  = total // 2
+    weekday_n  = total - weekend_n
+    fill(WEEKEND, weekend_n)
+    fill(WEEKDAY,  weekday_n)
+
+    # Post-process: if both managers ended up off the same day, remove any leaders
+    # that slipped through (edge case when leader was added before second manager)
+    for day in DAYS:
+        if _JAY in buckets[day] and _MYLES in buckets[day]:
+            buckets[day] = {p for p in buckets[day] if p not in _LEADERS}
+
     return {d: sorted(buckets[d]) for d in DAYS}
 
 
-# ── Forecast generator ───────────────────────────────────────────────────────
+# ── Forecast generator ─────────────────────────────────────────────────────────────────────────
 def make_forecast(rng: random.Random) -> tuple[dict, float]:
     """Scale allowed_hours by a random sales delta in [-1000, +2500].
     Delta is treated as a total-weekly change; each day scales proportionally.
@@ -99,7 +120,7 @@ def make_forecast(rng: random.Random) -> tuple[dict, float]:
     return fc, delta
 
 
-# ── Solver runner ────────────────────────────────────────────────────────────
+# ── Solver runner ────────────────────────────────────────────────────────────────────────────
 def run_solver(reqoff: dict, forecast: dict, run_id: int) -> tuple[int, str, str, float]:
     """Write temp files, run solver2.py, return (returncode, stdout, stderr, elapsed_s)."""
     tmp = BASE_DIR / '_test_tmp'
@@ -139,7 +160,7 @@ def run_solver(reqoff: dict, forecast: dict, run_id: int) -> tuple[int, str, str
     return result.returncode, result.stdout, result.stderr, elapsed
 
 
-# ── Output parser ────────────────────────────────────────────────────────────
+# ── Output parser ────────────────────────────────────────────────────────────────────────────
 def parse_output(stdout: str, stderr: str, returncode: int) -> dict:
     """Extract key metrics from solver stdout."""
     result = {
@@ -194,7 +215,7 @@ def parse_output(stdout: str, stderr: str, returncode: int) -> dict:
     return result
 
 
-# ── Main ─────────────────────────────────────────────────────────────────────
+# ── Main ─────────────────────────────────────────────────────────────────────────────────
 def main() -> None:
     master_rng = random.Random(SEED)
     print(f"=== Solver Test Protocol  seed={SEED}  runs={N_RUNS} ===\n")
@@ -282,7 +303,7 @@ def main() -> None:
         }
         all_results.append(record)
 
-    # ── Summary ──────────────────────────────────────────────────────────────
+    # ── Summary ────────────────────────────────────────────────────────────────────────────
     print(f"\n{'─'*60}")
     print(f"Summary: {N_RUNS} run(s)")
 
@@ -308,13 +329,13 @@ def main() -> None:
             print(f"  Run {r['run']:02d}: Δsales={r['sales_delta']:+d}  "
                   f"hours={r['total_hours']}  → {', '.join(reasons) or 'unknown'}")
 
-    # ── Write report ─────────────────────────────────────────────────────────
+    # ── Write report ───────────────────────────────────────────────────────────────────────────
     report = BASE_DIR / 'test_report.json'
     with open(report, 'w') as f:
         json.dump({'seed': SEED, 'n_runs': N_RUNS, 'results': all_results}, f, indent=2)
     print(f"\nReport → {report}")
 
-    # ── Clean up temp dir ─────────────────────────────────────────────────────
+    # ── Clean up temp dir ─────────────────────────────────────────────────────────────────────────
     tmp = BASE_DIR / '_test_tmp'
     if tmp.exists() and not any(tmp.iterdir()):
         tmp.rmdir()

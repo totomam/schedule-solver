@@ -90,8 +90,8 @@ def gen(n,d):
             if L<4 or L>maxlen or (18 < b < 20) or b in (20.25, 20.75): continue
             # Adam always ends at 11pm (set pattern)
             if n=='Adam Van Bogaert' and b!=23.0: continue
-            # Shift leaders (non-manager PB): if closing (end ≥10pm), must go to 11pm
-            if n in PB and n not in NO_BREAK and b>=22 and b!=23.0: continue
+            # All PB (shift leaders AND managers): if closing (end ≥10pm), must end at exactly 11pm
+            if n in PB and b>=22 and b!=23.0: continue
             min_end = 15 if d==6 else 14   # Sunday: nobody leaves before 3pm; else 2pm
             if b<min_end: continue
             out.append((round(a,2),round(b,2)))
@@ -224,12 +224,18 @@ for d in range(7):
     if _SDF[d,'dep205']:  _sc(pulp.lpSum(_SDF[d,'dep205']), 2,      f'sdep205_{d}')
     if _SDF[d,'dep14']:   _sc(pulp.lpSum(_SDF[d,'dep14']),  2,      f'sdep14_{d}')
     if _SDF[d,'trio_cl']: _sc(pulp.lpSum(_SDF[d,'trio_cl']),1,      f'strio_{d}')
-    # Closer end-time staggering: 2×11pm, 2×10:30pm, 1×10:15pm, 1×10:45pm
-    for _key,_tgt in (('e23',2),('e225',2),('e2225',1),('e2275',1)):
+    # Closer end-time staggering: 2x11pm, 2x10:30pm, 1x10:15pm, 1x10:45pm
+    # e23 ceiling is 3 (not 2): shift leaders forced to 23.0 can fill 2 slots,
+    # so a manager who also closes would push ceiling of 2 over. Allow 3.
+    # e2225 (10:15pm): ceiling only — adding a floor requires a 7th closer slot since
+    # 22.25 < 22.5 doesn't count in cl225, which creates unavoidable budget conflicts.
+    for _key,_floor,_ceil in (('e23',2,3),('e225',2,2),('e2275',1,1)):
         if _SDF[d,_key]:
             _e=pulp.lpSum(_SDF[d,_key])
-            _sf(_e,_tgt,f's{_key}f_{d}')
-            _sc(_e,_tgt,f's{_key}c_{d}')
+            _sf(_e,_floor,f's{_key}f_{d}')
+            _sc(_e,_ceil, f's{_key}c_{d}')
+    if _SDF[d,'e2225']:
+        _sc(pulp.lpSum(_SDF[d,'e2225']),1,f'se2225c_{d}')
     if _SDF[d,'stag9']:   _sc(pulp.lpSum(_SDF[d,'stag9']),  2,      f'sstag9_{d}')
     for _key in ('la1725','la175','la1775','la18'):
         if _SDF[d,_key]: _sc(pulp.lpSum(_SDF[d,_key]),1,   f's{_key}_{d}')
@@ -254,8 +260,10 @@ for nm,mn in [('Cai Cotton',15),('Hayden Roush',12),('Logan Frias',15)]:
 for n in people:
     if n in ('John Martin (Jay)','Myles Palmer'): continue  # managers: no 40h cap
     prob += hours_expr(n)<=40
-_sh(hours_expr('Myles Palmer'),45,'Myles_Palmer')  # standard 45h; soft so req-offs don't force infeasibility
-_sh(hours_expr('John Martin (Jay)'),47,'John_Martin_Jay')  # standard 47h; soft for same reason
+_sh(hours_expr('Myles Palmer'),45,'Myles_Palmer')  # standard 45h; soft floor
+prob += hours_expr('Myles Palmer')<=52            # ceiling: standard 45h + buffer for close backstop days
+_sh(hours_expr('John Martin (Jay)'),47,'John_Martin_Jay')  # standard 47h; soft floor
+prob += hours_expr('John Martin (Jay)')<=54       # ceiling: standard 47h + buffer
 _sh(hours_expr('James Baker'),39,'James_Baker')   # leader 39-40h
 _sh(hours_expr('Mary Dean'),39,'Mary_Dean')       # leader 39-40h
 prob += hours_expr('Gracelyn Dailey')<=30; _sh(hours_expr('Gracelyn Dailey'),20,'Gracelyn_Dailey')
@@ -292,6 +300,17 @@ for n in people:
             prob += (pulp.lpSum(x[(n,d,i)] for i in idxs)
                      + pulp.lpSum(x[(n,d+1,j)] for j in early)) <= 1
 
+# ===== Both managers off → force all available shift leaders to work that day =====
+# When Jay and Myles are both unavailable on a day (req'd off or avail="X"), every
+# shift leader who IS available must work to guarantee PB open/close coverage.
+_PB_LEADERS = [n for n in PB if n not in NO_BREAK]  # Bowen, James, Trinity, Gobi, Mary
+for d in range(7):
+    if avwin('John Martin (Jay)',d) is None and avwin('Myles Palmer',d) is None:
+        for _n in _PB_LEADERS:
+            _day_shifts = shifts.get((_n,d),[])
+            if _day_shifts:
+                prob += pulp.lpSum(x[(_n,d,i)] for i in range(len(_day_shifts))) >= 1
+
 # ===== NO ZERO-SHIFT for anyone available (>=1 day avail must get >=1 shift) =====
 # Make it a HARD constraint for everyone with availability, EXCEPT allow the solver to drop
 # someone only if infeasible. Use soft with big penalty to stay feasible.
@@ -317,15 +336,35 @@ for d in range(7):
     prob += day_paid >= allowed[d]-3      # no day more than 3h under its allowed budget
     prob += day_paid <= allowed[d]+14     # and not wildly over
 
-# Weekly paid hours must land in [allowed+25, allowed+30] — hard range, no penalty term.
+# Weekly paid hours must land in [allowed+25, allowed+40] — hard range, no penalty term.
 prob += total_paid >= sum(allowed)+25
-prob += total_paid <= sum(allowed)+30
+prob += total_paid <= sum(allowed)+40
 weak_use=pulp.lpSum(x[(n,d,i)] for d in range(7) for (n,i,a,b,pv) in SD[d] if n in weak5)
 # Preference: favor short 4-4.5h shifts (no break) over 5-5.5h shifts (which lose 0.5h to break).
 # Same labor, more days, no break to manage. Light penalty on 5-5.5h shifts for non-managers.
 short_pref=pulp.lpSum(x[(n,d,i)] for d in range(7) for (n,i,a,b,pv) in SD[d]
                       if n not in NO_BREAK and 5<=(b-a)<=5.5)
-prob += (50*pulp.lpSum(zero_pen) + 8*weak_use + 0.3*short_pref
+# Soft default-schedule preference for managers: discourage Jay from working Tue/Wed and
+# Myles from working Thu/Fri (their standard off-days). High enough to keep standard schedule;
+# low enough to allow backstop coverage when no other PB opener/closer is available.
+_JAY_OFFDAYS  = {1,2}   # Tue, Wed
+_MYLES_OFFDAYS = {3,4}  # Thu, Fri
+mgr_offday = (pulp.lpSum(x[('John Martin (Jay)',d,i)]  for d in _JAY_OFFDAYS   for i in range(len(shifts[('John Martin (Jay)',d)])))
+            + pulp.lpSum(x[('Myles Palmer',d,i)]       for d in _MYLES_OFFDAYS  for i in range(len(shifts[('Myles Palmer',d)]))))
+# Manager role priorities: Jay is the backstop OPENER, Myles is the backstop CLOSER.
+# Penalise Jay for taking closing shifts (b=23) and Myles for taking opening shifts (a<=10).
+# Penalty 20 < mgr_offday 30 < coverage floor 500, so backstop still fires when needed
+# but the preferred manager is chosen first.
+jay_closes  = pulp.lpSum(x[('John Martin (Jay)',d,i)]
+                          for d in range(7)
+                          for i,(a,b) in enumerate(shifts[('John Martin (Jay)',d)])
+                          if b == 23.0)
+myles_opens = pulp.lpSum(x[('Myles Palmer',d,i)]
+                          for d in range(7)
+                          for i,(a,b) in enumerate(shifts[('Myles Palmer',d)])
+                          if a <= 10)
+prob += (50*pulp.lpSum(zero_pen) + 8*weak_use + 0.3*short_pref + 30*mgr_offday
+         + 20*jay_closes + 20*myles_opens
          + _CPEN*pulp.lpSum(_cov_slk) + _HPEN*pulp.lpSum(s for _,_,s in _hrs_slk))
 
 print(f"Vars: {len(x)}. Solving with HiGHS...")
