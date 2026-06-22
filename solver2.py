@@ -37,12 +37,9 @@ def avail_days(n): return [d for d in range(7) if avwin(n,d)]
 fixed={}
 def fx(n,d,a,b): fixed[(n,d)]=[a,b]
 # ===== 6/29-7/5 BACKBONE =====
-# Jay: ONLY Monday this week (vacation rest of week). Mon 6a-3p.
-fx('John Martin (Jay)',0,6,15)
-# Myles: OFF Tuesday AND Wednesday this week. Normal Mon 11-8, Sat/Sun 12-9.
-# Myles: 11a-8p on weekdays (Mon, Thu) and Sunday; 12p-9p Friday and Saturday. Off Tue/Wed. 45h.
-fx('Myles Palmer',0,11,20); fx('Myles Palmer',3,11,20); fx('Myles Palmer',6,11,20)
-fx('Myles Palmer',4,12,21); fx('Myles Palmer',5,12,21)
+# Jay: vacation except Monday — solver places him within his Mon [6,15] avail window.
+# Myles: solver-placed on his available days (Mon/Thu/Fri/Sat/Sun). Not fixed so he can
+#   close at 11pm on any day another manager/leader is unavailable to do so.
 # Bowen: set 8-4 Mon-Fri
 for d in range(5): fx('Bowen Benedict',d,8,16)
 # Gobi: Mon 4-11 close, Wed 9-5, Sat 9-5, Sun 3-11. TUE: must work (leader Tue rule) - 
@@ -257,8 +254,7 @@ for nm,mn in [('Cai Cotton',15),('Hayden Roush',12),('Logan Frias',15)]:
 for n in people:
     if n in ('John Martin (Jay)','Myles Palmer'): continue  # managers: no 40h cap
     prob += hours_expr(n)<=40
-# Myles fixed schedule always hits 45h — keep hard
-prob += hours_expr('Myles Palmer')>=45
+_sh(hours_expr('Myles Palmer'),45,'Myles_Palmer')  # prefer 45h; soft so req-offs don't force infeasibility
 _sh(hours_expr('James Baker'),39,'James_Baker')   # leader 39-40h
 _sh(hours_expr('Mary Dean'),39,'Mary_Dean')       # leader 39-40h
 prob += hours_expr('Gracelyn Dailey')<=30; _sh(hours_expr('Gracelyn Dailey'),20,'Gracelyn_Dailey')

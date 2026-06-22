@@ -30,7 +30,7 @@
 | Adam (Fri req-off this week) | ≥35h |
 | Zac Duffy | 30–35h |
 | Gracelyn Dailey | 20–30h |
-| Myles | exactly 45h |
+| Myles | ≥45h (soft — can work less if req-off) |
 | Medium PT | ≥15h each |
 | Everyone else | ≤40h |
 
@@ -68,9 +68,8 @@ fourTar  (at 4pm headcount)      = [5,5,5,5,6,7,6]
 ## Fixed Schedules (6/29–7/5 week — update the `fx()` block each week)
 | Person | Day | Shift |
 |---|---|---|
-| Jay | Mon | 6–3 (vacation rest of week) |
-| Myles | Mon/Thu/Sun | 11–8 |
-| Myles | Fri/Sat | 12–9 |
+| Jay | Mon | solver-placed within [6–3] avail (vacation rest of week) |
+| Myles | Mon/Thu/Fri/Sat/Sun | solver-placed; avail extended to 11pm so he can close if needed |
 | Bowen | Mon–Fri | 8–4 |
 | Gobi | Mon | 4–11 (close) |
 | Gobi | Tue | 11–5 |
