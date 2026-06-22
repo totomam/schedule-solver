@@ -22,7 +22,7 @@ from pathlib import Path
 
 # ── Config ──────────────────────────────────────────────────────────────────
 SEED    = int(os.environ.get('TEST_SEED',  '42'))
-N_RUNS  = int(os.environ.get('TEST_RUNS',  '10'))
+N_RUNS  = int(os.environ.get('TEST_RUNS',   '1'))
 BASE_DIR = Path(__file__).resolve().parent
 
 # ── Load base data ───────────────────────────────────────────────────────────

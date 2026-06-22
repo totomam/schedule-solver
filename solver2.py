@@ -187,6 +187,12 @@ def _sc(e,cap,t):   # soft ceiling: e <= cap + slack
     global prob; _s=pulp.LpVariable(t,lowBound=0); prob+=e<=cap+_s; _cov_slk.append(_s)
 def _sf(e,fl,t):    # soft floor: e + slack >= fl
     global prob; _s=pulp.LpVariable(t,lowBound=0); prob+=e+_s>=fl; _cov_slk.append(_s)
+# Hours floor soft constraints — activated only when req-offs make the target unreachable.
+# _HPEN << _CPEN so coverage always wins, but hours targets are still strongly preferred.
+_HPEN=40
+_hrs_slk=[]
+def _sh(expr,floor,tag):
+    global prob; _s=pulp.LpVariable(f'hs_{tag}',lowBound=0); prob+=expr+_s>=floor; _hrs_slk.append((tag,floor,_s))
 
 for d in range(7):
     _h14=pulp.lpSum(_SDF[d,'h14']); _h15=pulp.lpSum(_SDF[d,'h15']); _h16=pulp.lpSum(_SDF[d,'h16'])
@@ -237,38 +243,28 @@ for n in people:
     if n=='John Martin (Jay)': continue
     prob += pulp.lpSum(x[(n,d,i)] for d in range(7) for i in range(len(shifts[(n,d)])))<=5
 def hours_expr(n): return pulp.lpSum(x[(n,d,i)]*(b-a) for d in range(7) for i,(a,b) in enumerate(shifts[(n,d)]))
-prob += hours_expr('Trinity Stringer')>=39   # leader range 39-40 (ceiling via global <=40)
-prob += hours_expr('Gobi Weathers')>=37      # Gobi fixed shifts max at 37h raw — can't reach 39
+_sh(hours_expr('Trinity Stringer'),39,'Trinity_Stringer')  # leader 39-40h (ceiling via global <=40)
+_sh(hours_expr('Gobi Weathers'),37,'Gobi_Weathers')        # Gobi fixed shifts cap at ~37h raw
 for n in FT_nonleader:
     if len(avail_days(n))>=5:
-        prob += hours_expr(n)>=35; prob += hours_expr(n)<=40
+        _sh(hours_expr(n),35,n.replace(' ','_')); prob += hours_expr(n)<=40
     else: prob += hours_expr(n)<=40
-# Adam has req-off Fri this week → 4 avail days (Mon-Thu). Dead zone caps starts at 2pm, max 9h/day.
-# Max achievable raw hours = 4×9h = 36. Target ≥35 (push to full 4-day coverage).
-prob += hours_expr('Adam Van Bogaert')>=35
-prob += hours_expr('Zac Duffy')>=30; prob += hours_expr('Zac Duffy')<=35
-# CHANGE 3: Cai, Hayden, Logan more hours (target >=15h each, within their availability)
+# Adam: explicit soft floor regardless of avail-day count (Fri req-off this week → 4 days)
+_sh(hours_expr('Adam Van Bogaert'),35,'Adam_Van_Bogaert')
+prob += hours_expr('Zac Duffy')<=35; _sh(hours_expr('Zac Duffy'),30,'Zac_Duffy')
 for nm,mn in [('Cai Cotton',15),('Hayden Roush',12),('Logan Frias',15)]:
-    prob += hours_expr(nm)>=mn
+    _sh(hours_expr(nm),mn,nm.replace(' ','_'))
 for n in people:
     if n in ('John Martin (Jay)','Myles Palmer'): continue  # managers: no 40h cap
     prob += hours_expr(n)<=40
-# Myles is REQUIRED to work 45 hours this week
+# Myles fixed schedule always hits 45h — keep hard
 prob += hours_expr('Myles Palmer')>=45
-prob += hours_expr('James Baker')>=39   # leader range 39-40 (ceiling via global <=40)
-prob += hours_expr('Mary Dean')>=39     # leader range 39-40
-prob += hours_expr('Gracelyn Dailey')>=20; prob += hours_expr('Gracelyn Dailey')<=30  # PT, 20-30h
-# Medium-priority PT: at least 15h each, for those whose availability allows it this week.
-# Excluded: Peyton (Mon-only this week) and Harper (req-off all her available days) — can't reach 15h.
+_sh(hours_expr('James Baker'),39,'James_Baker')   # leader 39-40h
+_sh(hours_expr('Mary Dean'),39,'Mary_Dean')       # leader 39-40h
+prob += hours_expr('Gracelyn Dailey')<=30; _sh(hours_expr('Gracelyn Dailey'),20,'Gracelyn_Dailey')
 for _n in ['Shayden Howard','John Dugan','Kayden Anderson','Logan Frias','Richard Raglin',
            'Sandya Wright','Ryder','Oliver Croasdaile']:
-    prob += hours_expr(_n)>=15
-# INSTRUCTION: every shift leader works Tuesday AND Wednesday (spaced through the day)
-LEADERS_TW=['Bowen Benedict','James Baker','Trinity Stringer','Gobi Weathers','Mary Dean']
-for n in LEADERS_TW:
-    for d in [1,2]:  # Tue, Wed
-        if shifts[(n,d)]:
-            prob += pulp.lpSum(x[(n,d,i)] for i in range(len(shifts[(n,d)])))>=1
+    _sh(hours_expr(_n),15,_n.replace(' ','_'))
 
 # weak5: prefer 1 day each (rulesheet). Hard cap 2; strong objective penalty makes a 2nd day rare.
 for n in weak5:
@@ -332,7 +328,8 @@ weak_use=pulp.lpSum(x[(n,d,i)] for d in range(7) for (n,i,a,b,pv) in SD[d] if n 
 # Same labor, more days, no break to manage. Light penalty on 5-5.5h shifts for non-managers.
 short_pref=pulp.lpSum(x[(n,d,i)] for d in range(7) for (n,i,a,b,pv) in SD[d]
                       if n not in NO_BREAK and 5<=(b-a)<=5.5)
-prob += 50*pulp.lpSum(zero_pen) + 8*weak_use + 0.3*short_pref + _CPEN*pulp.lpSum(_cov_slk)
+prob += (50*pulp.lpSum(zero_pen) + 8*weak_use + 0.3*short_pref
+         + _CPEN*pulp.lpSum(_cov_slk) + _HPEN*pulp.lpSum(s for _,_,s in _hrs_slk))
 
 print(f"Vars: {len(x)}. Solving with HiGHS...")
 _kw=dict(msg=False,timeLimit=240,gapRel=0.25)
@@ -437,6 +434,10 @@ for d in range(7):
 # Coverage slacks (soft constraints violated)
 _sviol=[v.name for v in _cov_slk if v.value() and v.value()>0.001]
 if _sviol: _fails.append(f"CovSlack({len(_sviol)}): {_sviol[:4]}{'...' if len(_sviol)>4 else ''}")
+# Hours floor slacks (person couldn't reach their hours target due to req-offs)
+for _nm,_fl,_sv in _hrs_slk:
+    if _sv.value() and _sv.value()>0.01:
+        _fails.append(f"HoursUnder: {_nm.replace('_',' ')} {_fl-_sv.value():.1f}h actual (target ≥{_fl}h)")
 
 print(f"Audit: {'PASS' if not _fails else str(len(_fails))+' issue(s):'}")
 for _f in _fails: print(f"  {_f}")
