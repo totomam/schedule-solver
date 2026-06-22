@@ -17,7 +17,7 @@ What it does:
   - Writes test_report.json with full per-run details.
 """
 
-import json, os, random, subprocess, sys, tempfile, time
+import json, os, random, re, subprocess, sys, tempfile, time
 from pathlib import Path
 
 # ── Config ──────────────────────────────────────────────────────────────────────────
@@ -42,6 +42,45 @@ _JAY   = 'John Martin (Jay)'
 _MYLES = 'Myles Palmer'
 # Shift leaders — not managers
 _LEADERS = {'Bowen Benedict', 'James Baker', 'Trinity Stringer', 'Gobi Weathers', 'Mary Dean'}
+# FT employees + shift leaders: missing their hours floor is a hard scheduling failure
+# (unless req-offs made it mathematically impossible to reach the target)
+_FT_AND_LEADERS = _LEADERS | {
+    'Adam Van Bogaert', 'Mason Doyle', 'Michael Calderon', 'Molly Summers',
+    'Noah Hiner', 'Ava Shade', 'Izzy Simpson', 'Remi Sullinger',
+}
+_PB_ALL = {_JAY, _MYLES} | _LEADERS
+_TEN_HR = _PB_ALL | {
+    'Adam Van Bogaert', 'Mason Doyle', 'Michael Calderon', 'Molly Summers',
+    'Noah Hiner', 'Ava Shade', 'Remi Sullinger', 'Izzy Simpson', 'Zac Duffy', 'Kara Thompson',
+}
+
+def _max_achievable_raw(person: str, reqoff: dict) -> float:
+    """Max raw hours a person could work this week given their avail windows and req-offs."""
+    max_shift = 10.0 if person in _TEN_HR else 8.0
+    day_maxes = []
+    for d, day in enumerate(DAYS):
+        w = AVAIL[person][d]
+        if w == 'X' or person in reqoff.get(day, []):
+            continue
+        window = 17.0 if w in ('any', 'open') else float(w[1] - w[0])
+        day_maxes.append(min(window, max_shift))
+    day_maxes.sort(reverse=True)
+    limit = 7 if person == _JAY else 5  # Jay has no 5-day cap
+    return sum(day_maxes[:limit])
+
+def _ft_leader_hu_is_hard(issue: str, reqoff: dict) -> bool:
+    """Return True if a FT/leader HoursUnder was avoidable — i.e. a hard scheduling failure."""
+    if not issue.startswith('HoursUnder:'):
+        return False
+    matched = next((n for n in _FT_AND_LEADERS if issue.startswith(f'HoursUnder: {n}')), None)
+    if matched is None:
+        return False
+    m = re.search(r'target ≥(\d+\.?\d*)h', issue)
+    if not m:
+        return True  # can't parse target — treat as hard
+    target = float(m.group(1))
+    # If max possible hours >= target, the shortfall was avoidable → hard failure
+    return _max_achievable_raw(matched, reqoff) >= target
 
 # ── Request-off generator ─────────────────────────────────────────────────────────────────────────
 def make_reqoff(rng: random.Random) -> dict[str, list[str]]:
@@ -252,10 +291,15 @@ def main() -> None:
 
         parsed = parse_output(stdout, stderr, rc)
 
-        # Separate hard failures (constraint violations) from soft hours-under notices
+        # Separate hard failures from soft informational notices.
+        # FT/leader HoursUnder is hard only when the shortfall was avoidable — i.e. they
+        # had enough available days to reach the target but the solver left them short.
+        # If req-offs made the target unreachable regardless, it is informational.
         hard_issues = [i for i in parsed['audit_issues']
-                       if not i.startswith('HoursUnder:') and not i.startswith('CovSlack')]
-        hours_under = [i for i in parsed['audit_issues'] if i.startswith('HoursUnder:')]
+                       if (not i.startswith('HoursUnder:') and not i.startswith('CovSlack'))
+                       or _ft_leader_hu_is_hard(i, reqoff)]
+        hours_under = [i for i in parsed['audit_issues']
+                       if i.startswith('HoursUnder:') and not _ft_leader_hu_is_hard(i, reqoff)]
 
         ok = (parsed['status'] == 'Optimal'
               and not hard_issues
@@ -320,8 +364,10 @@ def main() -> None:
         for r in failed:
             reasons = []
             if r.get('solve_status','') != 'Optimal': reasons.append(r['solve_status'])
+            stored_reqoff = {d: r['reqoff_detail'].get(d, []) for d in DAYS}
             hard = [i for i in r.get('audit_issues',[])
-                    if not i.startswith('HoursUnder:') and not i.startswith('CovSlack')]
+                    if (not i.startswith('HoursUnder:') and not i.startswith('CovSlack'))
+                    or _ft_leader_hu_is_hard(i, stored_reqoff)]
             if hard: reasons.append(f"hard-audit({len(hard)})")
             if r.get('cov_warnings'):  reasons.append(f"{len(r['cov_warnings'])} cov-warn")
             if r.get('zero_shifts'):   reasons.append(f"{r['zero_shifts']} zeros")

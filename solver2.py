@@ -249,11 +249,10 @@ def hours_expr(n): return pulp.lpSum(x[(n,d,i)]*(b-a) for d in range(7) for i,(a
 _sh(hours_expr('Trinity Stringer'),39,'Trinity_Stringer')  # leader 39-40h (ceiling via global <=40)
 _sh(hours_expr('Gobi Weathers'),37,'Gobi_Weathers')        # Gobi fixed shifts cap at ~37h raw
 for n in FT_nonleader:
-    if len(avail_days(n))>=5:
-        _sh(hours_expr(n),35,n.replace(' ','_')); prob += hours_expr(n)<=40
-    else: prob += hours_expr(n)<=40
-# Adam: explicit soft floor regardless of avail-day count (Fri req-off this week → 4 days)
-_sh(hours_expr('Adam Van Bogaert'),35,'Adam_Van_Bogaert')
+    # Adam always gets a soft floor regardless of avail-day count (req-offs may reduce him below 5)
+    if len(avail_days(n))>=5 or n=='Adam Van Bogaert':
+        _sh(hours_expr(n),35,n.replace(' ','_'))
+    prob += hours_expr(n)<=40
 prob += hours_expr('Zac Duffy')<=35; _sh(hours_expr('Zac Duffy'),30,'Zac_Duffy')
 for nm,mn in [('Cai Cotton',15),('Hayden Roush',12),('Logan Frias',15)]:
     _sh(hours_expr(nm),mn,nm.replace(' ','_'))
