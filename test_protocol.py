@@ -38,33 +38,20 @@ DAYS    = ['Mon','Tue','Wed','Thu','Fri','Sat','Sun']
 WEEKEND = ['Fri','Sat','Sun']
 WEEKDAY = ['Mon','Tue','Wed','Thu']
 
-# Days where each person has a fixed/pinned shift in this week's backbone.
-# Req-offs on pinned days would force infeasibility — exclude them from randomisation.
-PINNED_DAYS: dict[str, set[int]] = {
-    'John Martin (Jay)':   {0},         # Mon
-    'Myles Palmer':        {0,3,4,5,6}, # Mon,Thu,Fri,Sat,Sun
-    'Bowen Benedict':      {0,1,2,3,4}, # Mon-Fri
-    'Gobi Weathers':       {0,1,2,5,6}, # Mon,Tue,Wed,Sat,Sun
-    'Mary Dean':           {5},         # Sat
-    'James Baker':         {2,6},       # Wed,Sun
-    'Trinity Stringer':    {4},         # Fri
-    'Tiffany Huffman':     {0},         # Mon
-}
-
-
 # ── Request-off generator ────────────────────────────────────────────────────
 def make_reqoff(rng: random.Random) -> dict[str, list[str]]:
     """25 request-offs: exactly 13 on Fri/Sat/Sun, 12 on Mon-Thu.
     Each (person, day) pair is unique; persons may appear on multiple days.
-    Pinned-shift days and already-unavailable days are excluded.
+    No one is excluded — including people with fixed backbone shifts.
+    This surfaces scenarios where the solver must handle a missing required
+    person (infeasibility, coverage gap, etc.) so we can add backup rules.
+    Only people already marked 'X' on a day are skipped (already not working).
     """
     buckets: dict[str, set[str]] = {d: set() for d in DAYS}
 
     def eligible(person: str, day_name: str) -> bool:
         d = DAYS.index(day_name)
         if AVAIL[person][d] == 'X':
-            return False
-        if person in PINNED_DAYS and d in PINNED_DAYS[person]:
             return False
         return True
 
