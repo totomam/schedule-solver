@@ -23,14 +23,14 @@
 ## Hour Targets
 | Person / Group | Range |
 |---|---|
-| Jay, Myles | No cap (managers) |
+| Jay | 47h standard (soft — can work less if req-off) |
+| Myles | 45h standard (soft — can work less if req-off) |
 | Bowen, James, Trinity, Mary | 39–40h raw |
 | Gobi | 37–40h (fixed schedule caps at ~37h) |
 | FT_nonleader (≥5 avail days) | 35–40h |
 | Adam (Fri req-off this week) | ≥35h |
 | Zac Duffy | 30–35h |
 | Gracelyn Dailey | 20–30h |
-| Myles | ≥45h (soft — can work less if req-off) |
 | Medium PT | ≥15h each |
 | Everyone else | ≤40h |
 
@@ -65,11 +65,21 @@ fourTar  (at 4pm headcount)      = [5,5,5,5,6,7,6]
 
 ---
 
+## Manager Standard Schedules (solver-placed each week within avail windows)
+| Manager | Standard days | Standard shift | Hours | Normal days off |
+|---|---|---|---|---|
+| Jay | Mon/Thu/Fri/Sat/Sun | Mon 6–3, Thu/Fri/Sat 10–8, Sun 11–5 | 47h | Tue/Wed |
+| Myles | Mon/Tue/Wed/Sat/Sun | Mon/Tue/Wed/Sun 11–8, Sat 12–9 | 45h | Thu/Fri |
+
+Both are solver-placed (no `fx()` calls). Can close at 11pm when no shift leader is available; Jay covers if Myles is also unavailable. Days off are flexible — if one requests off, the other adjusts.
+
 ## Fixed Schedules (6/29–7/5 week — update the `fx()` block each week)
+**This week deviations from standard:** Jay on vacation (Mon only); Myles off Tue/Wed this week instead of Thu/Fri.
+
 | Person | Day | Shift |
 |---|---|---|
-| Jay | Mon | solver-placed within [6–3] avail (vacation rest of week) |
-| Myles | Mon/Thu/Fri/Sat/Sun | solver-placed; avail extended to 11pm so he can close if needed |
+| Jay | Mon only | solver-placed within [6–15] avail |
+| Myles | Mon/Thu/Fri/Sat/Sun | solver-placed within avail (avail extended to 11pm) |
 | Bowen | Mon–Fri | 8–4 |
 | Gobi | Mon | 4–11 (close) |
 | Gobi | Tue | 11–5 |

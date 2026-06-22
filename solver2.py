@@ -254,7 +254,8 @@ for nm,mn in [('Cai Cotton',15),('Hayden Roush',12),('Logan Frias',15)]:
 for n in people:
     if n in ('John Martin (Jay)','Myles Palmer'): continue  # managers: no 40h cap
     prob += hours_expr(n)<=40
-_sh(hours_expr('Myles Palmer'),45,'Myles_Palmer')  # prefer 45h; soft so req-offs don't force infeasibility
+_sh(hours_expr('Myles Palmer'),45,'Myles_Palmer')  # standard 45h; soft so req-offs don't force infeasibility
+_sh(hours_expr('John Martin (Jay)'),47,'John_Martin_Jay')  # standard 47h; soft for same reason
 _sh(hours_expr('James Baker'),39,'James_Baker')   # leader 39-40h
 _sh(hours_expr('Mary Dean'),39,'Mary_Dean')       # leader 39-40h
 prob += hours_expr('Gracelyn Dailey')<=30; _sh(hours_expr('Gracelyn Dailey'),20,'Gracelyn_Dailey')
@@ -405,6 +406,8 @@ for n in people:
         _fails.append(f"Zac hours: {raw:.1f} (want 28+)")
     if n=='Myles Palmer' and raw<44.9:
         _fails.append(f"Myles hours: {raw:.1f} (want 45)")
+    if n=='John Martin (Jay)' and raw<46.9:
+        _fails.append(f"Jay hours: {raw:.1f} (want 47)")
 for nm,lo,hi in [('James Baker',39,40),('Trinity Stringer',39,40),('Gobi Weathers',37,40),('Mary Dean',39,40)]:
     raw=sum(sol[nm][d][1]-sol[nm][d][0] for d in range(7) if sol[nm][d])
     if raw<lo-0.1: _fails.append(f"{nm}: {raw:.2f}h (want {lo}-{hi})")

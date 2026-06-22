@@ -18,8 +18,9 @@ At the start of each session, `web_fetch` this URL to get the latest solver code
 ## 2. HOURS RULES
 
 ### Manager hours (set defaults — only override when explicitly needed)
-- **John Martin (Jay)**: Off Tuesday AND Wednesday normally. Default Mon 6a-3p, Thu/Fri/Sat 10a-8p, Sun 11a-5p.
-- **Myles Palmer**: Targets ≥45h; solver-placed on his available days. Can close at 11pm on any day no shift leader is available to close. Jay covers as last resort if Myles is also unavailable. Off Tue/Wed by default, but days off are flexible — if one manager requests off, the other can adjust to cover.
+- **John Martin (Jay)**: Standard 47h. Mon 6a–3p, Thu 10a–8p, Fri 10a–8p, Sat 10a–8p, Sun 11a–5p. Off Tue/Wed normally.
+- **Myles Palmer**: Standard 45h. Mon 11a–8p, Tue 11a–8p, Wed 11a–8p, Sat 12p–9p, Sun 11a–8p. Off Thu/Fri normally.
+- Both are solver-placed (no fixed shifts). Can close at 11pm on any day no shift leader is available; Jay covers if Myles is also unavailable. Days off are flexible — if one requests off, the other adjusts.
 
 ### Non-manager hour caps
 - **Maximum 40h** for everyone except Jay and Myles (NO OVERTIME — we don't pay it)
@@ -293,8 +294,8 @@ Higher forecasted sales → higher targets. Use lunch/dinner targets as your pri
 When building a new schedule:
 
 1. **Lock in mandatory hours**:
-   - Jay = off Tue & Wed normally; solver-placed on available days
-   - Myles = target ≥45h; solver-placed; can close if no shift leader is available
+   - Jay = 47h standard (Mon 6–3, Thu/Fri/Sat 10–8, Sun 11–5); off Tue/Wed normally
+   - Myles = 45h standard (Mon/Tue/Wed/Sun 11–8, Sat 12–9); off Thu/Fri normally
    - Shift leaders aim for 40h (Bowen, James, Trinity, Gobi, Mary)
 
 2. **Add FT regulars** at their set patterns (Bowen, Adam, Mary, Michael, etc.)
