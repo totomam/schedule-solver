@@ -2,7 +2,7 @@
 
 Complete reference for building the weekly schedule. Given availability sheet, request-off book, and sales forecast — apply these rules to produce the schedule.
 
-**Solver source (GitHub):** `https://raw.githubusercontent.com/totomam/schedule-solver/claude/schedule-generation-availability-dbpt21/solver2.py`
+**Solver source (GitHub):** `https://raw.githubusercontent.com/totomam/schedule-solver/main/solver2.py`
 At the start of each session, `web_fetch` this URL to get the latest solver code before building or editing anything. If the branch changes, update this URL.
 
 ---
