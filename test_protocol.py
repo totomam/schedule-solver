@@ -70,20 +70,24 @@ _BACKBONE_SHIFTS: dict[tuple, tuple] = {
 }
 
 def _pb_can_open_day(person: str, day_idx: int) -> bool:
-    """True if this PB member could have a start ≤ 10am on this day."""
+    """True if this PB member could have a start ≤ 9am on this day.
+    Jay is excluded — per scheduling rules he never counts as an opener.
+    """
+    if person == _JAY:
+        return False
     w = AVAIL[person][day_idx]
     if w == 'X':
         return False
     bk = _BACKBONE_SHIFTS.get((person, day_idx))
     if bk:
-        return bk[0] <= 10
+        return bk[0] <= 9
     lo = 6.0 if w in ('any', 'open') else float(w[0])
     # Mirror gen()'s 9am start-floor rules
-    if person not in (_JAY, 'Bowen Benedict'):
+    if person not in ('Bowen Benedict',):
         if not (person in ('Gobi Weathers', 'Trinity Stringer') and day_idx == 5):
             if not (person == 'James Baker' and day_idx == 6):
                 lo = max(lo, 9.0)
-    return lo <= 10.0
+    return lo <= 9.0
 
 def _pb_can_close_day(person: str, day_idx: int) -> bool:
     """True if this PB member could have an end ≥ 10pm (22:00) on this day."""

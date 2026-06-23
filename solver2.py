@@ -151,7 +151,7 @@ for d in range(7):
     _SDF[d,'cl225'] =[x[(n,d,i)] for (n,i,a,b,pv) in sd if b>=22.5]
     _SDF[d,'cl21']  =[x[(n,d,i)] for (n,i,a,b,pv) in sd if b>21]
     _SDF[d,'cl215'] =[x[(n,d,i)] for (n,i,a,b,pv) in sd if b>21.5]
-    _SDF[d,'pb_op'] =[x[(n,d,i)] for (n,i,a,b,pv) in sd if n in PB and a<=10]
+    _SDF[d,'pb_op'] =[x[(n,d,i)] for (n,i,a,b,pv) in sd if n in PB and n!='John Martin (Jay)' and a<=9]
     _SDF[d,'pb_cl'] =[x[(n,d,i)] for (n,i,a,b,pv) in sd if n in PB and b>=22]
     _SDF[d,'w3_ln'] =[x[(n,d,i)] for (n,i,a,b,pv) in sd if n in weak3 and a<=12<b]
     _SDF[d,'w3_dn'] =[x[(n,d,i)] for (n,i,a,b,pv) in sd if n in weak3 and b>17]
@@ -454,7 +454,7 @@ for n in people:
             _fails.append(f"12h: {n} {dn[d]}end={s0[1]} {dn[d+1]}start={s1[0]}")
 # Leader open and close each day
 for d in range(7):
-    if not any(sol[n][d] and sol[n][d][0]<=10 for n in PB):
+    if not any(sol[n][d] and sol[n][d][0]<=9 for n in PB if n!='John Martin (Jay)'):
         _fails.append(f"LeaderOpen: {dn[d]} no leader/manager opens")
     if not any(sol[n][d] and sol[n][d][1]>=22 for n in PB):
         _fails.append(f"LeaderClose: {dn[d]} no leader/manager closes")
