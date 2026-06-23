@@ -238,18 +238,17 @@ for n in people:
     if n=='John Martin (Jay)': continue
     prob += pulp.lpSum(x[(n,d,i)] for d in range(7) for i in range(len(shifts[(n,d)])))<=5
 def hours_expr(n): return pulp.lpSum(x[(n,d,i)]*(b-a) for d in range(7) for i,(a,b) in enumerate(shifts[(n,d)]))
-_sh(hours_expr('Trinity Stringer'),39,'Trinity_Stringer')  # leader 39-40h (ceiling via global <=40)
-_sh(hours_expr('Gobi Weathers'),37,'Gobi_Weathers')        # Gobi fixed shifts cap at ~37h raw
+_sh(hours_expr('Trinity Stringer'),39,'Trinity_Stringer')
+_sh(hours_expr('Gobi Weathers'),37,'Gobi_Weathers')
 for n in FT_nonleader:
-    prob += hours_expr(n)<=40
     if n == 'Adam Van Bogaert':
-        # Hard equality: Adam works exactly 40h raw. The 1pm start is injected into gen() above
-        # so (13:00-23:00) = 10h is available; 4 avail days × 10h = 40h is always achievable.
+        prob += hours_expr(n)<=40
         if len(avail_days(n)) >= 4:
             prob += hours_expr(n) >= 40
         else:
             _sh(hours_expr(n), 40, 'Adam_Van_Bogaert')
         continue
+    prob += hours_expr(n)<=40
     floor = 33
     max_per_day = 10.0 if n in TEN_HR else 8.0
     min_days = math.ceil(floor / max_per_day)
@@ -261,23 +260,38 @@ for n in regular_PT:
 for n in people:
     if n in ('John Martin (Jay)','Myles Palmer'): continue  # managers: no 40h cap
     prob += hours_expr(n)<=40
-_sh(hours_expr('Myles Palmer'),45,'Myles_Palmer')  # standard 45h; soft floor
-prob += hours_expr('Myles Palmer')<=52            # ceiling: standard 45h + buffer for close backstop days
-_sh(hours_expr('John Martin (Jay)'),47,'John_Martin_Jay')  # standard 47h; soft floor
-prob += hours_expr('John Martin (Jay)')<=54       # ceiling: standard 47h + buffer
-_sh(hours_expr('James Baker'),39,'James_Baker')   # leader 39-40h
-_sh(hours_expr('Mary Dean'),39,'Mary_Dean')       # leader 39-40h
-prob += hours_expr('Gracelyn Dailey')<=30  # strong PT but capped at 30h
+_sh(hours_expr('Myles Palmer'),45,'Myles_Palmer')
+prob += hours_expr('Myles Palmer')<=52
+_sh(hours_expr('John Martin (Jay)'),47,'John_Martin_Jay')
+prob += hours_expr('John Martin (Jay)')<=54
+_sh(hours_expr('James Baker'),39,'James_Baker')
+_sh(hours_expr('Mary Dean'),39,'Mary_Dean')
+prob += hours_expr('Gracelyn Dailey')<=30
 for n in strong_PT:
     _sh(hours_expr(n),20,n.replace(' ','_'))
-
 for n in weak5:
     _sh(hours_expr(n),4,n.replace(' ','_'))
-# weak5: prefer 1 day each (rulesheet). Hard cap 2; strong objective penalty makes a 2nd day rare.
+# weak5: prefer 1 day each. Hard cap 2 days; Bryan capped at 1.
 for n in weak5:
     prob += pulp.lpSum(x[(n,d,i)] for d in range(7) for i in range(len(shifts[(n,d)])))<=2
-# Bryan can be held to 1 day without breaking coverage — enforce the prefer-1 rule for him.
 prob += pulp.lpSum(x[('Bryan Bishop',d,i)] for d in range(7) for i in range(len(shifts[('Bryan Bishop',d)])))<=1
+
+# Per-person above-floor incentive: small penalty for hours exceeding individual floor.
+# Nudges the solver to stay near each floor without a hard ceiling — if coverage or another
+# person's floor demands the extra hours, the penalty yields (it's << _HPEN).
+_AFLOOR_PEN = 5
+_afloor_terms = []
+_floor_map = ([(n,33) for n in FT_nonleader if n!='Adam Van Bogaert']
+            + [(n,20) for n in strong_PT]
+            + [(n,12) for n in regular_PT]
+            + [(n, 4) for n in weak5]
+            + [('Zac Duffy',30),('Trinity Stringer',39),('Gobi Weathers',37),
+               ('James Baker',39),('Mary Dean',39),
+               ('Myles Palmer',45),('John Martin (Jay)',47)])
+for _n, _fl in _floor_map:
+    _ov = pulp.LpVariable(f'ovf_{pidx[_n]}', lowBound=0)
+    prob += _ov >= hours_expr(_n) - _fl
+    _afloor_terms.append(_ov)
 
 # CHANGE 4: 12-hour close-then-open rule — AGGREGATED formulation.
 # A day-d close ending at b1 conflicts with a day-(d+1) shift starting at a2 when (24-b1)+a2 < 12,
@@ -367,7 +381,8 @@ myles_opens = pulp.lpSum(x[('Myles Palmer',d,i)]
                           if a <= 10)
 prob += (5000*pulp.lpSum(zero_pen) + 8*weak_use + 0.3*short_pref + 30*mgr_offday
          + 20*jay_closes + 20*myles_opens
-         + _CPEN*pulp.lpSum(_cov_slk) + _HPEN*pulp.lpSum(s for _,_,s in _hrs_slk))
+         + _CPEN*pulp.lpSum(_cov_slk) + _HPEN*pulp.lpSum(s for _,_,s in _hrs_slk)
+         + _AFLOOR_PEN*pulp.lpSum(_afloor_terms))
 
 print(f"Vars: {len(x)}. Solving with HiGHS...")
 _tl=int(os.environ.get('SCHED_TIMELIMIT','240'))
