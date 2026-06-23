@@ -27,6 +27,7 @@ weak3={'Brian Carver','Bryan Bishop','Jason Britt'}
 weak5=weak3|{'Layton Angermeier','Emily Owens'}
 prep={'Michael Calderon','Tiffany Huffman','Noah Hiner','Gracelyn Dailey','Molly Summers','Reilly Weakley'}
 FT_nonleader={'Adam Van Bogaert','Mason Doyle','Michael Calderon','Molly Summers','Noah Hiner','Ava Shade','Izzy Simpson','Remi Sullinger','Reilly Weakley'}
+strong_PT={'Gracelyn Dailey','Cai Cotton','Sandya Wright','Kara Thompson','Nathan Paaswee','Peyton Shaw','Reese Bezehertny'}
 
 def avwin(n,d):
     w=av[n][d]
@@ -268,7 +269,7 @@ for n in FT_nonleader:
     if len(avail_days(n)) >= min_days:
         _sh(hours_expr(n),floor,n.replace(' ','_'))
 prob += hours_expr('Zac Duffy')<=35; _sh(hours_expr('Zac Duffy'),30,'Zac_Duffy')
-for nm,mn in [('Cai Cotton',15),('Hayden Roush',12),('Logan Frias',15)]:
+for nm,mn in [('Hayden Roush',12),('Logan Frias',15)]:
     _sh(hours_expr(nm),mn,nm.replace(' ','_'))
 for n in people:
     if n in ('John Martin (Jay)','Myles Palmer'): continue  # managers: no 40h cap
@@ -279,9 +280,11 @@ _sh(hours_expr('John Martin (Jay)'),47,'John_Martin_Jay')  # standard 47h; soft 
 prob += hours_expr('John Martin (Jay)')<=54       # ceiling: standard 47h + buffer
 _sh(hours_expr('James Baker'),39,'James_Baker')   # leader 39-40h
 _sh(hours_expr('Mary Dean'),39,'Mary_Dean')       # leader 39-40h
-prob += hours_expr('Gracelyn Dailey')<=30; _sh(hours_expr('Gracelyn Dailey'),20,'Gracelyn_Dailey')
+prob += hours_expr('Gracelyn Dailey')<=30  # strong PT but capped at 30h
+for n in strong_PT:
+    _sh(hours_expr(n),20,n.replace(' ','_'))
 for _n in ['Shayden Howard','John Dugan','Kayden Anderson','Richard Raglin',
-           'Sandya Wright','Ryder','Oliver Croasdaile']:
+           'Ryder','Oliver Croasdaile']:
     _sh(hours_expr(_n),15,_n.replace(' ','_'))
 
 # weak5: prefer 1 day each (rulesheet). Hard cap 2; strong objective penalty makes a 2nd day rare.
