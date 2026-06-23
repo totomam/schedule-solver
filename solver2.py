@@ -249,7 +249,7 @@ def hours_expr(n): return pulp.lpSum(x[(n,d,i)]*(b-a) for d in range(7) for i,(a
 _sh(hours_expr('Trinity Stringer'),39,'Trinity_Stringer')  # leader 39-40h (ceiling via global <=40)
 _sh(hours_expr('Gobi Weathers'),37,'Gobi_Weathers')        # Gobi fixed shifts cap at ~37h raw
 for n in FT_nonleader:
-    floor = 40 if n=='Adam Van Bogaert' else 35  # Adam: exactly 40h raw target
+    floor = 40 if n=='Adam Van Bogaert' else 33  # Adam: exactly 40h raw target; others: 33-40h range
     max_per_day = 10.0 if n in TEN_HR else 8.0
     # Apply floor when person can theoretically reach it (ceil(floor/max_per_day) days needed)
     min_days = math.ceil(floor / max_per_day)

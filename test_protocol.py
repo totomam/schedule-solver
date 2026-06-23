@@ -180,7 +180,7 @@ def make_forecast(rng: random.Random) -> tuple[dict, float]:
     new_hours = [max(55.0, round(h * scale / 0.25) * 0.25) for h in BASE_HOURS]
     new_sales  = [max(0, int(s * scale)) for s in BASE_SALES]
 
-    fc = dict(BASE_FORECAST)
+    fc = {k: v for k, v in BASE_FORECAST.items() if k != 'week_start'}
     fc['allowed_hours']     = new_hours
     fc['forecasted_sales']  = new_sales
     # Sub-components scaled proportionally so the Excel summary still sums correctly
