@@ -188,8 +188,8 @@ def _sc(e,cap,t):   # soft ceiling: e <= cap + slack
 def _sf(e,fl,t):    # soft floor: e + slack >= fl
     global prob; _s=pulp.LpVariable(t,lowBound=0); prob+=e+_s>=fl; _cov_slk.append(_s)
 # Hours floor soft constraints — activated only when req-offs make the target unreachable.
-# _HPEN << _CPEN so coverage always wins, but hours targets are still strongly preferred.
-_HPEN=480
+# _HPEN < _CPEN so coverage always wins, but hours targets are still strongly preferred.
+_HPEN=495
 _hrs_slk=[]
 def _sh(expr,floor,tag):
     global prob; _s=pulp.LpVariable(f'hs_{tag}',lowBound=0); prob+=expr+_s>=floor; _hrs_slk.append((tag,floor,_s))
