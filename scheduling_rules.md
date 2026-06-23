@@ -26,7 +26,7 @@ At the start of each session, `web_fetch` this URL to get the latest solver code
 - **Maximum 40h** for everyone except Jay and Myles (NO OVERTIME — we don't pay it)
 - **Minimum shift length: 4 hours**
 - **Part-time shifts capped at 8 hours per shift.** Only full-time, shift leaders, managers, and the blanket-approved 10h people (see below) may be scheduled longer than 8h. If a PT shift over 8h is genuinely needed, get manager permission first and log it as a one-time exception.
-- **10-hour-OK people** (may work up to 10h without asking): all leaders/managers (Bowen, James, Trinity, Gobi, Mary, Jay, Myles), plus Adam, Mason, Michael, Molly, Noah Hiner, Ava, Remi, Izzy, Zac, Kara Thompson, Reilly Weakley. Keegan will be added once onboarded. Other PTs need explicit one-time manager approval for anything over 8h.
+- **10-hour-OK people** (may work up to 10h without asking): all leaders/managers (Bowen, James, Trinity, Gobi, Mary, Jay, Myles), plus Adam, Mason, Ava, Remi, Izzy, Zac, Kara Thompson. Keegan will be added once onboarded. Note: Molly, Noah, Reilly, and Michael are capped at 5pm by availability so 10h shifts aren't applicable to them. Other PTs need explicit one-time manager approval for anything over 8h.
 - **Maximum 5 days per week for everyone, including Jay and Myles.** Nobody is scheduled more than 5 days.
 
 ### Paid vs unpaid breaks

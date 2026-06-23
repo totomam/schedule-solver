@@ -22,7 +22,7 @@ PB={'John Martin (Jay)','Myles Palmer','Bowen Benedict','James Baker','Trinity S
 NO_BREAK={'John Martin (Jay)','Myles Palmer'}
 def paid_val(n,a,b):
     r=b-a; return r if n in NO_BREAK else (r-0.5 if r>=5 else r)
-TEN_HR=PB|{'Adam Van Bogaert','Mason Doyle','Michael Calderon','Molly Summers','Noah Hiner','Ava Shade','Remi Sullinger','Izzy Simpson','Zac Duffy','Kara Thompson','Reilly Weakley'}
+TEN_HR=PB|{'Adam Van Bogaert','Mason Doyle','Ava Shade','Remi Sullinger','Izzy Simpson','Zac Duffy','Kara Thompson'}
 weak3={'Brian Carver','Bryan Bishop','Jason Britt'}
 weak5=weak3|{'Emily Owens'}
 prep={'Michael Calderon','Tiffany Huffman','Noah Hiner','Gracelyn Dailey','Molly Summers','Reilly Weakley'}
