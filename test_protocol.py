@@ -54,7 +54,8 @@ _PB_ALL = {_JAY, _MYLES} | _LEADERS
 # open (start ≤ 10am) or close (end ≥ 10pm) on each day once backbone locks them in.
 # Format: (person, day_index 0=Mon…6=Sun) → (start_h, end_h)
 _BACKBONE_SHIFTS: dict[tuple, tuple] = {
-    (_JAY,   0): ( 6, 15),  (_JAY,   3): (10, 20),  (_JAY,   4): (10, 20),
+    (_JAY,   0): ( 6, 15),  (_JAY,   1): (10, 20),  (_JAY,   2): (10, 20),
+    (_JAY,   3): (10, 20),  (_JAY,   4): (10, 20),
     (_JAY,   5): (10, 20),  (_JAY,   6): (11, 17),
     (_MYLES, 0): (11, 20),  (_MYLES, 1): (11, 20),  (_MYLES, 2): (11, 20),
     (_MYLES, 5): (11, 20),  (_MYLES, 6): (11, 20),
