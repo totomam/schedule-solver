@@ -282,7 +282,10 @@ prob += hours_expr('Myles Palmer') >= 45  # hard — solver works off-days to co
 prob += hours_expr('Myles Palmer')<=52
 prob += hours_expr('John Martin (Jay)') >= 45  # hard — solver works off-days to compensate if req'd off
 prob += hours_expr('John Martin (Jay)')<=54
-_sh_hi(hours_expr('James Baker'),39,'James_Baker')
+if len(avail_days('James Baker')) >= 4:
+    prob += hours_expr('James Baker') >= 40
+else:
+    _sh_hi(hours_expr('James Baker'), 40, 'James_Baker')
 _sh_hi(hours_expr('Mary Dean'),39,'Mary_Dean')
 prob += hours_expr('Gracelyn Dailey')<=30
 for n in strong_PT:
@@ -304,7 +307,7 @@ _floor_map = ([(n,33) for n in FT_nonleader if n!='Adam Van Bogaert']
             + [(n,12) for n in regular_PT]
             + [(n, 4) for n in weak5]
             + [('Zac Duffy',30),('Trinity Stringer',39),('Gobi Weathers',37),
-               ('James Baker',39),('Mary Dean',39),
+               ('James Baker',40),('Mary Dean',39),
                ('Myles Palmer',45),('John Martin (Jay)',45)])
 for _n, _fl in _floor_map:
     _ov = pulp.LpVariable(f'ovf_{pidx[_n]}', lowBound=0)
