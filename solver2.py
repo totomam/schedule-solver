@@ -186,7 +186,7 @@ def _sf(e,fl,t):    # soft floor: e + slack >= fl
     global prob; _s=pulp.LpVariable(t,lowBound=0); prob+=e+_s>=fl; _cov_slk.append(_s)
 # Hours floor soft constraints — activated only when req-offs make the target unreachable.
 # _HPEN << _CPEN so coverage always wins, but hours targets are still strongly preferred.
-_HPEN=600
+_HPEN=480
 _hrs_slk=[]
 def _sh(expr,floor,tag):
     global prob; _s=pulp.LpVariable(f'hs_{tag}',lowBound=0); prob+=expr+_s>=floor; _hrs_slk.append((tag,floor,_s))
@@ -363,7 +363,7 @@ myles_opens = pulp.lpSum(x[('Myles Palmer',d,i)]
                           for d in range(7)
                           for i,(a,b) in enumerate(shifts[('Myles Palmer',d)])
                           if a <= 10)
-prob += (50*pulp.lpSum(zero_pen) + 8*weak_use + 0.3*short_pref + 30*mgr_offday
+prob += (5000*pulp.lpSum(zero_pen) + 8*weak_use + 0.3*short_pref + 30*mgr_offday
          + 20*jay_closes + 20*myles_opens
          + _CPEN*pulp.lpSum(_cov_slk) + _HPEN*pulp.lpSum(s for _,_,s in _hrs_slk))
 

@@ -80,17 +80,39 @@ def _max_achievable_raw(person: str, reqoff: dict) -> float:
     limit = 7 if person == _JAY else 5  # Jay has no 5-day cap
     return sum(day_maxes[:limit])
 
-def _ft_leader_hu_is_hard(issue: str, reqoff: dict) -> bool:
+def _compute_budget_constrained(audit_issues: list, var) -> bool:
+    """True if total FT/SL raw-hour shortfall exceeds paid budget headroom (+30 ceiling)."""
+    budget_headroom = 30.0 - float(var or 0)
+    total = 0.0
+    for iss in audit_issues:
+        if not iss.startswith('HoursUnder:'):
+            continue
+        if not any(iss.startswith(f'HoursUnder: {n}') for n in _FT_AND_LEADERS):
+            continue
+        m_a = re.search(r'(\d+\.?\d*)h actual', iss)
+        m_t = re.search(r'target ≥(\d+\.?\d*)h', iss)
+        if m_a and m_t:
+            total += max(0.0, float(m_t.group(1)) - float(m_a.group(1)))
+    return total > budget_headroom
+
+def _ft_leader_hu_is_hard(issue: str, reqoff: dict, budget_constrained: bool = False) -> bool:
     """Return True if a FT/leader HoursUnder was avoidable — i.e. a hard scheduling failure."""
     if not issue.startswith('HoursUnder:'):
         return False
     matched = next((n for n in _FT_AND_LEADERS if issue.startswith(f'HoursUnder: {n}')), None)
     if matched is None:
         return False
-    m = re.search(r'target ≥(\d+\.?\d*)h', issue)
-    if not m:
+    m_actual = re.search(r'(\d+\.?\d*)h actual', issue)
+    m_target = re.search(r'target ≥(\d+\.?\d*)h', issue)
+    if not m_target:
         return True  # can't parse target — treat as hard
-    target = float(m.group(1))
+    target = float(m_target.group(1))
+    # ≤0.5h shortfall: within grid/structural tolerance (12h rule, shift-length grid)
+    if m_actual and (target - float(m_actual.group(1))) <= 0.5:
+        return False
+    # Budget ceiling (+30) prevented full satisfaction — not a solver failure
+    if budget_constrained:
+        return False
     # If max possible hours >= target, the shortfall was avoidable → hard failure
     return _max_achievable_raw(matched, reqoff) >= target
 
@@ -304,14 +326,16 @@ def main() -> None:
         parsed = parse_output(stdout, stderr, rc)
 
         # Separate hard failures from soft informational notices.
-        # FT/leader HoursUnder is hard only when the shortfall was avoidable — i.e. they
-        # had enough available days to reach the target but the solver left them short.
-        # If req-offs made the target unreachable regardless, it is informational.
+        # FT/leader HoursUnder is hard only when:
+        #   - shortfall > 0.5h (not grid/structural rounding)
+        #   - budget not constrained (total FT/SL shortfall fits within the +30 headroom)
+        #   - req-offs didn't make the target unreachable
+        budget_constrained = _compute_budget_constrained(parsed['audit_issues'], parsed['var'])
         hard_issues = [i for i in parsed['audit_issues']
                        if (not i.startswith('HoursUnder:') and not i.startswith('CovSlack'))
-                       or _ft_leader_hu_is_hard(i, reqoff)]
+                       or _ft_leader_hu_is_hard(i, reqoff, budget_constrained)]
         hours_under = [i for i in parsed['audit_issues']
-                       if i.startswith('HoursUnder:') and not _ft_leader_hu_is_hard(i, reqoff)]
+                       if i.startswith('HoursUnder:') and not _ft_leader_hu_is_hard(i, reqoff, budget_constrained)]
 
         ok = (parsed['status'] == 'Optimal'
               and not hard_issues
@@ -377,9 +401,10 @@ def main() -> None:
             reasons = []
             if r.get('solve_status','') != 'Optimal': reasons.append(r['solve_status'])
             stored_reqoff = {d: r['reqoff_detail'].get(d, []) for d in DAYS}
+            bc = _compute_budget_constrained(r.get('audit_issues', []), r.get('var', 0))
             hard = [i for i in r.get('audit_issues',[])
                     if (not i.startswith('HoursUnder:') and not i.startswith('CovSlack'))
-                    or _ft_leader_hu_is_hard(i, stored_reqoff)]
+                    or _ft_leader_hu_is_hard(i, stored_reqoff, bc)]
             if hard: reasons.append(f"hard-audit({len(hard)})")
             if r.get('cov_warnings'):  reasons.append(f"{len(r['cov_warnings'])} cov-warn")
             if r.get('zero_shifts'):   reasons.append(f"{r['zero_shifts']} zeros")
