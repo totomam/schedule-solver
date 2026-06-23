@@ -21,7 +21,7 @@ import json, os, random, re, subprocess, sys, tempfile, time
 from pathlib import Path
 
 # ── Config ──────────────────────────────────────────────────────────────────────────
-SEED    = int(os.environ.get('TEST_SEED',  '42'))
+SEED    = int(os.environ.get('TEST_SEED',  str(random.randint(0, 2**31 - 1))))
 N_RUNS  = int(os.environ.get('TEST_RUNS',   '1'))
 BASE_DIR = Path(__file__).resolve().parent
 
