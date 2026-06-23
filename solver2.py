@@ -1,4 +1,4 @@
-import json, pulp, os
+import json, math, pulp, os
 from collections import defaultdict
 from datetime import datetime, timedelta
 _OUT = os.environ.get('SCHED_OUT', 'schedule.json')   # tests set SCHED_OUT to write elsewhere
@@ -250,8 +250,10 @@ _sh(hours_expr('Trinity Stringer'),39,'Trinity_Stringer')  # leader 39-40h (ceil
 _sh(hours_expr('Gobi Weathers'),37,'Gobi_Weathers')        # Gobi fixed shifts cap at ~37h raw
 for n in FT_nonleader:
     floor = 40 if n=='Adam Van Bogaert' else 35  # Adam: exactly 40h raw target
-    # Adam always gets a floor regardless of avail-day count; others only when ≥5 avail days
-    if len(avail_days(n))>=5 or n=='Adam Van Bogaert':
+    max_per_day = 10.0 if n in TEN_HR else 8.0
+    # Apply floor when person can theoretically reach it (ceil(floor/max_per_day) days needed)
+    min_days = math.ceil(floor / max_per_day)
+    if len(avail_days(n)) >= min_days or n == 'Adam Van Bogaert':
         _sh(hours_expr(n),floor,n.replace(' ','_'))
     prob += hours_expr(n)<=40
 prob += hours_expr('Zac Duffy')<=35; _sh(hours_expr('Zac Duffy'),30,'Zac_Duffy')
