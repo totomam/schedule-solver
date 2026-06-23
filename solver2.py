@@ -380,8 +380,9 @@ prob += (5000*pulp.lpSum(zero_pen) + 8*weak_use + 0.3*short_pref + 30*mgr_offday
          + _CPEN*pulp.lpSum(_cov_slk) + _HPEN*pulp.lpSum(s for _,_,s in _hrs_slk))
 
 print(f"Vars: {len(x)}. Solving with HiGHS...")
-_kw=dict(msg=False,timeLimit=240,gapRel=0.25)
+_kw=dict(msg=False,timeLimit=240,gapRel=0.30)
 if _THREADS: _kw['threads']=_THREADS
+else: _kw['threads']=4
 prob.solve(pulp.HiGHS(**_kw))
 _var=round(pulp.value(total_paid)-sum(allowed),2) if pulp.value(total_paid) else '?'
 print("Status:",pulp.LpStatus[prob.status],"| paid",pulp.value(total_paid),"| var",_var,"| zeros",sum(1 for z in zero_pen if z.value() and z.value()>0.5))
