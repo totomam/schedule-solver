@@ -46,7 +46,7 @@ _LEADERS = {'Bowen Benedict', 'James Baker', 'Trinity Stringer', 'Gobi Weathers'
 # (unless req-offs made it mathematically impossible to reach the target)
 _FT_AND_LEADERS = _LEADERS | {
     'Adam Van Bogaert', 'Mason Doyle', 'Michael Calderon', 'Molly Summers',
-    'Noah Hiner', 'Ava Shade', 'Izzy Simpson', 'Remi Sullinger',
+    'Noah Hiner', 'Ava Shade', 'Izzy Simpson', 'Remi Sullinger', 'Reilly Weakley',
 }
 _PB_ALL = {_JAY, _MYLES} | _LEADERS
 _TEN_HR = _PB_ALL | {
