@@ -7,6 +7,7 @@ _OUT = os.environ.get('SCHED_OUT', 'schedule.json')   # tests set SCHED_OUT to w
 _base = _OUT[:-5] if _OUT.endswith('.json') else _OUT
 _OUT_ACTIVE = _base + '_active.json'
 _THREADS=int(os.environ.get('SCHED_THREADS','0'))  # >0 enables HiGHS parallel B&B
+_HIGHS_SEED=int(os.environ.get('SCHED_HIGHS_SEED','-1'))  # -1 = HiGHS default
 _AVAIL_FILE    = os.environ.get('SCHED_AVAIL',    'avail_6_29.json')
 _REQOFF_FILE   = os.environ.get('SCHED_REQOFF',   'reqoff_6_29.json')
 _FORECAST_FILE = os.environ.get('SCHED_FORECAST', 'forecast_6_29.json')
@@ -383,6 +384,7 @@ print(f"Vars: {len(x)}. Solving with HiGHS...")
 _kw=dict(msg=False,timeLimit=240,gapRel=0.25)
 if _THREADS: _kw['threads']=_THREADS
 else: _kw['threads']=4
+if _HIGHS_SEED >= 0: _kw['randomSeed']=_HIGHS_SEED
 prob.solve(pulp.HiGHS(**_kw))
 _var=round(pulp.value(total_paid)-sum(allowed),2) if pulp.value(total_paid) else '?'
 print("Status:",pulp.LpStatus[prob.status],"| paid",pulp.value(total_paid),"| var",_var,"| zeros",sum(1 for z in zero_pen if z.value() and z.value()>0.5))
