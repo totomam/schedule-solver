@@ -358,9 +358,14 @@ def main() -> None:
         for w in parsed['cov_warnings']:
             print(f"  coverage  : {w}")
         if hours_under:
+            full = os.environ.get('FULL_HOURS_UNDER')
+            limit = None if full else 4
             print(f"  hrs-under : {len(hours_under)} person(s) below target (req-offs expected)")
-            for iss in hours_under[:4]:
-                print(f"              {iss}")
+            for iss in hours_under[:limit]:
+                m_a = __import__('re').search(r'(\d+\.?\d*)h actual', iss)
+                m_t = __import__('re').search(r'target ≥(\d+\.?\d*)h', iss)
+                shortfall = f"  [{float(m_t.group(1))-float(m_a.group(1)):.1f}h short]" if m_a and m_t else ''
+                print(f"              {iss}{shortfall}")
 
         record = {
             'run':          run_id + 1,
