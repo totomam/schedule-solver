@@ -18,7 +18,7 @@ allowed=fc['allowed_hours']
 dn=['Mon','Tue','Wed','Thu','Fri','Sat','Sun']
 PB={'John Martin (Jay)','Myles Palmer','Bowen Benedict','James Baker','Trinity Stringer','Gobi Weathers','Mary Dean'}
 # NO_BREAK = people who do NOT clock out for an unpaid break (no 0.5h deduction).
-# As of the 6/29 week: only the two MANAGERS. The 5 shift leaders now clock out for 30-min breaks.
+# As of now: only the two managers (Jay/Myles) get paid = raw hours (no break deduction).
 NO_BREAK={'John Martin (Jay)','Myles Palmer'}
 def paid_val(n,a,b):
     r=b-a; return r if n in NO_BREAK else (r-0.5 if r>=5 else r)
@@ -41,10 +41,7 @@ def avail_days(n): return [d for d in range(7) if avwin(n,d)]
 
 fixed={}
 def fx(n,d,a,b): fixed[(n,d)]=[a,b]
-# ===== 6/29-7/5 BACKBONE =====
-# Jay: vacation except Monday — solver places him within his Mon [6,15] avail window.
-# Myles: solver-placed on his available days (Mon/Thu/Fri/Sat/Sun). Not fixed so he can
-#   close at 11pm on any day another manager/leader is unavailable to do so.
+# ===== BACKBONE =====
 # Bowen: set 8-4 Mon-Fri
 for d in range(5): fx('Bowen Benedict',d,8,16)
 # Gobi: Mon 4-11 close, Wed 9-5, Sat 9-5, Sun 3-11. TUE: must work (leader Tue rule) - 
