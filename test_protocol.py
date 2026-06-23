@@ -49,6 +49,61 @@ _FT_AND_LEADERS = _LEADERS | {
     'Noah Hiner', 'Ava Shade', 'Izzy Simpson', 'Remi Sullinger', 'Reilly Weakley',
 }
 _PB_ALL = {_JAY, _MYLES} | _LEADERS
+
+# Backbone shifts (mirrors solver2.py) — needed to know which PB members can actually
+# open (start ≤ 10am) or close (end ≥ 10pm) on each day once backbone locks them in.
+# Format: (person, day_index 0=Mon…6=Sun) → (start_h, end_h)
+_BACKBONE_SHIFTS: dict[tuple, tuple] = {
+    (_JAY,   0): ( 6, 15),  (_JAY,   3): (10, 20),  (_JAY,   4): (10, 20),
+    (_JAY,   5): (10, 20),  (_JAY,   6): (11, 17),
+    (_MYLES, 0): (12, 21),  (_MYLES, 1): (11, 20),  (_MYLES, 2): (11, 20),
+    (_MYLES, 5): (12, 21),  (_MYLES, 6): (12, 21),
+    ('Bowen Benedict',   0): (8, 16),  ('Bowen Benedict',   1): (8, 16),
+    ('Bowen Benedict',   2): (8, 16),  ('Bowen Benedict',   3): (8, 16),
+    ('Bowen Benedict',   4): (8, 16),
+    ('Gobi Weathers',    0): (16, 23), ('Gobi Weathers',    1): (11, 17),
+    ('Gobi Weathers',    2): ( 9, 17), ('Gobi Weathers',    5): ( 8, 16),
+    ('Gobi Weathers',    6): (15, 23),
+    ('Mary Dean',        5): (15, 23),
+    ('James Baker',      2): (15, 23), ('James Baker',      6): ( 8, 16),
+    ('Trinity Stringer', 4): (17, 23),
+}
+
+def _pb_can_open_day(person: str, day_idx: int) -> bool:
+    """True if this PB member could have a start ≤ 10am on this day."""
+    w = AVAIL[person][day_idx]
+    if w == 'X':
+        return False
+    bk = _BACKBONE_SHIFTS.get((person, day_idx))
+    if bk:
+        return bk[0] <= 10
+    lo = 6.0 if w in ('any', 'open') else float(w[0])
+    # Mirror gen()'s 9am start-floor rules
+    if person not in (_JAY, 'Bowen Benedict'):
+        if not (person in ('Gobi Weathers', 'Trinity Stringer') and day_idx == 5):
+            if not (person == 'James Baker' and day_idx == 6):
+                lo = max(lo, 9.0)
+    return lo <= 10.0
+
+def _pb_can_close_day(person: str, day_idx: int) -> bool:
+    """True if this PB member could have an end ≥ 10pm (22:00) on this day."""
+    w = AVAIL[person][day_idx]
+    if w == 'X':
+        return False
+    bk = _BACKBONE_SHIFTS.get((person, day_idx))
+    if bk:
+        return bk[1] >= 22
+    hi = 23.0 if w in ('any', 'open') else float(w[1])
+    return hi >= 22.0
+
+# Precomputed: which PB members can open / close on each day of the week
+_PB_VIABLE_OPENERS: dict[str, list] = {
+    day: [p for p in _PB_ALL if _pb_can_open_day(p, d)] for d, day in enumerate(DAYS)
+}
+_PB_VIABLE_CLOSERS: dict[str, list] = {
+    day: [p for p in _PB_ALL if _pb_can_close_day(p, d)] for d, day in enumerate(DAYS)
+}
+
 _TEN_HR = _PB_ALL | {
     'Adam Van Bogaert', 'Mason Doyle', 'Michael Calderon', 'Molly Summers',
     'Noah Hiner', 'Ava Shade', 'Remi Sullinger', 'Izzy Simpson', 'Zac Duffy', 'Kara Thompson',
@@ -121,11 +176,15 @@ def make_reqoff(rng: random.Random) -> dict[str, list[str]]:
     """10–25 request-offs (random), split 50/50 between Fri/Sat/Sun and Mon-Thu.
     Each (person, day) pair is unique; persons may appear on multiple days.
     No one is excluded — including people with fixed backbone shifts.
-    This surfaces scenarios where the solver must handle a missing required
-    person (infeasibility, coverage gap, etc.) so we can add backup rules.
     Only people already marked 'X' on a day are skipped (already not working).
-    If both Jay and Myles are req'd off the same day, no shift leader can also
-    req off that day (guarantees ≥1 PB member available to cover open/close).
+
+    Two structural guarantees are enforced:
+    1. If both Jay and Myles are req'd off the same day, no shift leader can also
+       req off that day (ensures ≥1 PB member available).
+    2. The last viable PB opener (start ≤ 10am) or closer (end ≥ 10pm) for a given
+       day can never be req'd off — protecting structurally sole-critical people
+       (e.g. Gobi as the only Sunday closer, Mary Dean as the only Saturday closer,
+       James Baker as the only Sunday opener given current avail + backbone).
     """
     buckets: dict[str, set[str]] = {d: set() for d in DAYS}
 
@@ -136,6 +195,16 @@ def make_reqoff(rng: random.Random) -> dict[str, list[str]]:
         # Block shift leaders on days where both managers are already off
         if person in _LEADERS:
             if _JAY in buckets[day_name] and _MYLES in buckets[day_name]:
+                return False
+        # Never req-off a PB member if they are the last viable opener or closer for the day
+        if person in _PB_ALL:
+            remaining_closers = [p for p in _PB_VIABLE_CLOSERS[day_name]
+                                 if p != person and p not in buckets[day_name]]
+            if not remaining_closers:
+                return False
+            remaining_openers = [p for p in _PB_VIABLE_OPENERS[day_name]
+                                 if p != person and p not in buckets[day_name]]
+            if not remaining_openers:
                 return False
         return True
 
