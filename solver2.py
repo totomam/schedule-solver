@@ -287,6 +287,8 @@ prob += hours_expr('Gracelyn Dailey')<=30  # strong PT but capped at 30h
 for n in strong_PT:
     _sh(hours_expr(n),20,n.replace(' ','_'))
 
+for n in weak5:
+    _sh(hours_expr(n),4,n.replace(' ','_'))
 # weak5: prefer 1 day each (rulesheet). Hard cap 2; strong objective penalty makes a 2nd day rare.
 for n in weak5:
     prob += pulp.lpSum(x[(n,d,i)] for d in range(7) for i in range(len(shifts[(n,d)])))<=2
