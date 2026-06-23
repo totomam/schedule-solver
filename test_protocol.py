@@ -173,6 +173,24 @@ def _ft_leader_hu_is_hard(issue: str, reqoff: dict, budget_constrained: bool = F
     # If max possible hours >= target, the shortfall was avoidable → hard failure
     return _max_achievable_raw(matched, reqoff) >= target
 
+def _classify_issues(audit_issues: list, reqoff: dict, var, budget_constrained: bool = None):
+    """Split audit issues into (hard, soft) lists.
+    near_ceiling (var ≥ 26) exempts LeaderClose/LeaderOpen from hard status.
+    """
+    if budget_constrained is None:
+        budget_constrained = _compute_budget_constrained(audit_issues, var)
+    near_ceiling = (var is not None and float(var) >= 26)
+    hard, soft = [], []
+    for i in audit_issues:
+        if _ft_leader_hu_is_hard(i, reqoff, budget_constrained):
+            hard.append(i)
+        elif (i.startswith('HoursUnder:') or i.startswith('CovSlack')
+              or (near_ceiling and (i.startswith('LeaderClose') or i.startswith('LeaderOpen')))):
+            soft.append(i)
+        else:
+            hard.append(i)
+    return hard, soft
+
 # ── Request-off generator ─────────────────────────────────────────────────────────────────────────
 def make_reqoff(rng: random.Random) -> dict[str, list[str]]:
     """10–25 request-offs (random), split 50/50 between Fri/Sat/Sun and Mon-Thu.
@@ -405,13 +423,8 @@ def main() -> None:
         # close-shift extension when headroom ≤4h. Not a structural failure — happens only
         # at extreme sales drops (≥20%) that won't occur in production.
         budget_constrained = _compute_budget_constrained(parsed['audit_issues'], parsed['var'])
-        _near_ceiling = (parsed['var'] is not None and float(parsed['var']) >= 26)
-        hard_issues = [i for i in parsed['audit_issues']
-                       if (not i.startswith('HoursUnder:') and not i.startswith('CovSlack')
-                           and not (_near_ceiling and (i.startswith('LeaderClose') or i.startswith('LeaderOpen'))))
-                       or _ft_leader_hu_is_hard(i, reqoff, budget_constrained)]
-        hours_under = [i for i in parsed['audit_issues']
-                       if i.startswith('HoursUnder:') and not _ft_leader_hu_is_hard(i, reqoff, budget_constrained)]
+        hard_issues, soft_issues = _classify_issues(parsed['audit_issues'], reqoff, parsed['var'], budget_constrained)
+        hours_under = [i for i in soft_issues if i.startswith('HoursUnder:')]
 
         ok = (parsed['status'] == 'Optimal'
               and not hard_issues
@@ -438,8 +451,8 @@ def main() -> None:
             limit = None if full else 4
             print(f"  hrs-under : {len(hours_under)} person(s) below target (req-offs expected)")
             for iss in hours_under[:limit]:
-                m_a = __import__('re').search(r'(\d+\.?\d*)h actual', iss)
-                m_t = __import__('re').search(r'target ≥(\d+\.?\d*)h', iss)
+                m_a = re.search(r'(\d+\.?\d*)h actual', iss)
+                m_t = re.search(r'target ≥(\d+\.?\d*)h', iss)
                 shortfall = f"  [{float(m_t.group(1))-float(m_a.group(1)):.1f}h short]" if m_a and m_t else ''
                 print(f"              {iss}{shortfall}")
 
@@ -483,9 +496,7 @@ def main() -> None:
             if r.get('solve_status','') != 'Optimal': reasons.append(r['solve_status'])
             stored_reqoff = {d: r['reqoff_detail'].get(d, []) for d in DAYS}
             bc = _compute_budget_constrained(r.get('audit_issues', []), r.get('var', 0))
-            hard = [i for i in r.get('audit_issues',[])
-                    if (not i.startswith('HoursUnder:') and not i.startswith('CovSlack'))
-                    or _ft_leader_hu_is_hard(i, stored_reqoff, bc)]
+            hard, _ = _classify_issues(r.get('audit_issues', []), stored_reqoff, r.get('var'), bc)
             if hard: reasons.append(f"hard-audit({len(hard)})")
             if r.get('cov_warnings'):  reasons.append(f"{len(r['cov_warnings'])} cov-warn")
             if r.get('zero_shifts'):   reasons.append(f"{r['zero_shifts']} zeros")

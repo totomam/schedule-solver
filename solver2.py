@@ -63,16 +63,17 @@ ANCH_START = ([round(9  +0.25*i,2) for i in range(int((12-9 )/0.25)+1)]  # 9:00-
             + [round(14 +0.25*i,2) for i in range(int((18-14)/0.25)+1)]) # 14:00-18:00 (17 values)
 ANCH_END   = ([round(14 +0.25*i,2) for i in range(int((18-14)/0.25)+1)]  # 14:00-18:00 (17 values)
             + [round(20 +0.25*i,2) for i in range(int((23-20)/0.25)+1)]) # 20:00-23:00 (13 values)
+def _early_ok(n, d):
+    """True if n is allowed to start before 9am on day d."""
+    return (n in ('John Martin (Jay)', 'Bowen Benedict')
+            or (n in ('Gobi Weathers', 'Trinity Stringer') and d == 5)
+            or n == 'James Baker' and d == 6)
+
 def gen(n,d):
     w=avwin(n,d)
     if not w: return []
     lo,hi=w; out=[]; maxlen=10 if n in TEN_HR else 8
-    # Only certain leaders/managers may start before 9am on their designated days.
-    # All others (and leaders on non-designated days) are floored at 9am.
-    if n not in PB: lo=max(lo,9)
-    elif n not in ('John Martin (Jay)','Bowen Benedict'):
-        if not ((n in ('Gobi Weathers','Trinity Stringer') and d==5) or (n=='James Baker' and d==6)):
-            lo=max(lo,9)
+    if not _early_ok(n, d): lo=max(lo,9)
     # Molly never works past 5pm
     if n=='Molly Summers': hi=min(hi,17)
     # Adam's 10h standard shift: 1pm-11pm. 13:00 is in the ANCH dead zone so add it explicitly.
@@ -119,16 +120,18 @@ def dedup(cands,n):
         k=_sig(a,b,n)
         if k not in seen: seen[k]=(a,b)
     return list(seen.values())
+# Compensation shifts for manager off-days are restricted to a single predictable shift
+_MGR_OFFDAY_SHIFT = {
+    ('John Martin (Jay)', 1): (10.0, 20.0), ('John Martin (Jay)', 2): (10.0, 20.0),
+    ('Myles Palmer',      3): (11.0, 20.0), ('Myles Palmer',      4): (11.0, 20.0),
+}
 for n in people:
     for d in range(7):
         shifts[(n,d)]=[tuple(fixed[(n,d)])] if ((n,d) in fixed and avwin(n,d) is not None) else dedup(gen(n,d),n)
-        # Restrict managers to standard shift on off-days so compensation shifts are predictable
-        if n=='John Martin (Jay)' and d in {1,2} and shifts[(n,d)]:
-            std=[(a,b) for (a,b) in shifts[(n,d)] if round(a,2)==10.0 and round(b,2)==20.0]
-            if std: shifts[(n,d)]=std
-        if n=='Myles Palmer' and d in {3,4} and shifts[(n,d)]:
-            std=[(a,b) for (a,b) in shifts[(n,d)] if round(a,2)==11.0 and round(b,2)==20.0]
-            if std: shifts[(n,d)]=std
+        if (n, d) in _MGR_OFFDAY_SHIFT and shifts[(n,d)]:
+            fa, fb = _MGR_OFFDAY_SHIFT[(n,d)]
+            std = [(a,b) for (a,b) in shifts[(n,d)] if round(a,2)==fa and round(b,2)==fb]
+            if std: shifts[(n,d)] = std
         for i in range(len(shifts[(n,d)])):
             x[(n,d,i)]=pulp.LpVariable(f'x_{pidx[n]}_{d}_{i}',cat='Binary')
 for (n,d) in fixed:
@@ -194,12 +197,12 @@ def _sf(e,fl,t):    # soft floor: e + slack >= fl
 # _HPEN_HI < _CPEN so coverage still wins; _HPEN_HI >> _HPEN_LO so SL/FT fills first.
 _HPEN_HI=490  # shift leaders + FT non-leaders — last to lose hours
 _HPEN_LO=150  # PT / medium PT — first to lose hours when budget is tight
-_hrs_slk_hi=[]  # (tag, floor, slack) — high-priority people
-_hrs_slk_lo=[]  # (tag, floor, slack) — low-priority people
-def _sh_hi(expr,floor,tag):
-    global prob; _s=pulp.LpVariable(f'hs_{tag}',lowBound=0); prob+=expr+_s>=floor; _hrs_slk_hi.append((tag,floor,_s))
-def _sh_lo(expr,floor,tag):
-    global prob; _s=pulp.LpVariable(f'hs_{tag}',lowBound=0); prob+=expr+_s>=floor; _hrs_slk_lo.append((tag,floor,_s))
+_hrs_slk={'hi':[], 'lo':[]}  # (tag, floor, slack) per tier
+def _sh(expr, floor, tag, hi=True):
+    global prob
+    _s = pulp.LpVariable(f'hs_{tag}', lowBound=0)
+    prob += expr + _s >= floor
+    _hrs_slk['hi' if hi else 'lo'].append((tag, floor, _s))
 
 for d in range(7):
     _h14=pulp.lpSum(_SDF[d,'h14']); _h15=pulp.lpSum(_SDF[d,'h15']); _h16=pulp.lpSum(_SDF[d,'h16'])
@@ -255,47 +258,47 @@ for d in range(7):
 for n in people:
     if n=='John Martin (Jay)': continue
     prob += pulp.lpSum(x[(n,d,i)] for d in range(7) for i in range(len(shifts[(n,d)])))<=5
-def hours_expr(n): return pulp.lpSum(x[(n,d,i)]*(b-a) for d in range(7) for i,(a,b) in enumerate(shifts[(n,d)]))
-_sh_hi(hours_expr('Trinity Stringer'),39,'Trinity_Stringer')
-_sh_hi(hours_expr('Gobi Weathers'),37,'Gobi_Weathers')
+hours_expr = {n: pulp.lpSum(x[(n,d,i)]*(b-a) for d in range(7) for i,(a,b) in enumerate(shifts[(n,d)])) for n in people}
+_sh(hours_expr['Trinity Stringer'],39,'Trinity_Stringer')
+_sh(hours_expr['Gobi Weathers'],37,'Gobi_Weathers')
 for n in FT_nonleader:
     if n == 'Adam Van Bogaert':
-        prob += hours_expr(n)<=40
+        prob += hours_expr[n]<=40
         if len(avail_days(n)) >= 4:
-            prob += hours_expr(n) >= 40
+            prob += hours_expr[n] >= 40
         else:
-            _sh_hi(hours_expr(n), 40, 'Adam_Van_Bogaert')
+            _sh(hours_expr[n], 40, 'Adam_Van_Bogaert')
         continue
-    prob += hours_expr(n)<=40
+    prob += hours_expr[n]<=40
     floor = 33
     max_per_day = 10.0 if n in TEN_HR else 8.0
     min_days = math.ceil(floor / max_per_day)
     if len(avail_days(n)) >= min_days:
-        _sh_hi(hours_expr(n),floor,n.replace(' ','_'))
-prob += hours_expr('Zac Duffy')<=35; _sh_lo(hours_expr('Zac Duffy'),30,'Zac_Duffy')
+        _sh(hours_expr[n],floor,n.replace(' ','_'))
+prob += hours_expr['Zac Duffy']<=35; _sh(hours_expr['Zac Duffy'],30,'Zac_Duffy',hi=False)
 for n in regular_PT:
-    _sh_lo(hours_expr(n),12,n.replace(' ','_'))
+    _sh(hours_expr[n],12,n.replace(' ','_'),hi=False)
 for n in people:
     if n in ('John Martin (Jay)','Myles Palmer'): continue  # managers: no 40h cap
-    prob += hours_expr(n)<=40
-prob += hours_expr('Myles Palmer') >= 45  # hard — solver works off-days to compensate if req'd off
-prob += hours_expr('Myles Palmer')<=52
-prob += hours_expr('John Martin (Jay)') >= 45  # hard — solver works off-days to compensate if req'd off
-prob += hours_expr('John Martin (Jay)')<=54
+    prob += hours_expr[n]<=40
+prob += hours_expr['Myles Palmer'] >= 45  # hard — solver works off-days to compensate if req'd off
+prob += hours_expr['Myles Palmer']<=52
+prob += hours_expr['John Martin (Jay)'] >= 45  # hard — solver works off-days to compensate if req'd off
+prob += hours_expr['John Martin (Jay)']<=54
 if len(avail_days('James Baker')) >= 4:
-    prob += hours_expr('James Baker') >= 40
+    prob += hours_expr['James Baker'] >= 40
 else:
-    _sh_hi(hours_expr('James Baker'), 40, 'James_Baker')
-_sh_hi(hours_expr('Mary Dean'),39,'Mary_Dean')
-prob += hours_expr('Gracelyn Dailey')<=30
+    _sh(hours_expr['James Baker'], 40, 'James_Baker')
+_sh(hours_expr['Mary Dean'],39,'Mary_Dean')
+prob += hours_expr['Gracelyn Dailey']<=30
 for n in strong_PT:
-    _sh_lo(hours_expr(n),20,n.replace(' ','_'))
+    _sh(hours_expr[n],20,n.replace(' ','_'),hi=False)
 for n in weak5:
-    _sh_lo(hours_expr(n),4,n.replace(' ','_'))
+    _sh(hours_expr[n],4,n.replace(' ','_'),hi=False)
 # weak5: prefer 1 day each. Hard cap 2 days; Bryan capped at 1.
 for n in weak5:
-    prob += pulp.lpSum(x[(n,d,i)] for d in range(7) for i in range(len(shifts[(n,d)])))<=2
-prob += pulp.lpSum(x[('Bryan Bishop',d,i)] for d in range(7) for i in range(len(shifts[('Bryan Bishop',d)])))<=1
+    cap = 1 if n == 'Bryan Bishop' else 2
+    prob += pulp.lpSum(x[(n,d,i)] for d in range(7) for i in range(len(shifts[(n,d)]))) <= cap
 
 # Per-person above-floor incentive: small penalty for hours exceeding individual floor.
 # Nudges the solver to stay near each floor without a hard ceiling — if coverage or another
@@ -311,7 +314,7 @@ _floor_map = ([(n,33) for n in FT_nonleader if n!='Adam Van Bogaert']
                ('Myles Palmer',45),('John Martin (Jay)',45)])
 for _n, _fl in _floor_map:
     _ov = pulp.LpVariable(f'ovf_{pidx[_n]}', lowBound=0)
-    prob += _ov >= hours_expr(_n) - _fl
+    prob += _ov >= hours_expr[_n] - _fl
     _afloor_terms.append(_ov)
 
 # CHANGE 4: 12-hour close-then-open rule — AGGREGATED formulation.
@@ -403,8 +406,8 @@ myles_opens = pulp.lpSum(x[('Myles Palmer',d,i)]
 prob += (5000*pulp.lpSum(zero_pen) + 8*weak_use + 0.3*short_pref + 30*mgr_offday
          + 20*jay_closes + 20*myles_opens
          + _CPEN*pulp.lpSum(_cov_slk)
-         + _HPEN_HI*pulp.lpSum(s for _,_,s in _hrs_slk_hi)
-         + _HPEN_LO*pulp.lpSum(s for _,_,s in _hrs_slk_lo)
+         + _HPEN_HI*pulp.lpSum(s for _,_,s in _hrs_slk['hi'])
+         + _HPEN_LO*pulp.lpSum(s for _,_,s in _hrs_slk['lo'])
          + _AFLOOR_PEN*pulp.lpSum(_afloor_terms))
 
 print(f"Vars: {len(x)}. Solving with HiGHS...")
@@ -428,9 +431,7 @@ with open(_OUT,'w') as _f: json.dump(sol,_f)
 with open(_OUT_ACTIVE,'w') as _f: json.dump({n:sh for n,sh in sol.items() if any(sh)},_f)
 
 # ---- Compact status summary ----
-def _pd(sh,n):
-    if not sh: return 0
-    r=sh[1]-sh[0]; return r if n in NO_BREAK else (r-0.5 if r>=5 else r)
+def _pd(sh, n): return paid_val(n, sh[0], sh[1]) if sh else 0
 def _hd(d,t): return sum(1 for n in sol if sol[n][d] and sol[n][d][0]<=t<sol[n][d][1])
 def _O(d): return sum(1 for n in sol if n!='John Martin (Jay)' and sol[n][d] and sol[n][d][0]<=10)
 def _C(d): return sum(1 for n in sol if sol[n][d] and sol[n][d][1]>=22.5)
@@ -484,13 +485,10 @@ for n in people:
     if n not in ('John Martin (Jay)','Myles Palmer') and raw>40.01:
         _fails.append(f"OT: {n} {raw:.1f}h")
 # No starts before 9am except authorised people
-_pre9_ok={'John Martin (Jay)','Bowen Benedict'}
 for n in people:
     for d in range(7):
         sh=sol[n][d]
-        if not sh: continue
-        ok = n in _pre9_ok or (n in ('Gobi Weathers','Trinity Stringer') and d==5) or (n=='James Baker' and d==6)
-        if sh[0]<9 and not ok:
+        if sh and sh[0]<9 and not _early_ok(n, d):
             _fails.append(f"EarlyStart: {n} {dn[d]} {sh[0]}")
 # No one ends before 2pm (3pm Sunday)
 for n in people:
@@ -506,7 +504,7 @@ for d in range(7):
 _sviol=[v.name for v in _cov_slk if v.value() and v.value()>0.001]
 if _sviol: _fails.append(f"CovSlack({len(_sviol)}): {_sviol[:4]}{'...' if len(_sviol)>4 else ''}")
 # Hours floor slacks (person couldn't reach their hours target due to req-offs)
-for _nm,_fl,_sv in (_hrs_slk_hi + _hrs_slk_lo):
+for _nm,_fl,_sv in (_hrs_slk['hi'] + _hrs_slk['lo']):
     if _sv.value() and _sv.value()>0.01:
         _fails.append(f"HoursUnder: {_nm.replace('_',' ')} {_fl-_sv.value():.1f}h actual (target ≥{_fl}h)")
 
