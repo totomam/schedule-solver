@@ -45,8 +45,7 @@ def fx(n,d,a,b): fixed[(n,d)]=[a,b]
 for d in range(5): fx('Bowen Benedict',d,8,16)
 # Jay standard: Mon 6a-3p, Thu/Fri/Sat 10a-8p, Sun 11a-5p. Off Tue/Wed.
 # Deviate only when one manager must cover for the other's absence, or backstop open/close needed.
-fx('John Martin (Jay)',0,6,15); fx('John Martin (Jay)',1,10,20); fx('John Martin (Jay)',2,10,20)
-fx('John Martin (Jay)',3,10,20); fx('John Martin (Jay)',4,10,20)
+fx('John Martin (Jay)',0,6,15); fx('John Martin (Jay)',3,10,20); fx('John Martin (Jay)',4,10,20)
 fx('John Martin (Jay)',5,10,20); fx('John Martin (Jay)',6,11,17)
 # Myles standard: 11a-8p all backbone days. Off Thu/Fri.
 fx('Myles Palmer',0,11,20); fx('Myles Palmer',1,11,20); fx('Myles Palmer',2,11,20)
@@ -123,6 +122,13 @@ def dedup(cands,n):
 for n in people:
     for d in range(7):
         shifts[(n,d)]=[tuple(fixed[(n,d)])] if ((n,d) in fixed and avwin(n,d) is not None) else dedup(gen(n,d),n)
+        # Restrict managers to standard shift on off-days so compensation shifts are predictable
+        if n=='John Martin (Jay)' and d in {1,2} and shifts[(n,d)]:
+            std=[(a,b) for (a,b) in shifts[(n,d)] if round(a,2)==10.0 and round(b,2)==20.0]
+            if std: shifts[(n,d)]=std
+        if n=='Myles Palmer' and d in {3,4} and shifts[(n,d)]:
+            std=[(a,b) for (a,b) in shifts[(n,d)] if round(a,2)==11.0 and round(b,2)==20.0]
+            if std: shifts[(n,d)]=std
         for i in range(len(shifts[(n,d)])):
             x[(n,d,i)]=pulp.LpVariable(f'x_{pidx[n]}_{d}_{i}',cat='Binary')
 for (n,d) in fixed:
