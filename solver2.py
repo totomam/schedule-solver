@@ -190,12 +190,16 @@ def _sc(e,cap,t):   # soft ceiling: e <= cap + slack
     global prob; _s=pulp.LpVariable(t,lowBound=0); prob+=e<=cap+_s; _cov_slk.append(_s)
 def _sf(e,fl,t):    # soft floor: e + slack >= fl
     global prob; _s=pulp.LpVariable(t,lowBound=0); prob+=e+_s>=fl; _cov_slk.append(_s)
-# Hours floor soft constraints — activated only when req-offs make the target unreachable.
-# _HPEN < _CPEN so coverage always wins, but hours targets are still strongly preferred.
-_HPEN=495
-_hrs_slk=[]
-def _sh(expr,floor,tag):
-    global prob; _s=pulp.LpVariable(f'hs_{tag}',lowBound=0); prob+=expr+_s>=floor; _hrs_slk.append((tag,floor,_s))
+# Hours floor soft constraints — two priority tiers so PT is sacrificed before SL/FT.
+# _HPEN_HI < _CPEN so coverage still wins; _HPEN_HI >> _HPEN_LO so SL/FT fills first.
+_HPEN_HI=490  # shift leaders + FT non-leaders — last to lose hours
+_HPEN_LO=150  # PT / medium PT — first to lose hours when budget is tight
+_hrs_slk_hi=[]  # (tag, floor, slack) — high-priority people
+_hrs_slk_lo=[]  # (tag, floor, slack) — low-priority people
+def _sh_hi(expr,floor,tag):
+    global prob; _s=pulp.LpVariable(f'hs_{tag}',lowBound=0); prob+=expr+_s>=floor; _hrs_slk_hi.append((tag,floor,_s))
+def _sh_lo(expr,floor,tag):
+    global prob; _s=pulp.LpVariable(f'hs_{tag}',lowBound=0); prob+=expr+_s>=floor; _hrs_slk_lo.append((tag,floor,_s))
 
 for d in range(7):
     _h14=pulp.lpSum(_SDF[d,'h14']); _h15=pulp.lpSum(_SDF[d,'h15']); _h16=pulp.lpSum(_SDF[d,'h16'])
@@ -252,25 +256,25 @@ for n in people:
     if n=='John Martin (Jay)': continue
     prob += pulp.lpSum(x[(n,d,i)] for d in range(7) for i in range(len(shifts[(n,d)])))<=5
 def hours_expr(n): return pulp.lpSum(x[(n,d,i)]*(b-a) for d in range(7) for i,(a,b) in enumerate(shifts[(n,d)]))
-_sh(hours_expr('Trinity Stringer'),39,'Trinity_Stringer')
-_sh(hours_expr('Gobi Weathers'),37,'Gobi_Weathers')
+_sh_hi(hours_expr('Trinity Stringer'),39,'Trinity_Stringer')
+_sh_hi(hours_expr('Gobi Weathers'),37,'Gobi_Weathers')
 for n in FT_nonleader:
     if n == 'Adam Van Bogaert':
         prob += hours_expr(n)<=40
         if len(avail_days(n)) >= 4:
             prob += hours_expr(n) >= 40
         else:
-            _sh(hours_expr(n), 40, 'Adam_Van_Bogaert')
+            _sh_hi(hours_expr(n), 40, 'Adam_Van_Bogaert')
         continue
     prob += hours_expr(n)<=40
     floor = 33
     max_per_day = 10.0 if n in TEN_HR else 8.0
     min_days = math.ceil(floor / max_per_day)
     if len(avail_days(n)) >= min_days:
-        _sh(hours_expr(n),floor,n.replace(' ','_'))
-prob += hours_expr('Zac Duffy')<=35; _sh(hours_expr('Zac Duffy'),30,'Zac_Duffy')
+        _sh_hi(hours_expr(n),floor,n.replace(' ','_'))
+prob += hours_expr('Zac Duffy')<=35; _sh_lo(hours_expr('Zac Duffy'),30,'Zac_Duffy')
 for n in regular_PT:
-    _sh(hours_expr(n),12,n.replace(' ','_'))
+    _sh_lo(hours_expr(n),12,n.replace(' ','_'))
 for n in people:
     if n in ('John Martin (Jay)','Myles Palmer'): continue  # managers: no 40h cap
     prob += hours_expr(n)<=40
@@ -278,13 +282,13 @@ prob += hours_expr('Myles Palmer') >= 45  # hard — solver works off-days to co
 prob += hours_expr('Myles Palmer')<=52
 prob += hours_expr('John Martin (Jay)') >= 45  # hard — solver works off-days to compensate if req'd off
 prob += hours_expr('John Martin (Jay)')<=54
-_sh(hours_expr('James Baker'),39,'James_Baker')
-_sh(hours_expr('Mary Dean'),39,'Mary_Dean')
+_sh_hi(hours_expr('James Baker'),39,'James_Baker')
+_sh_hi(hours_expr('Mary Dean'),39,'Mary_Dean')
 prob += hours_expr('Gracelyn Dailey')<=30
 for n in strong_PT:
-    _sh(hours_expr(n),20,n.replace(' ','_'))
+    _sh_lo(hours_expr(n),20,n.replace(' ','_'))
 for n in weak5:
-    _sh(hours_expr(n),4,n.replace(' ','_'))
+    _sh_lo(hours_expr(n),4,n.replace(' ','_'))
 # weak5: prefer 1 day each. Hard cap 2 days; Bryan capped at 1.
 for n in weak5:
     prob += pulp.lpSum(x[(n,d,i)] for d in range(7) for i in range(len(shifts[(n,d)])))<=2
@@ -395,7 +399,9 @@ myles_opens = pulp.lpSum(x[('Myles Palmer',d,i)]
                           if a <= 10)
 prob += (5000*pulp.lpSum(zero_pen) + 8*weak_use + 0.3*short_pref + 30*mgr_offday
          + 20*jay_closes + 20*myles_opens
-         + _CPEN*pulp.lpSum(_cov_slk) + _HPEN*pulp.lpSum(s for _,_,s in _hrs_slk)
+         + _CPEN*pulp.lpSum(_cov_slk)
+         + _HPEN_HI*pulp.lpSum(s for _,_,s in _hrs_slk_hi)
+         + _HPEN_LO*pulp.lpSum(s for _,_,s in _hrs_slk_lo)
          + _AFLOOR_PEN*pulp.lpSum(_afloor_terms))
 
 print(f"Vars: {len(x)}. Solving with HiGHS...")
@@ -497,7 +503,7 @@ for d in range(7):
 _sviol=[v.name for v in _cov_slk if v.value() and v.value()>0.001]
 if _sviol: _fails.append(f"CovSlack({len(_sviol)}): {_sviol[:4]}{'...' if len(_sviol)>4 else ''}")
 # Hours floor slacks (person couldn't reach their hours target due to req-offs)
-for _nm,_fl,_sv in _hrs_slk:
+for _nm,_fl,_sv in (_hrs_slk_hi + _hrs_slk_lo):
     if _sv.value() and _sv.value()>0.01:
         _fails.append(f"HoursUnder: {_nm.replace('_',' ')} {_fl-_sv.value():.1f}h actual (target ≥{_fl}h)")
 
