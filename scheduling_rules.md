@@ -174,6 +174,7 @@ Higher forecasted sales → higher targets. Use lunch/dinner targets as your pri
 - Cai Cotton
 - Kara Thompson
 - Nathan Paaswee
+- Peyton Shaw
 - Reese Bezehertny
 - Sandya Wright
 - Gracelyn Dailey — **availability changes every month and is NOT in the standard availability sheet. She prints and brings her own calendar. Always verify her current availability before each build; do NOT assume she's "any"/open.** (Example: for 6/22-6/28 she was available Saturday only.)

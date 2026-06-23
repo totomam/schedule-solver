@@ -27,7 +27,7 @@ weak3={'Brian Carver','Bryan Bishop','Jason Britt'}
 weak5=weak3|{'Emily Owens'}
 prep={'Michael Calderon','Tiffany Huffman','Noah Hiner','Gracelyn Dailey','Molly Summers','Reilly Weakley'}
 FT_nonleader={'Adam Van Bogaert','Mason Doyle','Michael Calderon','Molly Summers','Noah Hiner','Ava Shade','Izzy Simpson','Remi Sullinger','Reilly Weakley'}
-strong_PT={'Gracelyn Dailey','Cai Cotton','Sandya Wright','Kara Thompson','Nathan Paaswee','Reese Bezehertny'}
+strong_PT={'Gracelyn Dailey','Cai Cotton','Sandya Wright','Kara Thompson','Nathan Paaswee','Peyton Shaw','Reese Bezehertny'}
 regular_PT={'Tiffany Huffman','Amiyah Bartley','Harper Flynn','Jonathan Beacham',
             'Hayden Roush','Logan Frias','Shayden Howard','John Dugan',
             'Kayden Anderson','Richard Raglin','Ryder','Oliver Croasdaile'}
