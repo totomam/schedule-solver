@@ -13,9 +13,9 @@
 - `NO_BREAK` (paid hours = raw hours, no break deduction): Jay, Myles only
 - `TEN_HR` (10h max shifts): all PB + Adam, Mason, Michael, Molly, Noah, Ava, Remi, Izzy, Zac, Kara
 - `weak3` (1-per-meal-period rule): Brian Carver, Bryan Bishop, Jason Britt
-- `weak5` (prefer-1-day): weak3 + Layton Angermeier, Emily Owens
+- `weak5` (prefer-1-day): weak3 + Emily Owens
 - `prep` (≥1 must start ≤9am every day): Michael, Tiffany, Noah, Gracelyn, Molly, Reilly
-- `FT_nonleader` (35–40h target): Adam, Mason, Michael, Molly, Noah, Ava, Izzy, Remi
+- `FT_nonleader` (35–40h target): Adam, Mason, Michael, Molly, Noah, Ava, Izzy, Remi, Reilly
 - `_trio` (at most 1 closes per day): Gobi, James, Trinity
 
 ---
@@ -23,7 +23,7 @@
 ## Hour Targets
 | Person / Group | Range |
 |---|---|
-| Jay | 47h standard (soft — can work less if req-off) |
+| Jay | 45h standard (soft — can work less if req-off) |
 | Myles | 45h standard (soft — can work less if req-off) |
 | Bowen, James, Trinity, Mary | 39–40h raw |
 | Gobi | 37–40h (fixed schedule caps at ~37h) |
@@ -38,7 +38,8 @@
 
 ## Coverage Targets (indices 0–6 = Mon–Sun)
 ```
-Otar  (openers ≤10am, excl. Jay) = [6,6,6,6,6,6,6]
+Otar  (openers ≤10am, excl. Jay) = [6,6,6,6,6,6,6]  ← general staff count
+PBop  (PB opener ≤9am, excl. Jay) ≥1 per day       ← leader anchor constraint
 Ltar  (at noon)                  = [9,9,9,9,10,10,11]
 Dtar  (past 5pm)                 = [10,10,10,11,14,13,12]
 Ctar  (closers ≥10:30pm)         = [5,5,5,5,6,6,6]
@@ -76,7 +77,7 @@ fourTar  (at 4pm headcount)      = [5,5,5,5,6,7,6]
 | Jay | Mon/Thu/Fri/Sat/Sun | Mon 6–3, Thu/Fri/Sat 10–8, Sun 11–5 | 47h | Tue/Wed |
 | Myles | Mon/Tue/Wed/Sat/Sun | Mon/Sun 12–9, Tue/Wed 11–8, Sat 12–9 | 45h | Thu/Fri |
 
-Both are solver-placed (no `fx()` calls). Can close at 11pm when no shift leader is available; Jay covers if Myles is also unavailable. Days off are flexible — if one requests off, the other adjusts.
+Both have backbone shifts fixed via `fx()` calls (see bottom of solver2.py — update each week). Can close at 11pm when no shift leader is available; Jay covers if Myles is also unavailable. Days off are flexible — if one requests off, the other adjusts.
 
 **Deviation Rule 1 — day swap on req-off:**
 - Jay requests off Thu or Fri → Myles covers that day; Myles takes a different day off; Jay works Myles's normal off day (Thu or Fri).
@@ -84,7 +85,7 @@ Both are solver-placed (no `fx()` calls). Can close at 11pm when no shift leader
 - Apply by updating avail JSON: open the covering manager on the new day, mark the requesting manager's original day X.
 
 **Deviation Rule 2 — coverage backstop:**
-- If leaders request off such that a day has no leader opener (≤10am) or closer (≥10pm), a manager fills in.
+- If leaders request off such that a day has no leader opener (≤9am) or closer (≥10pm), a manager fills in.
 - Myles primary, Jay secondary. Solver handles automatically via PB open/close hard constraints + manager avail through 23:00.
 
 ## Fixed Schedules (6/29–7/5 week — update the `fx()` block each week)
@@ -111,7 +112,7 @@ Both are solver-placed (no `fx()` calls). Can close at 11pm when no shift leader
 ---
 
 ## Key Constraints
-- Every day: ≥1 PB opens (≤10am), ≥1 PB closes (≥10pm)
+- Every day: ≥1 PB opens (≤9am, excl. Jay), ≥1 PB closes (≥10pm)
 - 12h close-then-open: next-day start ≥ close-end − 12 (aggregated per person/day/end-time)
 - `_trio` (Gobi/James/Trinity): at most 1 closes per day
 - Every available person gets ≥1 shift (`zero_pen` = 50 if skipped)
