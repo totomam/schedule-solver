@@ -79,6 +79,9 @@ def gen(n,d):
             lo=max(lo,9)
     # Molly never works past 5pm
     if n=='Molly Summers': hi=min(hi,17)
+    # Adam's 10h standard shift: 1pm-11pm. 13:00 is in the ANCH dead zone so add it explicitly.
+    if n=='Adam Van Bogaert' and lo<=13.0 and hi>=23.0:
+        out.append((13.0, 23.0))
     for a in ANCH_START:
         if a<lo or a>hi-4: continue
         for b in ANCH_END:
@@ -249,13 +252,20 @@ def hours_expr(n): return pulp.lpSum(x[(n,d,i)]*(b-a) for d in range(7) for i,(a
 _sh(hours_expr('Trinity Stringer'),39,'Trinity_Stringer')  # leader 39-40h (ceiling via global <=40)
 _sh(hours_expr('Gobi Weathers'),37,'Gobi_Weathers')        # Gobi fixed shifts cap at ~37h raw
 for n in FT_nonleader:
-    floor = 40 if n=='Adam Van Bogaert' else 33  # Adam: exactly 40h raw target; others: 33-40h range
-    max_per_day = 10.0 if n in TEN_HR else 8.0
-    # Apply floor when person can theoretically reach it (ceil(floor/max_per_day) days needed)
-    min_days = math.ceil(floor / max_per_day)
-    if len(avail_days(n)) >= min_days or n == 'Adam Van Bogaert':
-        _sh(hours_expr(n),floor,n.replace(' ','_'))
     prob += hours_expr(n)<=40
+    if n == 'Adam Van Bogaert':
+        # Hard equality: Adam works exactly 40h raw. The 1pm start is injected into gen() above
+        # so (13:00-23:00) = 10h is available; 4 avail days × 10h = 40h is always achievable.
+        if len(avail_days(n)) >= 4:
+            prob += hours_expr(n) >= 40
+        else:
+            _sh(hours_expr(n), 40, 'Adam_Van_Bogaert')
+        continue
+    floor = 33
+    max_per_day = 10.0 if n in TEN_HR else 8.0
+    min_days = math.ceil(floor / max_per_day)
+    if len(avail_days(n)) >= min_days:
+        _sh(hours_expr(n),floor,n.replace(' ','_'))
 prob += hours_expr('Zac Duffy')<=35; _sh(hours_expr('Zac Duffy'),30,'Zac_Duffy')
 for nm,mn in [('Cai Cotton',15),('Hayden Roush',12),('Logan Frias',15)]:
     _sh(hours_expr(nm),mn,nm.replace(' ','_'))
