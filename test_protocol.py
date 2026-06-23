@@ -56,8 +56,8 @@ _PB_ALL = {_JAY, _MYLES} | _LEADERS
 _BACKBONE_SHIFTS: dict[tuple, tuple] = {
     (_JAY,   0): ( 6, 15),  (_JAY,   3): (10, 20),  (_JAY,   4): (10, 20),
     (_JAY,   5): (10, 20),  (_JAY,   6): (11, 17),
-    (_MYLES, 0): (12, 21),  (_MYLES, 1): (11, 20),  (_MYLES, 2): (11, 20),
-    (_MYLES, 5): (12, 21),  (_MYLES, 6): (12, 21),
+    (_MYLES, 0): (11, 20),  (_MYLES, 1): (11, 20),  (_MYLES, 2): (11, 20),
+    (_MYLES, 5): (11, 20),  (_MYLES, 6): (11, 20),
     ('Bowen Benedict',   0): (8, 16),  ('Bowen Benedict',   1): (8, 16),
     ('Bowen Benedict',   2): (8, 16),  ('Bowen Benedict',   3): (8, 16),
     ('Bowen Benedict',   4): (8, 16),

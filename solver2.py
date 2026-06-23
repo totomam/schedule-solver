@@ -47,9 +47,9 @@ for d in range(5): fx('Bowen Benedict',d,8,16)
 # Deviate only when one manager must cover for the other's absence, or backstop open/close needed.
 fx('John Martin (Jay)',0,6,15); fx('John Martin (Jay)',3,10,20); fx('John Martin (Jay)',4,10,20)
 fx('John Martin (Jay)',5,10,20); fx('John Martin (Jay)',6,11,17)
-# Myles standard: Mon/Sat/Sun 12p-9p, Tue/Wed 11a-8p. Off Thu/Fri.
-fx('Myles Palmer',0,12,21); fx('Myles Palmer',1,11,20); fx('Myles Palmer',2,11,20)
-fx('Myles Palmer',5,12,21); fx('Myles Palmer',6,12,21)
+# Myles standard: 11a-8p all backbone days. Off Thu/Fri.
+fx('Myles Palmer',0,11,20); fx('Myles Palmer',1,11,20); fx('Myles Palmer',2,11,20)
+fx('Myles Palmer',5,11,20); fx('Myles Palmer',6,11,20)
 fx('Gobi Weathers',0,16,23); fx('Gobi Weathers',1,11,17); fx('Gobi Weathers',2,9,17); fx('Gobi Weathers',5,8,16); fx('Gobi Weathers',6,15,23)
 fx('Mary Dean',5,15,23)
 fx('James Baker',2,15,23); fx('James Baker',6,8,16)
