@@ -267,9 +267,9 @@ for n in regular_PT:
 for n in people:
     if n in ('John Martin (Jay)','Myles Palmer'): continue  # managers: no 40h cap
     prob += hours_expr(n)<=40
-_sh(hours_expr('Myles Palmer'),45,'Myles_Palmer')
+prob += hours_expr('Myles Palmer') >= 45  # hard — solver works off-days to compensate if req'd off
 prob += hours_expr('Myles Palmer')<=52
-_sh(hours_expr('John Martin (Jay)'),45,'John_Martin_Jay')
+prob += hours_expr('John Martin (Jay)') >= 45  # hard — solver works off-days to compensate if req'd off
 prob += hours_expr('John Martin (Jay)')<=54
 _sh(hours_expr('James Baker'),39,'James_Baker')
 _sh(hours_expr('Mary Dean'),39,'Mary_Dean')
