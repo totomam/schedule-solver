@@ -42,19 +42,53 @@ def avail_days(n): return [d for d in range(7) if avwin(n,d)]
 fixed={}
 def fx(n,d,a,b): fixed[(n,d)]=[a,b]
 # ===== BACKBONE — update each week =====
-for d in range(5): fx('Bowen Benedict',d,8,16)
-# Jay standard: Mon 6a-3p, Thu/Fri/Sat 10a-8p, Sun 11a-5p. Off Tue/Wed.
-# Deviate only when one manager must cover for the other's absence, or backstop open/close needed.
-fx('John Martin (Jay)',0,6,15); fx('John Martin (Jay)',3,10,20); fx('John Martin (Jay)',4,10,20)
-fx('John Martin (Jay)',5,10,20); fx('John Martin (Jay)',6,11,17)
-# Myles standard: 11a-8p all backbone days. Off Thu/Fri.
-fx('Myles Palmer',0,11,20); fx('Myles Palmer',1,11,20); fx('Myles Palmer',2,11,20)
-fx('Myles Palmer',5,11,20); fx('Myles Palmer',6,11,20)
-fx('Gobi Weathers',0,16,23); fx('Gobi Weathers',1,11,17); fx('Gobi Weathers',2,9,17); fx('Gobi Weathers',5,8,16); fx('Gobi Weathers',6,15,23)
-fx('Mary Dean',5,15,23)
-fx('James Baker',2,15,23); fx('James Baker',6,8,16)
-fx('Tiffany Huffman',0,9,16)
-fx('Trinity Stringer',4,17,23)
+# Phase 1: non-manager backbones first so manager fallback checks below see the full picture.
+for d in range(5): fx('Bowen Benedict', d, 8, 16)
+fx('Gobi Weathers', 0,16,23); fx('Gobi Weathers',1,11,17); fx('Gobi Weathers',2,9,17)
+fx('Gobi Weathers', 5, 8,16); fx('Gobi Weathers',6,15,23)
+fx('Mary Dean', 5,15,23)
+fx('James Baker', 2,15,23); fx('James Baker', 6, 8,16)
+fx('Tiffany Huffman', 0, 9,16)
+fx('Trinity Stringer', 4,17,23)
+
+def _pb_closer_exists(d):
+    """True if any non-Myles PB member can close (end ≥ 22) on day d."""
+    for n in PB:
+        if n == 'Myles Palmer': continue
+        bk = fixed.get((n, d))
+        if bk:
+            if bk[1] >= 22 and avwin(n, d) is not None: return True
+        else:
+            w = avwin(n, d)
+            if w and w[1] >= 22: return True
+    return False
+
+def _pb_opener_exists(d):
+    """True if any non-Jay PB member can open (start ≤ 9) on day d."""
+    for n in PB:
+        if n == 'John Martin (Jay)': continue
+        bk = fixed.get((n, d))
+        if bk:
+            if bk[0] <= 9 and avwin(n, d) is not None: return True
+        else:
+            w = avwin(n, d)
+            if w and w[0] <= 9: return True
+    return False
+
+# Phase 2: Jay — standard backbone; fall back to open ≤9 when no other PB member can that day.
+# Mon (6,15) already opens; Thu/Fri/Sat fallback (9,19) = same 10h; Sun fallback (9,17) = same 8h.
+_JAY_STD  = {0: (6,15), 3: (10,20), 4: (10,20), 5: (10,20), 6: (11,17)}
+_JAY_OPEN = {             3: (9,19),  4: (9,19),  5: (9,19),  6:  (9,17)}
+for _jd, (_ja, _jb) in _JAY_STD.items():
+    if _jd in _JAY_OPEN and not _pb_opener_exists(_jd) and avwin('John Martin (Jay)', _jd) is not None:
+        fx('John Martin (Jay)', _jd, *_JAY_OPEN[_jd])
+    else:
+        fx('John Martin (Jay)', _jd, _ja, _jb)
+
+# Phase 3: Myles — standard (11-20, 9h) unless he's the only PB closer that day → (14-23, 9h).
+# All 5 working days use 9h shifts so the ≥45h hard floor is always satisfied.
+for _md in [0, 1, 2, 5, 6]:
+    fx('Myles Palmer', _md, 11, 20) if _pb_closer_exists(_md) else fx('Myles Palmer', _md, 14, 23)
 
 # Shift anchors: three real-world windows (9am-noon, 2pm-6pm, 8pm-11pm).
 # Noon-2pm (12:15-1:45) and 6pm-8pm (6:15-7:45) are dead zones — no starts or ends in between.
@@ -161,7 +195,7 @@ for d in range(7):
     _SDF[d,'cl225'] =[x[(n,d,i)] for (n,i,a,b,pv) in sd if b>=22.5]
     _SDF[d,'cl21']  =[x[(n,d,i)] for (n,i,a,b,pv) in sd if b>21]
     _SDF[d,'cl215'] =[x[(n,d,i)] for (n,i,a,b,pv) in sd if b>21.5]
-    _SDF[d,'pb_op'] =[x[(n,d,i)] for (n,i,a,b,pv) in sd if n in PB and n!='John Martin (Jay)' and a<=9]
+    _SDF[d,'pb_op'] =[x[(n,d,i)] for (n,i,a,b,pv) in sd if n in PB and a<=9]
     _SDF[d,'pb_cl'] =[x[(n,d,i)] for (n,i,a,b,pv) in sd if n in PB and b>=22]
     _SDF[d,'w3_ln'] =[x[(n,d,i)] for (n,i,a,b,pv) in sd if n in weak3 and a<=12<b]
     _SDF[d,'w3_dn'] =[x[(n,d,i)] for (n,i,a,b,pv) in sd if n in weak3 and b>17]
@@ -291,7 +325,7 @@ if len(avail_days('John Martin (Jay)')) >= 5:
 else:
     _sh(hours_expr['John Martin (Jay)'], 45, 'John_Martin_Jay')  # soft if heavily req'd off
 prob += hours_expr['John Martin (Jay)']<=54
-if len(avail_days('James Baker')) >= 4:
+if len(avail_days('James Baker')) >= 5:
     prob += hours_expr['James Baker'] >= 40
 else:
     _sh(hours_expr['James Baker'], 40, 'James_Baker')
@@ -478,7 +512,7 @@ for n in people:
             _fails.append(f"12h: {n} {dn[d]}end={s0[1]} {dn[d+1]}start={s1[0]}")
 # Leader open and close each day
 for d in range(7):
-    if not any(sol[n][d] and sol[n][d][0]<=9 for n in PB if n!='John Martin (Jay)'):
+    if not any(sol[n][d] and sol[n][d][0]<=9 for n in PB):
         _fails.append(f"LeaderOpen: {dn[d]} no leader/manager opens")
     if not any(sol[n][d] and sol[n][d][1]>=22 for n in PB):
         _fails.append(f"LeaderClose: {dn[d]} no leader/manager closes")

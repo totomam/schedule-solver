@@ -57,9 +57,10 @@ _BACKBONE_SHIFTS: dict[tuple, tuple] = {
     (_JAY,   0): ( 6, 15),  (_JAY,   1): (10, 20),  (_JAY,   2): (10, 20),
     (_JAY,   3): (10, 20),  (_JAY,   4): (10, 20),
     (_JAY,   5): (10, 20),  (_JAY,   6): (11, 17),
-    (_MYLES, 0): (11, 20),  (_MYLES, 1): (11, 20),  (_MYLES, 2): (11, 20),
+    # Myles working days (Mon/Tue/Wed/Sat/Sun) omitted: solver shifts to (14,23) when he's
+    # the only PB closer that day, so the stress test uses raw avail (any → hi=23 → can close).
+    # Thu/Fri are compensation-only days capped at (11,20) by _MGR_OFFDAY_SHIFT → can't close.
     (_MYLES, 3): (11, 20),  (_MYLES, 4): (11, 20),
-    (_MYLES, 5): (11, 20),  (_MYLES, 6): (11, 20),
     ('Bowen Benedict',   0): (8, 16),  ('Bowen Benedict',   1): (8, 16),
     ('Bowen Benedict',   2): (8, 16),  ('Bowen Benedict',   3): (8, 16),
     ('Bowen Benedict',   4): (8, 16),
@@ -75,10 +76,7 @@ def _pb_can_open_day(person: str, day_idx: int) -> bool:
     """True if this PB member has a BACKBONE shift starting ≤9am on this day,
     and the previous-day backbone (if any) doesn't close late (12h rule).
     Non-backbone shifts are excluded — solver may assign them at any time.
-    Jay is excluded per scheduling rules.
     """
-    if person == _JAY:
-        return False
     bk = _BACKBONE_SHIFTS.get((person, day_idx))
     if not bk or bk[0] > 9:
         return False
