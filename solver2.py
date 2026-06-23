@@ -41,26 +41,13 @@ def avail_days(n): return [d for d in range(7) if avwin(n,d)]
 
 fixed={}
 def fx(n,d,a,b): fixed[(n,d)]=[a,b]
-# ===== BACKBONE =====
-# Bowen: set 8-4 Mon-Fri
+# ===== BACKBONE — update each week =====
 for d in range(5): fx('Bowen Benedict',d,8,16)
-# Gobi: Mon 4-11 close, Wed 9-5, Sat 9-5, Sun 3-11. TUE: must work (leader Tue rule) - 
-#   she closed Mon 11pm so 12hr rule -> Tue open >=11. Give Tue 11-5 (mid-day, spaced).
 fx('Gobi Weathers',0,16,23); fx('Gobi Weathers',1,11,17); fx('Gobi Weathers',2,9,17); fx('Gobi Weathers',5,8,16); fx('Gobi Weathers',6,15,23)
-# Mary: solver places her freely; Sat close pinned (only fixed day)
-fx('Mary Dean',5,15,23)  # Saturday close
-# James: Wed 3-11 close, Sun 8-4 open (8am leader anchor). TUE: leader Tue rule -> give midday (Trinity closes Tue, so James not close)
-# Rule: one shift leader always starts at 8am. Mon-Fri = Bowen; Sun = James; Sat = no leader available before 9am (Gobi 9am).
-fx('James Baker',2,15,23)  # Wed close
-fx('James Baker',6,8,16)   # Sun 8am open
-# Trinity: Mon 9-4, Tue 2-11 (close), Fri 5-11, Sat 9-4. WED: leader Wed rule -> James closes Wed,
-#   so Trinity gets a day/mid shift Wed (not close). Trinity Wed 'any' -> 9-4 (open/day).
+fx('Mary Dean',5,15,23)
+fx('James Baker',2,15,23); fx('James Baker',6,8,16)
 fx('Tiffany Huffman',0,9,16)
-# Trinity: Friday close pinned; solver fills her other days to reach the 40h floor below.
 fx('Trinity Stringer',4,17,23)
-# --- Leader Tue/Wed coverage spaced through the day (per instruction) ---
-# TUE leaders: Bowen 8-4 (open), Gobi 11-5 (late morning), James 11-8 (midday), Trinity 2-11 (afternoon-close), Mary solver-placed -> spaced ✓
-# WED leaders: Bowen 8-4 (open), Gobi 9-5 (open/day), Trinity 9-4 (day), James 3-11 (close), Mary solver-placed -> spaced ✓
 
 # Shift anchors: three real-world windows (9am-noon, 2pm-6pm, 8pm-11pm).
 # Noon-2pm (12:15-1:45) and 6pm-8pm (6:15-7:45) are dead zones — no starts or ends in between.
