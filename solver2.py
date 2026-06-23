@@ -24,10 +24,13 @@ def paid_val(n,a,b):
     r=b-a; return r if n in NO_BREAK else (r-0.5 if r>=5 else r)
 TEN_HR=PB|{'Adam Van Bogaert','Mason Doyle','Michael Calderon','Molly Summers','Noah Hiner','Ava Shade','Remi Sullinger','Izzy Simpson','Zac Duffy','Kara Thompson'}
 weak3={'Brian Carver','Bryan Bishop','Jason Britt'}
-weak5=weak3|{'Layton Angermeier','Emily Owens'}
+weak5=weak3|{'Emily Owens'}
 prep={'Michael Calderon','Tiffany Huffman','Noah Hiner','Gracelyn Dailey','Molly Summers','Reilly Weakley'}
 FT_nonleader={'Adam Van Bogaert','Mason Doyle','Michael Calderon','Molly Summers','Noah Hiner','Ava Shade','Izzy Simpson','Remi Sullinger','Reilly Weakley'}
 strong_PT={'Gracelyn Dailey','Cai Cotton','Sandya Wright','Kara Thompson','Nathan Paaswee','Peyton Shaw','Reese Bezehertny'}
+regular_PT={'Tiffany Huffman','Amiyah Bartley','Harper Flynn','Jonathan Beacham',
+            'Hayden Roush','Logan Frias','Shayden Howard','John Dugan',
+            'Kayden Anderson','Richard Raglin','Ryder','Oliver Croasdaile'}
 
 def avwin(n,d):
     w=av[n][d]
@@ -269,8 +272,8 @@ for n in FT_nonleader:
     if len(avail_days(n)) >= min_days:
         _sh(hours_expr(n),floor,n.replace(' ','_'))
 prob += hours_expr('Zac Duffy')<=35; _sh(hours_expr('Zac Duffy'),30,'Zac_Duffy')
-for nm,mn in [('Hayden Roush',12),('Logan Frias',15)]:
-    _sh(hours_expr(nm),mn,nm.replace(' ','_'))
+for n in regular_PT:
+    _sh(hours_expr(n),12,n.replace(' ','_'))
 for n in people:
     if n in ('John Martin (Jay)','Myles Palmer'): continue  # managers: no 40h cap
     prob += hours_expr(n)<=40
@@ -283,9 +286,6 @@ _sh(hours_expr('Mary Dean'),39,'Mary_Dean')       # leader 39-40h
 prob += hours_expr('Gracelyn Dailey')<=30  # strong PT but capped at 30h
 for n in strong_PT:
     _sh(hours_expr(n),20,n.replace(' ','_'))
-for _n in ['Shayden Howard','John Dugan','Kayden Anderson','Richard Raglin',
-           'Ryder','Oliver Croasdaile']:
-    _sh(hours_expr(_n),15,_n.replace(' ','_'))
 
 # weak5: prefer 1 day each (rulesheet). Hard cap 2; strong objective penalty makes a 2nd day rare.
 for n in weak5:
