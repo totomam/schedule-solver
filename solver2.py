@@ -281,9 +281,15 @@ for n in regular_PT:
 for n in people:
     if n in ('John Martin (Jay)','Myles Palmer'): continue  # managers: no 40h cap
     prob += hours_expr[n]<=40
-prob += hours_expr['Myles Palmer'] >= 45  # hard — solver works off-days to compensate if req'd off
+if len(avail_days('Myles Palmer')) >= 5:
+    prob += hours_expr['Myles Palmer'] >= 45  # hard — solver works off-days to compensate
+else:
+    _sh(hours_expr['Myles Palmer'], 45, 'Myles_Palmer')  # soft if heavily req'd off
 prob += hours_expr['Myles Palmer']<=52
-prob += hours_expr['John Martin (Jay)'] >= 45  # hard — solver works off-days to compensate if req'd off
+if len(avail_days('John Martin (Jay)')) >= 5:
+    prob += hours_expr['John Martin (Jay)'] >= 45  # hard — solver works off-days to compensate
+else:
+    _sh(hours_expr['John Martin (Jay)'], 45, 'John_Martin_Jay')  # soft if heavily req'd off
 prob += hours_expr['John Martin (Jay)']<=54
 if len(avail_days('James Baker')) >= 4:
     prob += hours_expr['James Baker'] >= 40
@@ -340,9 +346,10 @@ for n in people:
             prob += (pulp.lpSum(x[(n,d,i)] for i in idxs)
                      + pulp.lpSum(x[(n,d+1,j)] for j in early)) <= 1
 
-# ===== Both managers off → force all available shift leaders to work that day =====
-# When Jay and Myles are both unavailable on a day (req'd off or avail="X"), every
-# shift leader who IS available must work to guarantee PB open/close coverage.
+# ===== Both managers off → force ALL available shift leaders to work that day =====
+# Covers the "one manager gone all week, other can only work N days" scenario:
+# on any day where BOTH Jay and Myles are unavailable (req'd off or avail="X"),
+# every shift leader who IS available must work to guarantee PB open/close coverage.
 _PB_LEADERS = [n for n in PB if n not in NO_BREAK]  # Bowen, James, Trinity, Gobi, Mary
 for d in range(7):
     if avwin('John Martin (Jay)',d) is None and avwin('Myles Palmer',d) is None:
