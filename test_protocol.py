@@ -243,7 +243,7 @@ def make_forecast(rng: random.Random) -> tuple[dict, float]:
     Delta is treated as a total-weekly change; each day scales proportionally.
     Returns (forecast_dict, sales_delta).
     """
-    delta = rng.uniform(-1000, 2500)
+    delta = rng.uniform(-2000, 2000)
     scale = 1.0 + delta / TOTAL_SALES
 
     new_hours = [max(55.0, round(h * scale / 0.25) * 0.25) for h in BASE_HOURS]
