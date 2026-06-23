@@ -43,6 +43,10 @@ fixed={}
 def fx(n,d,a,b): fixed[(n,d)]=[a,b]
 # ===== BACKBONE — update each week =====
 for d in range(5): fx('Bowen Benedict',d,8,16)
+# Jay standard: Mon 6a-3p, Thu/Fri/Sat 10a-8p, Sun 11a-5p. Off Tue/Wed.
+# Deviate only when one manager must cover for the other's absence, or backstop open/close needed.
+fx('John Martin (Jay)',0,6,15); fx('John Martin (Jay)',3,10,20); fx('John Martin (Jay)',4,10,20)
+fx('John Martin (Jay)',5,10,20); fx('John Martin (Jay)',6,11,17)
 fx('Gobi Weathers',0,16,23); fx('Gobi Weathers',1,11,17); fx('Gobi Weathers',2,9,17); fx('Gobi Weathers',5,8,16); fx('Gobi Weathers',6,15,23)
 fx('Mary Dean',5,15,23)
 fx('James Baker',2,15,23); fx('James Baker',6,8,16)
@@ -262,7 +266,7 @@ for n in people:
     prob += hours_expr(n)<=40
 _sh(hours_expr('Myles Palmer'),45,'Myles_Palmer')
 prob += hours_expr('Myles Palmer')<=52
-_sh(hours_expr('John Martin (Jay)'),47,'John_Martin_Jay')
+_sh(hours_expr('John Martin (Jay)'),45,'John_Martin_Jay')
 prob += hours_expr('John Martin (Jay)')<=54
 _sh(hours_expr('James Baker'),39,'James_Baker')
 _sh(hours_expr('Mary Dean'),39,'Mary_Dean')
@@ -287,7 +291,7 @@ _floor_map = ([(n,33) for n in FT_nonleader if n!='Adam Van Bogaert']
             + [(n, 4) for n in weak5]
             + [('Zac Duffy',30),('Trinity Stringer',39),('Gobi Weathers',37),
                ('James Baker',39),('Mary Dean',39),
-               ('Myles Palmer',45),('John Martin (Jay)',47)])
+               ('Myles Palmer',45),('John Martin (Jay)',45)])
 for _n, _fl in _floor_map:
     _ov = pulp.LpVariable(f'ovf_{pidx[_n]}', lowBound=0)
     prob += _ov >= hours_expr(_n) - _fl
