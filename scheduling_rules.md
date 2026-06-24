@@ -201,7 +201,7 @@ Higher forecasted sales → higher targets. Use lunch/dinner targets as your pri
 - **Sienna Underwood**: no availability listed, generally skip
 - **Hayden Roush**: depending on week — may request off entirely
 - **Sandya Wright**: weekdays-only normally (school); summer break may change
-- **Tiffany Huffman**: regular PT, included in prep crew (must cover 9am open)
+- **Tiffany Huffman**: set schedule Mon 9a–4p only (backbone-fixed). No hours floor — backbone handles her one shift.
 - **Izzy Simpson**: FT non-leader, 33–40h target
 
 ---
