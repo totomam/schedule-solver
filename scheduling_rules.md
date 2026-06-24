@@ -180,13 +180,13 @@ Higher forecasted sales → higher targets. Use lunch/dinner targets as your pri
 - Gracelyn Dailey — **availability changes every month and is NOT in the standard availability sheet. She prints and brings her own calendar. Always verify her current availability before each build; do NOT assume she's "any"/open.** (Example: for 6/22-6/28 she was available Saturday only.)
 
 ### Weak / limited group — "don't pull their weight," spread out, prefer one day each
-- **Full group (all four): Emily Owens, Brian Carver, Bryan Bishop, Jason Britt**
+- **Full group (all seven): Emily Owens, Brian Carver, Bryan Bishop, Jason Britt, Shayden Howard, Oliver Croasdaile, John Dugan**
 - **Prefer-one-day rule (applies to ALL FOUR):** schedule each of them just one day/shift per week when possible. Only give a second day if coverage genuinely requires it.
 - **One-per-meal-period rule (applies ONLY to Brian Carver, Bryan Bishop, Jason Britt):** never more than ONE of these three working the same meal period (lunch or dinner) on any given day. Lunch = on the floor at noon; dinner = working past 5pm. Each lunch and each dinner across the week may contain at most one of them. (One-per-meal exceptions can be approved individually.)
 - Spread them across the week rather than clustering. Prefer stronger people on the busy days (Fri/Sat/Sun) and use these four to fill genuine gaps.
 
 ### Middle PT (use as needed for coverage, ~10-15h)
-- Shayden Howard, John Dugan, Kayden Anderson, Amiyah Bartley, Logan Frias, Richard Raglin, Oliver Croasdaile, Harper Flynn
+- Kayden Anderson, Amiyah Bartley, Logan Frias, Richard Raglin, Harper Flynn
 - **Ryder**: new hire, available any day/time, PT standard (max 8h shifts, takes break, max 5 days per week)
 
 ### New / occasional
