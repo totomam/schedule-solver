@@ -232,11 +232,11 @@ def _sf(e,fl,t):    # soft floor: e + slack >= fl
 _HPEN_HI=490  # shift leaders + FT non-leaders — last to lose hours
 _HPEN_LO=150  # PT / medium PT — first to lose hours when budget is tight
 _hrs_slk={'hi':[], 'lo':[]}  # (tag, floor, slack) per tier
-def _sh(expr, floor, tag, hi=True):
+def _sh(expr, floor, tag, hi=True, afl=None):
     global prob
     _s = pulp.LpVariable(f'hs_{tag}', lowBound=0)
     prob += expr + _s >= floor
-    _hrs_slk['hi' if hi else 'lo'].append((tag, floor, _s))
+    _hrs_slk['hi' if hi else 'lo'].append((tag, afl if afl is not None else floor, _s))
 
 for d in range(7):
     _h14=pulp.lpSum(_SDF[d,'h14']); _h15=pulp.lpSum(_SDF[d,'h15']); _h16=pulp.lpSum(_SDF[d,'h16'])
@@ -293,9 +293,9 @@ for n in people:
     prob += pulp.lpSum(x[(n,d,i)] for d in range(7) for i in range(len(shifts[(n,d)])))<=5
 hours_expr = {n: pulp.lpSum(x[(n,d,i)]*(b-a) for d in range(7) for i,(a,b) in enumerate(shifts[(n,d)])) for n in people}
 if len(avail_days('Trinity Stringer')) >= math.ceil(39/8):
-    _sh(hours_expr['Trinity Stringer'],40,'Trinity_Stringer')
+    _sh(hours_expr['Trinity Stringer'],40,'Trinity_Stringer',afl=39)
 if len(avail_days('Gobi Weathers')) >= math.ceil(37/8):
-    _sh(hours_expr['Gobi Weathers'],38,'Gobi_Weathers')
+    _sh(hours_expr['Gobi Weathers'],38,'Gobi_Weathers',afl=37)
 for n in FT_nonleader:
     if n == 'Adam Van Bogaert':
         prob += hours_expr[n]<=40
@@ -309,10 +309,10 @@ for n in FT_nonleader:
     max_per_day = 10.0 if n in TEN_HR else 8.0
     min_days = math.ceil(floor / max_per_day)
     if len(avail_days(n)) >= min_days:
-        _sh(hours_expr[n],floor+1,n.replace(' ','_'))
+        _sh(hours_expr[n],floor+1,n.replace(' ','_'),afl=floor)
 prob += hours_expr['Zac Duffy']<=35
 if len(avail_days('Zac Duffy')) >= math.ceil(30/10):
-    _sh(hours_expr['Zac Duffy'],31,'Zac_Duffy')
+    _sh(hours_expr['Zac Duffy'],31,'Zac_Duffy',afl=30)
 for n in regular_PT:
     max_pd = 10.0 if n in TEN_HR else 8.0
     if len(avail_days(n)) >= math.ceil(12/max_pd):
@@ -323,19 +323,19 @@ for n in people:
 if len(avail_days('Myles Palmer')) >= 5:
     prob += hours_expr['Myles Palmer'] >= 45  # hard — solver works off-days to compensate
 else:
-    _sh(hours_expr['Myles Palmer'], 46, 'Myles_Palmer')  # soft if heavily req'd off
+    _sh(hours_expr['Myles Palmer'], 46, 'Myles_Palmer', afl=45)  # soft if heavily req'd off
 prob += hours_expr['Myles Palmer']<=52
 if len(avail_days('John Martin (Jay)')) >= 5:
     prob += hours_expr['John Martin (Jay)'] >= 45  # hard — solver works off-days to compensate
 else:
-    _sh(hours_expr['John Martin (Jay)'], 46, 'John_Martin_Jay')  # soft if heavily req'd off
+    _sh(hours_expr['John Martin (Jay)'], 46, 'John_Martin_Jay', afl=45)  # soft if heavily req'd off
 prob += hours_expr['John Martin (Jay)']<=54
 if len(avail_days('James Baker')) >= 5:
     prob += hours_expr['James Baker'] >= 40
 else:
     _sh(hours_expr['James Baker'], 40, 'James_Baker')
 if len(avail_days('Mary Dean')) >= math.ceil(39/8):
-    _sh(hours_expr['Mary Dean'],40,'Mary_Dean')
+    _sh(hours_expr['Mary Dean'],40,'Mary_Dean',afl=39)
 prob += hours_expr['Gracelyn Dailey']<=30
 for n in strong_PT:
     max_pd = 10.0 if n in TEN_HR else 8.0
