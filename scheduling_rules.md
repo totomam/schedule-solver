@@ -358,6 +358,7 @@ When building a new schedule:
 | Kyle Summers | Molly |
 | Lucas Baker | James |
 | Noah Weathers | Gobi |
+| Sandya Wright | Sandy |
 | Izabella Simpson | Izzy |
 
 (In the .xlsx schedule, use the "goes by" name — Jay, Cai, Remi, etc.)
