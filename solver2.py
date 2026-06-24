@@ -308,7 +308,7 @@ for n in FT_nonleader:
     min_days = math.ceil(floor / max_per_day)
     if len(avail_days(n)) >= min_days:
         _sh(hours_expr[n],floor,n.replace(' ','_'))
-prob += hours_expr['Zac Duffy']<=35; _sh(hours_expr['Zac Duffy'],30,'Zac_Duffy',hi=False)
+prob += hours_expr['Zac Duffy']<=35; _sh(hours_expr['Zac Duffy'],30,'Zac_Duffy')
 for n in regular_PT:
     _sh(hours_expr[n],12,n.replace(' ','_'),hi=False)
 for n in people:
