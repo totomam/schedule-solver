@@ -18,7 +18,7 @@ At the start of each session, `web_fetch` this URL to get the latest solver code
 ## 2. HOURS RULES
 
 ### Manager hours (set defaults — only override when explicitly needed)
-- **John Martin (Jay)**: Standard 45h. Mon 6a–3p, Thu 10a–8p, Fri 10a–8p, Sat 10a–8p, Sun 11a–5p. Off Tue/Wed normally.
+- **Jay Martin**: Standard 45h. Mon 6a–3p, Thu 10a–8p, Fri 10a–8p, Sat 10a–8p, Sun 11a–5p. Off Tue/Wed normally.
 - **Myles Palmer**: Standard 45h. Mon–Wed 11a–8p, Sat–Sun 11a–8p. Off Thu/Fri normally. Shifts automatically adjust to 2p–11p on any day he is needed as the only PB closer.
 - Both managers have backbone shifts set each week by the solver. The backbone auto-adjusts: if no other PB member can open on a given day, Jay's shift slides earlier (≤9am); if no other PB member can close, Myles's shift slides later (2pm–11pm). No manual action needed.
 
@@ -31,7 +31,7 @@ At the start of each session, `web_fetch` this URL to get the latest solver code
 
 ### Paid vs unpaid breaks
 - **Paid breaks (no deduction)** — these people get hours as-is:
-  - Managers ONLY: John Martin (Jay), Myles Palmer
+  - Managers ONLY: Jay Martin, Myles Palmer
 - **Everyone else, INCLUDING the 5 shift leaders** (Bowen Benedict, James Baker, Trinity Stringer, Gobi Weathers, Mary Dean): subtract 0.5h from any shift ≥ 5 hours. The shift leaders clock out for a 30-min unpaid break like all hourly staff.
   - Example: 8a-4p (8h raw) shows as 7.5 paid
   - Example: 4:30p-9p (4.5h raw) shows as 4.5 paid (under 5h = no deduction)
@@ -352,7 +352,7 @@ When building a new schedule:
 
 | Printed | Goes by |
 |---------|--------|
-| John Martin | Jay |
+| Jay Martin | Jay |
 | Claire Cotton | Cai |
 | Danielle Sullinger | Remi |
 | Kyle Summers | Molly |

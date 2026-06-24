@@ -39,7 +39,7 @@ DAYS    = ['Mon','Tue','Wed','Thu','Fri','Sat','Sun']
 WEEKEND = ['Fri','Sat','Sun']
 WEEKDAY = ['Mon','Tue','Wed','Thu']
 
-_JAY   = 'John Martin (Jay)'
+_JAY   = 'Jay Martin'
 _MYLES = 'Myles Palmer'
 # Shift leaders — not managers
 _LEADERS = {'Bowen Benedict', 'James Baker', 'Trinity Stringer', 'Gobi Weathers', 'Mary Dean'}
