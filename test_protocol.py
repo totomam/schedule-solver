@@ -10,7 +10,7 @@ Usage:
 What it does:
   - Generates N random (reqoff, forecast) pairs, runs solver2.py for each.
   - 10–25 request-offs per run (random), split 50/50 between Fri/Sat/Sun and Mon-Thu.
-  - Sales vary ±random in [-1000, +2500] from the baseline week total,
+  - Sales vary ±random in [-1000, +2500] from a $35,500 baseline,
     scaling allowed_hours proportionally across all 7 days.
   - Availability stays fixed (avail_6_29.json unchanged).
   - Reports: solve status, audit pass/fail, coverage warnings, timing.
@@ -33,6 +33,7 @@ with open(BASE_DIR / 'forecast_6_29.json') as f: BASE_FORECAST = json.load(f)
 BASE_HOURS = BASE_FORECAST['allowed_hours']          # [Mon..Sun]
 BASE_SALES = BASE_FORECAST['forecasted_sales']       # [Mon..Sun]
 TOTAL_SALES = sum(BASE_SALES)
+BASELINE_SALES = 35_500  # reference total for delta scaling
 
 DAYS    = ['Mon','Tue','Wed','Thu','Fri','Sat','Sun']
 WEEKEND = ['Fri','Sat','Sun']
@@ -257,12 +258,12 @@ def make_reqoff(rng: random.Random) -> dict[str, list[str]]:
 
 # ── Forecast generator ─────────────────────────────────────────────────────────────────────────
 def make_forecast(rng: random.Random) -> tuple[dict, float]:
-    """Scale allowed_hours by a random sales delta in [-1000, +2500].
+    """Scale allowed_hours by a random sales delta in [-1000, +2500] from a $35,500 baseline.
     Delta is treated as a total-weekly change; each day scales proportionally.
     Returns (forecast_dict, sales_delta).
     """
-    delta = rng.uniform(-1500, 2500)
-    scale = 1.0 + delta / TOTAL_SALES
+    delta = rng.uniform(-1000, 2500)
+    scale = 1.0 + delta / BASELINE_SALES
 
     new_hours = [max(55.0, round(h * scale / 0.25) * 0.25) for h in BASE_HOURS]
     new_sales  = [max(0, int(s * scale)) for s in BASE_SALES]
