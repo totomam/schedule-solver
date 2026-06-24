@@ -293,9 +293,9 @@ for n in people:
     prob += pulp.lpSum(x[(n,d,i)] for d in range(7) for i in range(len(shifts[(n,d)])))<=5
 hours_expr = {n: pulp.lpSum(x[(n,d,i)]*(b-a) for d in range(7) for i,(a,b) in enumerate(shifts[(n,d)])) for n in people}
 if len(avail_days('Trinity Stringer')) >= math.ceil(39/8):
-    _sh(hours_expr['Trinity Stringer'],39,'Trinity_Stringer')
+    _sh(hours_expr['Trinity Stringer'],40,'Trinity_Stringer')
 if len(avail_days('Gobi Weathers')) >= math.ceil(37/8):
-    _sh(hours_expr['Gobi Weathers'],37,'Gobi_Weathers')
+    _sh(hours_expr['Gobi Weathers'],38,'Gobi_Weathers')
 for n in FT_nonleader:
     if n == 'Adam Van Bogaert':
         prob += hours_expr[n]<=40
@@ -309,10 +309,10 @@ for n in FT_nonleader:
     max_per_day = 10.0 if n in TEN_HR else 8.0
     min_days = math.ceil(floor / max_per_day)
     if len(avail_days(n)) >= min_days:
-        _sh(hours_expr[n],floor,n.replace(' ','_'))
+        _sh(hours_expr[n],floor+1,n.replace(' ','_'))
 prob += hours_expr['Zac Duffy']<=35
 if len(avail_days('Zac Duffy')) >= math.ceil(30/10):
-    _sh(hours_expr['Zac Duffy'],30,'Zac_Duffy')
+    _sh(hours_expr['Zac Duffy'],31,'Zac_Duffy')
 for n in regular_PT:
     max_pd = 10.0 if n in TEN_HR else 8.0
     if len(avail_days(n)) >= math.ceil(12/max_pd):
@@ -323,19 +323,19 @@ for n in people:
 if len(avail_days('Myles Palmer')) >= 5:
     prob += hours_expr['Myles Palmer'] >= 45  # hard — solver works off-days to compensate
 else:
-    _sh(hours_expr['Myles Palmer'], 45, 'Myles_Palmer')  # soft if heavily req'd off
+    _sh(hours_expr['Myles Palmer'], 46, 'Myles_Palmer')  # soft if heavily req'd off
 prob += hours_expr['Myles Palmer']<=52
 if len(avail_days('John Martin (Jay)')) >= 5:
     prob += hours_expr['John Martin (Jay)'] >= 45  # hard — solver works off-days to compensate
 else:
-    _sh(hours_expr['John Martin (Jay)'], 45, 'John_Martin_Jay')  # soft if heavily req'd off
+    _sh(hours_expr['John Martin (Jay)'], 46, 'John_Martin_Jay')  # soft if heavily req'd off
 prob += hours_expr['John Martin (Jay)']<=54
 if len(avail_days('James Baker')) >= 5:
     prob += hours_expr['James Baker'] >= 40
 else:
     _sh(hours_expr['James Baker'], 40, 'James_Baker')
 if len(avail_days('Mary Dean')) >= math.ceil(39/8):
-    _sh(hours_expr['Mary Dean'],39,'Mary_Dean')
+    _sh(hours_expr['Mary Dean'],40,'Mary_Dean')
 prob += hours_expr['Gracelyn Dailey']<=30
 for n in strong_PT:
     max_pd = 10.0 if n in TEN_HR else 8.0
