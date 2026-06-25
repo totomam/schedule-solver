@@ -1,6 +1,8 @@
 import json, math, pulp, os
 from collections import defaultdict
 from datetime import datetime, timedelta
+
+# === CONFIG ===
 _OUT = os.environ.get('SCHED_OUT', 'schedule.json')   # tests set SCHED_OUT to write elsewhere
 # Derive the "_active" path by stripping a trailing .json only, so the two outputs never collide
 # (str.replace would hit every '.json' in the path and would no-op when there's no extension).
@@ -16,6 +18,7 @@ with open(_REQOFF_FILE)   as _f: req=json.load(_f)
 with open(_FORECAST_FILE) as _f: fc=json.load(_f)
 allowed=fc['allowed_hours']
 dn=['Mon','Tue','Wed','Thu','Fri','Sat','Sun']
+# === GROUPS ===
 PB={'Jay Martin','Myles Palmer','Bowen Benedict','James Baker','Trinity Stringer','Gobi Weathers','Mary Dean'}
 # NO_BREAK = people who do NOT clock out for an unpaid break (no 0.5h deduction).
 # As of now: only the two managers (Jay/Myles) get paid = raw hours (no break deduction).
@@ -32,6 +35,7 @@ regular_PT={'Amiyah Bartley','Harper Flynn','Jonathan Beacham',
             'Hayden Roush','Logan Frias',
             'Kayden Anderson','Richard Raglin','Ryder'}
 
+# === AVAILABILITY ===
 def avwin(n,d):
     w=av[n][d]
     if w=='X' or n in req[dn[d]]: return None
@@ -90,6 +94,7 @@ for _jd, (_ja, _jb) in _JAY_STD.items():
 for _md in [0, 1, 2, 5, 6]:
     fx('Myles Palmer', _md, 11, 20) if _pb_closer_exists(_md) else fx('Myles Palmer', _md, 14, 23)
 
+# === SHIFT GENERATION ===
 # Shift anchors: three real-world windows (9am-noon, 2pm-6pm, 8pm-11pm).
 # Noon-2pm (12:15-1:45) and 6pm-8pm (6:15-7:45) are dead zones — no starts or ends in between.
 # Boundaries (12:00, 14:00, 18:00, 20:00) are valid start/end times.
@@ -131,6 +136,7 @@ def gen(n,d):
             out.append((round(a,2),round(b,2)))
     return out
 
+# === MIP VARIABLES ===
 prob=pulp.LpProblem('sched',pulp.LpMinimize)
 shifts={}; x={}
 people=list(av)
@@ -214,6 +220,7 @@ for d in range(7):
     _SDF[d,'stag9'] =[x[(n,d,i)] for (n,i,a,b,pv) in sd if n not in _no_early and a<=9]
     _SDF[d,'prep9'] =[x[(n,d,i)] for (n,i,a,b,pv) in sd if n in prep and a<=9]
 
+# === COVERAGE TARGETS ===
 twoTar=[8,8,8,8,8,9,11]; threeTar=[6,6,6,6,7,8,8]; fourTar=[5,5,5,5,6,7,6]
 Otar=[6,6,6,6,6,6,6]; Ltar=[9,9,9,9,10,10,11]; Dtar=[10,10,10,11,14,13,12]; Ctar=[5,5,5,5,6,6,6]
 
@@ -238,6 +245,7 @@ def _sh(expr, floor, tag, hi=True, afl=None):
     prob += expr + _s >= floor
     _hrs_slk['hi' if hi else 'lo'].append((tag, afl if afl is not None else floor, _s))
 
+# === COVERAGE CONSTRAINTS ===
 for d in range(7):
     _h14=pulp.lpSum(_SDF[d,'h14']); _h15=pulp.lpSum(_SDF[d,'h15']); _h16=pulp.lpSum(_SDF[d,'h16'])
     _cl225=pulp.lpSum(_SDF[d,'cl225']); _cl21=pulp.lpSum(_SDF[d,'cl21'])
@@ -289,6 +297,7 @@ for d in range(7):
     if _SDF[d,'w3_ln']: _sc(pulp.lpSum(_SDF[d,'w3_ln']),1, f'sw3ln_{d}')
     if _SDF[d,'w3_dn']: _sc(pulp.lpSum(_SDF[d,'w3_dn']),1, f'sw3dn_{d}')
 
+# === HOURS FLOORS ===
 for n in people:
     prob += pulp.lpSum(x[(n,d,i)] for d in range(7) for i in range(len(shifts[(n,d)])))<=5
 hours_expr = {n: pulp.lpSum(x[(n,d,i)]*(b-a) for d in range(7) for i,(a,b) in enumerate(shifts[(n,d)])) for n in people}
@@ -328,7 +337,7 @@ prob += hours_expr['Myles Palmer']<=52
 if len(avail_days('Jay Martin')) >= 5:
     prob += hours_expr['Jay Martin'] >= 45  # hard — solver works off-days to compensate
 else:
-    _sh(hours_expr['Jay Martin'], 46, 'John_Martin_Jay', afl=45)  # soft if heavily req'd off
+    _sh(hours_expr['Jay Martin'], 46, 'Jay_Martin', afl=45)  # soft if heavily req'd off
 prob += hours_expr['Jay Martin']<=54
 if len(avail_days('James Baker')) >= 5:
     prob += hours_expr['James Baker'] >= 40
@@ -366,7 +375,8 @@ for _n, _fl in _floor_map:
     prob += _ov >= hours_expr[_n] - _fl
     _afloor_terms.append(_ov)
 
-# CHANGE 4: 12-hour close-then-open rule — AGGREGATED formulation.
+# === 12H RULE ===
+# 12-hour close-then-open rule — AGGREGATED formulation.
 # A day-d close ending at b1 conflicts with a day-(d+1) shift starting at a2 when (24-b1)+a2 < 12,
 # i.e. a2 < b1 - 12. Since each person works <=1 shift/day, we don't need a constraint per pair.
 # For each distinct close-end time b1 on day d, all next-day shifts starting before (b1-12) are
@@ -401,7 +411,8 @@ for d in range(7):
             if _day_shifts:
                 prob += pulp.lpSum(x[(_n,d,i)] for i in range(len(_day_shifts))) >= 1
 
-# ===== NO ZERO-SHIFT for anyone available (>=1 day avail must get >=1 shift) =====
+# === ZERO-SHIFT ===
+# No zero-shift for anyone available (>=1 day avail must get >=1 shift) =====
 # Make it a HARD constraint for everyone with availability, EXCEPT allow the solver to drop
 # someone only if infeasible. Use soft with big penalty to stay feasible.
 zero_pen=[]
@@ -415,7 +426,8 @@ for n in people:
     prob += total_shifts >= 1 - z
     zero_pen.append(z)
 
-# Objective: land total paid hours in [allowed+25, allowed+30], minimize zero-shift people,
+# === OBJECTIVE ===
+# Land total paid hours in [allowed+25, allowed+30], minimize zero-shift people,
 # minimize weak5 usage, prefer short shifts. No exact target — any value in the window is fine.
 # SD already carries pv=paid_val(n,a,b) — use it directly everywhere paid hours are needed.
 total_paid=pulp.lpSum(x[(n,d,i)]*pv for d in range(7) for (n,i,a,b,pv) in SD[d])
@@ -460,6 +472,7 @@ prob += (5000*pulp.lpSum(zero_pen) + 8*weak_use + 0.3*short_pref + 30*mgr_offday
          + _HPEN_LO*pulp.lpSum(s for _,_,s in _hrs_slk['lo'])
          + _AFLOOR_PEN*pulp.lpSum(_afloor_terms))
 
+# === SOLVE ===
 print(f"Vars: {len(x)}. Solving with HiGHS...")
 _tl=int(os.environ.get('SCHED_TIMELIMIT','240'))
 _gr=float(os.environ.get('SCHED_GAPREL','0.25'))
@@ -480,7 +493,7 @@ for d in range(7):
 with open(_OUT,'w') as _f: json.dump(sol,_f)
 with open(_OUT_ACTIVE,'w') as _f: json.dump({n:sh for n,sh in sol.items() if any(sh)},_f)
 
-# ---- Compact status summary ----
+# === SUMMARY ===
 def _pd(sh, n): return paid_val(n, sh[0], sh[1]) if sh else 0
 def _hd(d,t): return sum(1 for n in sol if sol[n][d] and sol[n][d][0]<=t<sol[n][d][1])
 def _O(d): return sum(1 for n in sol if n!='Jay Martin' and sol[n][d] and sol[n][d][0]<=10)
@@ -511,7 +524,7 @@ for d in range(7):
 tot=sum(_pd(sol[n][d],n) for n in sol for d in range(7))-sum(allowed)
 print(f"TOTAL var: {tot:+.1f} | Status {pulp.LpStatus[prob.status]}")
 
-# ---- Inline rules audit ----
+# === AUDIT ===
 _fails=[]
 # 12h close-then-open
 for n in people:
@@ -561,7 +574,7 @@ for _nm,_fl,_sv in (_hrs_slk['hi'] + _hrs_slk['lo']):
 print(f"Audit: {'PASS' if not _fails else str(len(_fails))+' issue(s):'}")
 for _f in _fails: print(f"  {_f}")
 
-# ---- Excel output ----
+# === EXCEL OUTPUT ===
 def _hfmt(h):
     hi=int(h); mi=round((h-hi)*60)
     if mi==60: hi+=1; mi=0
