@@ -15,6 +15,6 @@ jobs:
         with:
           python-version: '3.11'
       - name: Install dependencies
-        run: pip install pulp highspy openpyxl
+        run: pip install -r requirements.txt
       - name: Run solver smoke test (1 run)
         run: TEST_RUNS=1 python test_protocol.py

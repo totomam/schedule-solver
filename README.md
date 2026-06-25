@@ -23,7 +23,7 @@ Uses [PuLP](https://coin-or.github.io/pulp/) + [HiGHS](https://highs.dev/) solve
 
 ```bash
 # Install dependencies (once)
-pip install pulp highspy openpyxl
+pip install -r requirements.txt
 
 # Run the solver
 python solver2.py
@@ -49,14 +49,14 @@ A summary table and rules audit print to the terminal — read it and fix any fl
 
 ## Running the stress tester
 
-The stress tester randomises sales forecasts and request-offs across 20 scenarios and verifies the solver produces a valid schedule for each.
+The stress tester randomises sales forecasts and request-offs and verifies the solver produces a valid schedule for each.
 
 ```bash
-# 20 runs (default)
-TEST_RUNS=20 python test_protocol.py
+# Single run (default)
+python test_protocol.py
 
-# Faster run with relaxed hours-under check
-FULL_HOURS_UNDER=0 TEST_RUNS=10 python test_protocol.py
+# More runs for thorough stress testing
+TEST_RUNS=10 python test_protocol.py
 ```
 
 Results are written to `test_report.json`. Each run prints `[OK]` or `[FAIL]` with a brief reason.
