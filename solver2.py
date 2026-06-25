@@ -326,8 +326,9 @@ for n in regular_PT:
     max_pd = 10.0 if n in TEN_HR else 8.0
     if len(avail_days(n)) >= math.ceil(12/max_pd):
         _sh(hours_expr[n],12,n.replace(' ','_'),hi=False)
+_capped40 = FT_nonleader | {'Zac Duffy'}  # already have explicit caps above
 for n in people:
-    if n in ('Jay Martin','Myles Palmer'): continue  # managers: no 40h cap
+    if n in ('Jay Martin','Myles Palmer') or n in _capped40: continue
     prob += hours_expr[n]<=40
 if len(avail_days('Myles Palmer')) >= 5:
     prob += hours_expr['Myles Palmer'] >= 45  # hard — solver works off-days to compensate
