@@ -2,9 +2,6 @@
 
 Complete reference for building the weekly schedule. Given availability sheet, request-off book, and sales forecast — apply these rules to produce the schedule.
 
-**Solver source (GitHub):** `https://raw.githubusercontent.com/totomam/schedule-solver/main/solver2.py`
-At the start of each session, `web_fetch` this URL to get the latest solver code before building or editing anything. If the branch changes, update this URL.
-
 ---
 
 ## 1. INPUTS NEEDED EACH WEEK
@@ -18,27 +15,29 @@ At the start of each session, `web_fetch` this URL to get the latest solver code
 ## 2. HOURS RULES
 
 ### Manager hours (set defaults — only override when explicitly needed)
-- **John Martin (Jay)**: Off Tuesday AND Wednesday normally. Default Mon 6a-3p, Thu/Fri/Sat 10a-8p, Sun 11a-5p.
-- **Myles Palmer**: Mon 11a-8p, Thu 11a-8p, Fri 12p-9p, Sat 12p-9p, Sun 11a-8p = 45h. Off Tue/Wed. (11-8 on weekdays + Sunday; 12-9 Friday & Saturday.)
+- **Jay Martin**: Standard 45h. Mon 6a–3p, Thu 10a–8p, Fri 10a–8p, Sat 10a–8p, Sun 11a–5p. Off Tue/Wed normally.
+- **Myles Palmer**: Standard 45h. Mon–Wed 11a–8p, Sat–Sun 11a–8p. Off Thu/Fri normally. Shifts automatically adjust to 2p–11p on any day he is needed as the only PB closer.
+- Both managers have backbone shifts set each week by the solver. The backbone auto-adjusts: if no other PB member can open on a given day, Jay's shift slides earlier (≤9am); if no other PB member can close, Myles's shift slides later (2pm–11pm). No manual action needed.
 
 ### Non-manager hour caps
 - **Maximum 40h** for everyone except Jay and Myles (NO OVERTIME — we don't pay it)
 - **Minimum shift length: 4 hours**
 - **Part-time shifts capped at 8 hours per shift.** Only full-time, shift leaders, managers, and the blanket-approved 10h people (see below) may be scheduled longer than 8h. If a PT shift over 8h is genuinely needed, get manager permission first and log it as a one-time exception.
-- **10-hour-OK people** (may work up to 10h without asking): all leaders/managers, plus Adam, Mason, Michael, Molly, Noah Hiner, Ava, Remi, Izzy, Zac. Other PTs need explicit one-time manager approval for anything over 8h.
-- **Maximum 5 days per week for everyone.** Nobody is scheduled more than 5 days.
+- **10-hour-OK people** (may work up to 10h without asking): all leaders/managers (Bowen, James, Trinity, Gobi, Mary, Jay, Myles), plus Adam, Mason, Ava, Remi, Izzy, Zac, Kara Thompson. Keegan will be added once onboarded. Note: Molly, Noah, Reilly, and Michael are capped at 5pm by availability so 10h shifts aren't applicable to them. Other PTs need explicit one-time manager approval for anything over 8h.
+- **Maximum 5 days per week for everyone, including Jay and Myles.** Nobody is scheduled more than 5 days.
 
 ### Paid vs unpaid breaks
 - **Paid breaks (no deduction)** — these people get hours as-is:
-  - Managers ONLY: John Martin (Jay), Myles Palmer
+  - Managers ONLY: Jay Martin, Myles Palmer
 - **Everyone else, INCLUDING the 5 shift leaders** (Bowen Benedict, James Baker, Trinity Stringer, Gobi Weathers, Mary Dean): subtract 0.5h from any shift ≥ 5 hours. The shift leaders clock out for a 30-min unpaid break like all hourly staff.
   - Example: 8a-4p (8h raw) shows as 7.5 paid
   - Example: 4:30p-9p (4.5h raw) shows as 4.5 paid (under 5h = no deduction)
 - Per-person cells in the .xlsx show FULL (raw) hours; the bottom "Scheduled Hours (paid)" row shows paid totals after break deductions. This paid model is the correct basis for planning.
 
-### FT target hours
-- Shift leaders (Bowen, James, Trinity, Gobi, Mary): **39–40h range**. Gobi is capped at ~37h raw by her fixed schedule and the 12h close-then-open rule — she's the exception.
-- Other FT + college kids (Zac): **35–40h range**
+### FT target hours (raw hours)
+- Shift leaders (Bowen, James, Trinity, Gobi, Mary): **39–40h raw**. Gobi is capped at ~37h raw by her fixed schedule and the 12h close-then-open rule — she's the exception.
+- Other FT non-leaders (Adam, Mason, Michael, Molly, Noah, Ava, Izzy, Remi, Reilly): **33–40h raw**
+- Zac Duffy: **30–35h raw**
 
 ---
 
@@ -49,18 +48,35 @@ At the start of each session, `web_fetch` this URL to get the latest solver code
 - **Mon 6a-3p** (9h) — admin time at open, doesn't count as opener
 - **Thu/Fri/Sat 10a-8p** (10h)
 - **Sun 11a-5p** (6h)
-- **Never works past 9pm** unless absolute emergency close
-- **Never schedule a 9a-9p (12h) shift** — too long
+- **Standard total: 45h raw**
+- **Strongly penalized for taking closing shifts** (end 11pm) — will only close in an extreme edge case where no other PB member can close and Myles is also unavailable. Not a hard rule, but effectively never happens.
+- **Never schedule a 9a-9p (12h) shift** — exceeds the 10h max
 - Override default only when you explicitly need to (e.g., a one-off week covering 6 days)
 
 ### Myles-specific (default set schedule)
-- **Mon, Thu 11a-8p** (9h each)
-- **Sun 11a-8p** (9h)
-- **Fri, Sat 12p-9p** (9h each)
-- **Off Tue, Wed**
-- Default total: 45h (11-8 on weekdays + Sunday; 12-9 Friday & Saturday)
-- **Never works past 9pm** unless emergency close
-- Override default only when explicitly needed (e.g., emergency close)
+- **Mon, Tue, Wed, Sat, Sun: 11a–8p** (9h each)
+- **Off Thu, Fri**
+- **Default total: 45h raw**
+- **Shifts to 2p–11p** automatically on any day he is the only PB member who can close that night
+- **Strongly penalized for taking opening shifts** (start ≤10am) — priority closer, not opener
+- Override default only when explicitly needed
+
+### Manager deviation rules
+
+**Rule 1 — Day swap when a manager requests off a working day:**
+- If **Jay** requests off Thursday or Friday → Myles covers that day instead. Myles then takes a different day off (not his usual Thu/Fri). Jay works Myles's normal off day (Thu or Fri) in exchange.
+- If **Myles** requests off Tuesday or Wednesday → Jay covers that day instead. Jay then takes a different day off (not his usual Tue/Wed). Myles works Jay's normal off day (Tue or Wed) in exchange.
+- Goal: manager hours stay whole (45h / 45h). The avail JSON for that week reflects the swap — open the covering manager on the new day, mark the requesting manager's original day X.
+
+**Rule 2 — Coverage backstop when leaders can't cover open or close:**
+- If shift leaders request off or are otherwise unavailable in a way that leaves a day without a leader opener (≤9am) or closer (≥10pm), a manager covers that slot.
+- **Jay is the priority OPENER** (penalised for taking closing shifts). **Myles is the priority CLOSER** (penalised for taking opening shifts). If the preferred manager is also unavailable, the other covers.
+- The solver handles this automatically via the backbone: `_pb_opener_exists(d)` and `_pb_closer_exists(d)` are evaluated at model-build time, and manager backbone shifts slide to cover gaps. No manual action needed unless you're building by hand.
+
+**Rule 3 — Both managers off the same day:**
+- If both Jay AND Myles are unavailable on the same day (req'd off or avail="X"), **every shift leader who IS available that day must work** — no shift leader may request off that day. This guarantees the day always has PB coverage for open and close.
+- In the request-off book: if Jay and Myles are both off a day, do not write any shift leader name under that day.
+- The solver enforces this as a hard constraint and the test protocol blocks the scenario from being generated.
 
 ### Close-then-open rule
 - **Minimum 12 hours between close and next-day open**
@@ -69,10 +85,10 @@ At the start of each session, `web_fetch` this URL to get the latest solver code
 
 ### Leader coverage
 - **Every day MUST have a shift leader or manager opening AND closing**
-- Opening = working at or before 10am
-- Closing = working until 10pm or later
+- Opening = a PB member working at or before 9am
+- Closing = a PB member working until 10pm or later
 - Leaders/managers available to anchor open & close: Jay, Bowen, James, Trinity, Gobi, Mary. Plan leader coverage around each leader's days off and any request-offs that week.
-- If no leader is available to close on a given day (rare): Myles can close as an emergency exception.
+- If no leader is available to close on a given day (rare): Myles automatically shifts to close as a backstop.
 
 ---
 
@@ -129,14 +145,14 @@ At the start of each session, `web_fetch` this URL to get the latest solver code
 | Saturday | 10 / 13 |
 | Sunday | 11 / 12 |
 
-Higher forecasted sales → higher targets. Use lunch/dinner targets as your primary coverage check. Closers run exactly 5/day (6 on Friday & Saturday) — see Closers section.
+Higher forecasted sales → higher targets. Use lunch/dinner targets as your primary coverage check. Closers run exactly 5/day (6 on Friday, Saturday, and Sunday) — see Closers section.
 
 ---
 
 ## 6. VARIANCE TARGETS (paid hours over allowed hours)
 
 | Day | Variance Target |
-|-----|-----------------|
+|-----|------------------|
 | Monday | +5 |
 | Tuesday | +5 |
 | Wednesday | +5 |
@@ -151,29 +167,29 @@ Higher forecasted sales → higher targets. Use lunch/dinner targets as your pri
 
 ## 7. EMPLOYEE PRIORITY TIERS
 
-### Strong PT (give more hours, 18-25h+ target)
+### Strong PT (give more hours, 20h+ target)
 - Cai Cotton
-- Tiffany Huffman
-- Izzy Simpson
 - Kara Thompson
-- Nathan Paasewe
+- Nathan Paaswee
+- Peyton Shaw
 - Reese Bezehertny
-- Lorelei Regan
+- Sandy Wright
 - Gracelyn Dailey — **availability changes every month and is NOT in the standard availability sheet. She prints and brings her own calendar. Always verify her current availability before each build; do NOT assume she's "any"/open.** (Example: for 6/22-6/28 she was available Saturday only.)
 
 ### Weak / limited group — "don't pull their weight," spread out, prefer one day each
-- **Full group (all five): Layton Angermeier, Emily Owens, Brian Carver, Bryan Bishop, Jason Britt**
-- **Prefer-one-day rule (applies to ALL FIVE):** schedule each of them just one day/shift per week when possible. Only give a second day if coverage genuinely requires it.
+- **Full group (all seven): Emily Owens, Brian Carver, Bryan Bishop, Jason Britt, Shayden Howard, Oliver Croasdaile, John Dugan**
+- **Prefer-one-day rule (applies to ALL FOUR):** schedule each of them just one day/shift per week when possible. Only give a second day if coverage genuinely requires it.
 - **One-per-meal-period rule (applies ONLY to Brian Carver, Bryan Bishop, Jason Britt):** never more than ONE of these three working the same meal period (lunch or dinner) on any given day. Lunch = on the floor at noon; dinner = working past 5pm. Each lunch and each dinner across the week may contain at most one of them. (One-per-meal exceptions can be approved individually.)
-- Spread them across the week rather than clustering. Prefer stronger people on the busy days (Fri/Sat/Sun) and use these five to fill genuine gaps.
+- Spread them across the week rather than clustering. Prefer stronger people on the busy days (Fri/Sat/Sun) and use these four to fill genuine gaps.
 
 ### Middle PT (use as needed for coverage, ~10-15h)
-- Shayden Howard, John Dugan, Kayden Anderson, Peyton Shaw, Amiyah Bartley, Logan Frias, Richard Raglin, Oliver Croasdaile, Harper Flynn
+- Kayden Anderson, Amiyah Bartley, Logan Frias, Richard Raglin, Harper Flynn
 - **Ryder**: new hire, available any day/time, PT standard (max 8h shifts, takes break, max 5 days per week)
 
 ### New / occasional
 - **Jacob Cothern**: PT, 2 shifts only, available Mon-Thu 5p-9:30p (dinner shifts). Place on the higher-volume of his available days.
-- **Zac Duffy**: college kid (CK), cleared for 10h shifts. **Target 30–35h range.** Available Mon/Tue/Thu/Sun.
+- **Zac Duffy**: college kid (CK), cleared for 10h shifts. **Target 30–35h raw.** Available Mon/Tue/Thu/Sun.
+- **Keegan**: cleared for 10h shifts. Add to avail JSON when onboarded.
 
 ### Leaving / on way out
 - Get 1-2 shifts max, no need to prioritize hours
@@ -181,7 +197,9 @@ Higher forecasted sales → higher targets. Use lunch/dinner targets as your pri
 ### Special cases
 - **Sienna Underwood**: no availability listed, generally skip
 - **Hayden Roush**: depending on week — may request off entirely
-- **Sandya Wright**: weekdays-only normally (school); summer break may change
+- **Sandy Wright**: weekdays-only normally (school); summer break may change
+- **Tiffany Huffman**: set schedule Mon 9a–4p only (backbone-fixed). No hours floor — backbone handles her one shift.
+- **Izzy Simpson**: FT non-leader, 33–40h target
 
 ---
 
@@ -218,7 +236,7 @@ Higher forecasted sales → higher targets. Use lunch/dinner targets as your pri
 
 ### Before 9am — managers & shift leaders ONLY
 - **No one except managers and shift leaders may start before 9:00am.** Everyone else starts at 9:00am or later.
-- The only people scheduled before 9am: **Jay** (Mon 6a), **Bowen** (8a Mon-Fri), **Gobi** (Saturday open), **James** (Sunday 8a). No one else.
+- The only people scheduled before 9am: **Jay** (Mon 6a), **Bowen** (8a Mon-Fri), **Gobi** (Saturday 8a), **Trinity** (Saturday, if needed), **James** (Sunday 8a). No one else.
 
 ### Morning starts
 - Don't have everyone start at 9am — stagger the openers. At most 2 people start at exactly 9:00 (plus Bowen's 8a anchor); stagger the rest at 9:15a, 9:30a, 9:45a, 10a.
@@ -263,7 +281,7 @@ Higher forecasted sales → higher targets. Use lunch/dinner targets as your pri
   - 1 person until 10:45pm
 - On 5-closer days (Mon–Thu, Sun) the solver will naturally drop one slot (typically 10:45pm).
 - **Adam always ends at 11:00pm** (set pattern, Mon-Fri). Enforced in solver gen().
-- **All 5 shift leaders (Bowen, James, Trinity, Gobi, Mary): if on a closing shift (end ≥ 10pm), must go to 11pm** — leaders are in charge and stay until close. Enforced in solver gen().
+- **All PB (shift leaders AND managers Jay/Myles): if on a closing shift (end ≥ 10pm), must end at exactly 11pm** — leaders are in charge and stay until close; managers on closing backup do the same. Enforced in solver gen().
 - Mary: solver places her freely Mon–Fri; **Saturday only** is pinned as a 3–11pm close.
 - **Late-arrival caps: at most 1 person may start at each of 5:15pm, 5:30pm, 5:45pm, and 6:00pm** (one per slot, four separate caps). Don't stack late dinner starts — spread evening arrivals across earlier start times.
 
@@ -277,7 +295,7 @@ Higher forecasted sales → higher targets. Use lunch/dinner targets as your pri
 - **Mary**: Sat 3p-11p (pinned); other days solver-placed within her 3p-11p avail window
 - **James**: any most days, Wed 3-11, Sun 8-4. **Does not close on any day Gobi or Trinity closes** (move him to mid/open that day).
 - **Trinity**: rotates between AM and PM days; usually Mon 9-4, Tue 2-11, Wed any, Thu any, Fri 5-11, Sat 9-4, Sun off
-- **Gobi**: Mon 4-11, Wed 9-5, Sat 9-5, Sun 3-11. **Tuesday opens at 11a (not 10a)** — opening earlier would break the 12-hour rule after her Monday 11pm close.
+- **Gobi**: Mon 4-11, Tue 11-5, Wed 9-5, Sat 8-4, Sun 3-11. **Tuesday opens at 11a (not 10a)** — opening earlier would break the 12-hour rule after her Monday 11pm close.
 - **Michael**: M-F 9-5 (limited by 2nd job — sometimes ~3 days)
 - **Molly**: any/prefers days. **Never works past 5pm** — every Molly shift ends at 5:00pm or earlier.
 - **Noah**: M-F 9-5 area, often using 9:15 start trick
@@ -293,32 +311,32 @@ Higher forecasted sales → higher targets. Use lunch/dinner targets as your pri
 When building a new schedule:
 
 1. **Lock in mandatory hours**:
-   - Jay = off Tue & Wed normally (Mon 6-3, Thu/Fri/Sat 10-8, Sun 11-5)
-   - Myles = default 45h (Mon/Thu/Sun 11-8, Fri/Sat 12-9, off Tue/Wed)
-   - Shift leaders aim for 40h (Bowen, James, Trinity, Gobi, Mary)
+   - Jay = 45h standard (Mon 6–3, Thu/Fri/Sat 10–8, Sun 11–5); off Tue/Wed normally
+   - Myles = 45h standard (Mon–Wed 11–8, Sat–Sun 11–8); off Thu/Fri normally
+   - Shift leaders aim for 39–40h raw (Bowen, James, Trinity, Gobi, Mary)
 
 2. **Add FT regulars** at their set patterns (Bowen, Adam, Mary, Michael, etc.)
 
-3. **Add strong PT** with 18-25h each, spread across days
+3. **Add strong PT** with 20h+ each, spread across days
 
 4. **Fill coverage gaps** using middle PT
 
-5. **Apply the weak/limited group** (Layton, Emily, Brian, Bryan, Jason) — one shift each where possible; keep Brian/Bryan/Jason to one per meal period
+5. **Apply the weak/limited group** (Emily, Brian, Bryan, Jason) — one shift each where possible; keep Brian/Bryan/Jason to one per meal period
 
 6. **Validate**:
    - [ ] All request-offs honored (cross-check against book line-by-line)
    - [ ] All shifts within each person's availability (cross-check avail sheet; verify Gracelyn's monthly calendar)
-   - [ ] Every day has leader open AND close
+   - [ ] Every day has leader open (PB member ≤9am) AND close (PB member ≥10pm)
    - [ ] At most ONE of Gobi/James/Trinity closes per day
    - [ ] No close-then-open under 12h (incl. leaders — Gobi opens Tue at 11a)
-   - [ ] No hourly over 40h; Adam exactly 40 and always ends 11pm; FT non-leaders 35-40; Zac 28+
-   - [ ] No one starts before 9am except Jay/Bowen/Gobi(Sat)/James(Sun)
+   - [ ] No hourly over 40h; Adam exactly 40 and always ends 11pm; FT non-leaders 33-40h; Zac 30-35h
+   - [ ] No one starts before 9am except Jay/Bowen/Gobi(Sat)/Trinity(Sat)/James(Sun)
    - [ ] No one leaves before 2pm; Sunday no one leaves before 3pm
-   - [ ] ≤2 people leave at 2:00/2:30pm; ≤2 people start at 5:30/6:00pm
+   - [ ] ≤2 people leave at 2:00/2:30pm; ≤1 person starts at each of 5:15/5:30/5:45/6:00pm
    - [ ] Molly never past 5pm
    - [ ] 2/3/4pm hard targets hit exactly (Mon-Thu 8/6/5; Fri 8/7/6; Sat 9/8/7; Sun 11/8/6)
    - [ ] Lunch hits day-target, dinner hits day-target
-   - [ ] Openers (Jay never counts): 6 every day. Closers exactly 5/day (6 Fri-Sat-Sun)
+   - [ ] Openers (Jay never counts): 6 every day. Closers exactly 5/day (6 Fri/Sat/Sun)
    - [ ] Every available person gets at least one shift
    - [ ] Weekly total variance lands in the +25 to +30 range (paid hours over allowed)
    - [ ] No shift under 4h
@@ -330,13 +348,14 @@ When building a new schedule:
 ## 12. ALPHABETICAL NAME MAP (printed schedule vs. nicknames)
 
 | Printed | Goes by |
-|---------|---------|
-| John Martin | Jay |
+|---------|--------|
+| Jay Martin | Jay |
 | Claire Cotton | Cai |
 | Danielle Sullinger | Remi |
 | Kyle Summers | Molly |
 | Lucas Baker | James |
 | Noah Weathers | Gobi |
+| Sandy Wright | Sandy |
 | Izabella Simpson | Izzy |
 
 (In the .xlsx schedule, use the "goes by" name — Jay, Cai, Remi, etc.)

@@ -4,3 +4,6 @@ schedule*.json
 schedule*.xlsx
 test_*.json
 test_*.xlsx
+test_*.log
+_test_tmp/
+_preview/

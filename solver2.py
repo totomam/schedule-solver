@@ -1,29 +1,41 @@
-import json, pulp, os
+import json, math, pulp, os
 from collections import defaultdict
 from datetime import datetime, timedelta
+
+# === CONFIG ===
 _OUT = os.environ.get('SCHED_OUT', 'schedule.json')   # tests set SCHED_OUT to write elsewhere
 # Derive the "_active" path by stripping a trailing .json only, so the two outputs never collide
 # (str.replace would hit every '.json' in the path and would no-op when there's no extension).
 _base = _OUT[:-5] if _OUT.endswith('.json') else _OUT
 _OUT_ACTIVE = _base + '_active.json'
 _THREADS=int(os.environ.get('SCHED_THREADS','0'))  # >0 enables HiGHS parallel B&B
-with open('avail_6_29.json') as _f: av=json.load(_f)
-with open('reqoff_6_29.json') as _f: req=json.load(_f)
-with open('forecast_6_29.json') as _f: fc=json.load(_f)
+_HIGHS_SEED=int(os.environ.get('SCHED_HIGHS_SEED','-1'))  # -1 = HiGHS default
+_AVAIL_FILE    = os.environ.get('SCHED_AVAIL',    'avail_6_29.json')
+_REQOFF_FILE   = os.environ.get('SCHED_REQOFF',   'reqoff_6_29.json')
+_FORECAST_FILE = os.environ.get('SCHED_FORECAST', 'forecast_6_29.json')
+with open(_AVAIL_FILE)    as _f: av=json.load(_f)
+with open(_REQOFF_FILE)   as _f: req=json.load(_f)
+with open(_FORECAST_FILE) as _f: fc=json.load(_f)
 allowed=fc['allowed_hours']
 dn=['Mon','Tue','Wed','Thu','Fri','Sat','Sun']
-PB={'John Martin (Jay)','Myles Palmer','Bowen Benedict','James Baker','Trinity Stringer','Gobi Weathers','Mary Dean'}
+# === GROUPS ===
+PB={'Jay Martin','Myles Palmer','Bowen Benedict','James Baker','Trinity Stringer','Gobi Weathers','Mary Dean'}
 # NO_BREAK = people who do NOT clock out for an unpaid break (no 0.5h deduction).
-# As of the 6/29 week: only the two MANAGERS. The 5 shift leaders now clock out for 30-min breaks.
-NO_BREAK={'John Martin (Jay)','Myles Palmer'}
+# As of now: only the two managers (Jay/Myles) get paid = raw hours (no break deduction).
+NO_BREAK={'Jay Martin','Myles Palmer'}
 def paid_val(n,a,b):
     r=b-a; return r if n in NO_BREAK else (r-0.5 if r>=5 else r)
-TEN_HR=PB|{'Adam Van Bogaert','Mason Doyle','Michael Calderon','Molly Summers','Noah Hiner','Ava Shade','Remi Sullinger','Izzy Simpson','Zac Duffy','Kara Thompson'}
+TEN_HR=PB|{'Adam Van Bogaert','Mason Doyle','Ava Shade','Remi Sullinger','Izzy Simpson','Zac Duffy','Kara Thompson'}
 weak3={'Brian Carver','Bryan Bishop','Jason Britt'}
-weak5=weak3|{'Layton Angermeier','Emily Owens'}
+weak5=weak3|{'Emily Owens','Shayden Howard','Oliver Croasdaile','John Dugan'}
 prep={'Michael Calderon','Tiffany Huffman','Noah Hiner','Gracelyn Dailey','Molly Summers','Reilly Weakley'}
-FT_nonleader={'Adam Van Bogaert','Mason Doyle','Michael Calderon','Molly Summers','Noah Hiner','Ava Shade','Izzy Simpson','Remi Sullinger'}
+FT_nonleader={'Adam Van Bogaert','Mason Doyle','Michael Calderon','Molly Summers','Noah Hiner','Ava Shade','Izzy Simpson','Remi Sullinger','Reilly Weakley'}
+strong_PT={'Gracelyn Dailey','Cai Cotton','Sandy Wright','Kara Thompson','Nathan Paaswee','Peyton Shaw','Reese Bezehertny'}
+regular_PT={'Amiyah Bartley','Harper Flynn','Jonathan Beacham',
+            'Hayden Roush','Logan Frias',
+            'Kayden Anderson','Richard Raglin','Ryder'}
 
+# === AVAILABILITY ===
 def avwin(n,d):
     w=av[n][d]
     if w=='X' or n in req[dn[d]]: return None
@@ -33,33 +45,56 @@ def avail_days(n): return [d for d in range(7) if avwin(n,d)]
 
 fixed={}
 def fx(n,d,a,b): fixed[(n,d)]=[a,b]
-# ===== 6/29-7/5 BACKBONE =====
-# Jay: ONLY Monday this week (vacation rest of week). Mon 6a-3p.
-fx('John Martin (Jay)',0,6,15)
-# Myles: OFF Tuesday AND Wednesday this week. Normal Mon 11-8, Sat/Sun 12-9.
-# Myles: 11a-8p on weekdays (Mon, Thu) and Sunday; 12p-9p Friday and Saturday. Off Tue/Wed. 45h.
-fx('Myles Palmer',0,11,20); fx('Myles Palmer',3,11,20); fx('Myles Palmer',6,11,20)
-fx('Myles Palmer',4,12,21); fx('Myles Palmer',5,12,21)
-# Bowen: set 8-4 Mon-Fri
-for d in range(5): fx('Bowen Benedict',d,8,16)
-# Gobi: Mon 4-11 close, Wed 9-5, Sat 9-5, Sun 3-11. TUE: must work (leader Tue rule) - 
-#   she closed Mon 11pm so 12hr rule -> Tue open >=11. Give Tue 11-5 (mid-day, spaced).
-fx('Gobi Weathers',0,16,23); fx('Gobi Weathers',1,11,17); fx('Gobi Weathers',2,9,17); fx('Gobi Weathers',5,8,16); fx('Gobi Weathers',6,15,23)
-# Mary: solver places her freely; Sat close pinned (only fixed day)
-fx('Mary Dean',5,15,23)  # Saturday close
-# James: Wed 3-11 close, Sun 8-4 open (8am leader anchor). TUE: leader Tue rule -> give midday (Trinity closes Tue, so James not close)
-# Rule: one shift leader always starts at 8am. Mon-Fri = Bowen; Sun = James; Sat = no leader available before 9am (Gobi 9am).
-fx('James Baker',2,15,23)  # Wed close
-fx('James Baker',6,8,16)   # Sun 8am open
-# Trinity: Mon 9-4, Tue 2-11 (close), Fri 5-11, Sat 9-4. WED: leader Wed rule -> James closes Wed,
-#   so Trinity gets a day/mid shift Wed (not close). Trinity Wed 'any' -> 9-4 (open/day).
-fx('Tiffany Huffman',0,9,16)
-# Trinity: Friday close pinned; solver fills her other days to reach the 40h floor below.
-fx('Trinity Stringer',4,17,23)
-# --- Leader Tue/Wed coverage spaced through the day (per instruction) ---
-# TUE leaders: Bowen 8-4 (open), Gobi 11-5 (late morning), James 11-8 (midday), Trinity 2-11 (afternoon-close), Mary solver-placed -> spaced ✓
-# WED leaders: Bowen 8-4 (open), Gobi 9-5 (open/day), Trinity 9-4 (day), James 3-11 (close), Mary solver-placed -> spaced ✓
+# ===== BACKBONE — update each week =====
+# Phase 1: non-manager backbones first so manager fallback checks below see the full picture.
+for d in range(5): fx('Bowen Benedict', d, 8, 16)
+fx('Gobi Weathers', 0,16,23); fx('Gobi Weathers',1,11,17); fx('Gobi Weathers',2,9,17)
+fx('Gobi Weathers', 5, 8,16); fx('Gobi Weathers',6,15,23)
+fx('Mary Dean', 5,15,23)
+fx('James Baker', 2,15,23); fx('James Baker', 6, 8,16)
+fx('Tiffany Huffman', 0, 9,16)
+fx('Trinity Stringer', 4,17,23)
 
+def _pb_closer_exists(d):
+    """True if any non-Myles PB member can close (end ≥ 22) on day d."""
+    for n in PB:
+        if n == 'Myles Palmer': continue
+        bk = fixed.get((n, d))
+        if bk:
+            if bk[1] >= 22 and avwin(n, d) is not None: return True
+        else:
+            w = avwin(n, d)
+            if w and w[1] >= 22: return True
+    return False
+
+def _pb_opener_exists(d):
+    """True if any non-Jay PB member can open (start ≤ 9) on day d."""
+    for n in PB:
+        if n == 'Jay Martin': continue
+        bk = fixed.get((n, d))
+        if bk:
+            if bk[0] <= 9 and avwin(n, d) is not None: return True
+        else:
+            w = avwin(n, d)
+            if w and w[0] <= 9: return True
+    return False
+
+# Phase 2: Jay — standard backbone; fall back to open ≤9 when no other PB member can that day.
+# Mon (6,15) already opens; Thu/Fri/Sat fallback (9,19) = same 10h; Sun fallback (9,17) = same 8h.
+_JAY_STD  = {0: (6,15), 3: (10,20), 4: (10,20), 5: (10,20), 6: (11,17)}
+_JAY_OPEN = {             3: (9,19),  4: (9,19),  5: (9,19),  6:  (9,17)}
+for _jd, (_ja, _jb) in _JAY_STD.items():
+    if _jd in _JAY_OPEN and not _pb_opener_exists(_jd) and avwin('Jay Martin', _jd) is not None:
+        fx('Jay Martin', _jd, *_JAY_OPEN[_jd])
+    else:
+        fx('Jay Martin', _jd, _ja, _jb)
+
+# Phase 3: Myles — standard (11-20, 9h) unless he's the only PB closer that day → (14-23, 9h).
+# All 5 working days use 9h shifts so the ≥45h hard floor is always satisfied.
+for _md in [0, 1, 2, 5, 6]:
+    fx('Myles Palmer', _md, 11, 20) if _pb_closer_exists(_md) else fx('Myles Palmer', _md, 14, 23)
+
+# === SHIFT GENERATION ===
 # Shift anchors: three real-world windows (9am-noon, 2pm-6pm, 8pm-11pm).
 # Noon-2pm (12:15-1:45) and 6pm-8pm (6:15-7:45) are dead zones — no starts or ends in between.
 # Boundaries (12:00, 14:00, 18:00, 20:00) are valid start/end times.
@@ -67,18 +102,22 @@ ANCH_START = ([round(9  +0.25*i,2) for i in range(int((12-9 )/0.25)+1)]  # 9:00-
             + [round(14 +0.25*i,2) for i in range(int((18-14)/0.25)+1)]) # 14:00-18:00 (17 values)
 ANCH_END   = ([round(14 +0.25*i,2) for i in range(int((18-14)/0.25)+1)]  # 14:00-18:00 (17 values)
             + [round(20 +0.25*i,2) for i in range(int((23-20)/0.25)+1)]) # 20:00-23:00 (13 values)
+def _early_ok(n, d):
+    """True if n is allowed to start before 9am on day d."""
+    return (n in ('Jay Martin', 'Bowen Benedict')
+            or (n in ('Gobi Weathers', 'Trinity Stringer') and d == 5)
+            or n == 'James Baker' and d == 6)
+
 def gen(n,d):
     w=avwin(n,d)
     if not w: return []
     lo,hi=w; out=[]; maxlen=10 if n in TEN_HR else 8
-    # Only certain leaders/managers may start before 9am on their designated days.
-    # All others (and leaders on non-designated days) are floored at 9am.
-    if n not in PB: lo=max(lo,9)
-    elif n not in ('John Martin (Jay)','Bowen Benedict'):
-        if not ((n in ('Gobi Weathers','Trinity Stringer') and d==5) or (n=='James Baker' and d==6)):
-            lo=max(lo,9)
+    if not _early_ok(n, d): lo=max(lo,9)
     # Molly never works past 5pm
     if n=='Molly Summers': hi=min(hi,17)
+    # Adam's 10h standard shift: 1pm-11pm. 13:00 is in the ANCH dead zone so add it explicitly.
+    if n=='Adam Van Bogaert' and lo<=13.0 and hi>=23.0:
+        out.append((13.0, 23.0))
     for a in ANCH_START:
         if a<lo or a>hi-4: continue
         for b in ANCH_END:
@@ -90,13 +129,14 @@ def gen(n,d):
             if L<4 or L>maxlen or (18 < b < 20) or b in (20.25, 20.75): continue
             # Adam always ends at 11pm (set pattern)
             if n=='Adam Van Bogaert' and b!=23.0: continue
-            # Shift leaders (non-manager PB): if closing (end ≥10pm), must go to 11pm
-            if n in PB and n not in NO_BREAK and b>=22 and b!=23.0: continue
+            # All PB (shift leaders AND managers): if closing (end ≥10pm), must end at exactly 11pm
+            if n in PB and b>=22 and b!=23.0: continue
             min_end = 15 if d==6 else 14   # Sunday: nobody leaves before 3pm; else 2pm
             if b<min_end: continue
             out.append((round(a,2),round(b,2)))
     return out
 
+# === MIP VARIABLES ===
 prob=pulp.LpProblem('sched',pulp.LpMinimize)
 shifts={}; x={}
 people=list(av)
@@ -120,9 +160,18 @@ def dedup(cands,n):
         k=_sig(a,b,n)
         if k not in seen: seen[k]=(a,b)
     return list(seen.values())
+# Compensation shifts for manager off-days are restricted to a single predictable shift
+_MGR_OFFDAY_SHIFT = {
+    ('Jay Martin', 1): (10.0, 20.0), ('Jay Martin', 2): (10.0, 20.0),
+    ('Myles Palmer',      3): (11.0, 20.0), ('Myles Palmer',      4): (11.0, 20.0),
+}
 for n in people:
     for d in range(7):
-        shifts[(n,d)]=[tuple(fixed[(n,d)])] if (n,d) in fixed else dedup(gen(n,d),n)
+        shifts[(n,d)]=[tuple(fixed[(n,d)])] if ((n,d) in fixed and avwin(n,d) is not None) else dedup(gen(n,d),n)
+        if (n, d) in _MGR_OFFDAY_SHIFT and shifts[(n,d)]:
+            fa, fb = _MGR_OFFDAY_SHIFT[(n,d)]
+            std = [(a,b) for (a,b) in shifts[(n,d)] if round(a,2)==fa and round(b,2)==fb]
+            if std: shifts[(n,d)] = std
         for i in range(len(shifts[(n,d)])):
             x[(n,d,i)]=pulp.LpVariable(f'x_{pidx[n]}_{d}_{i}',cat='Binary')
 for (n,d) in fixed:
@@ -135,7 +184,7 @@ for n in people:
 # helpers don't rebuild the people x shifts cross product on every call.
 SD={d:[(n,i,a,b,paid_val(n,a,b)) for n in people for i,(a,b) in enumerate(shifts[(n,d)])] for d in range(7)}
 _trio={'Gobi Weathers','James Baker','Trinity Stringer'}
-_no_early={'John Martin (Jay)','Bowen Benedict'}
+_no_early={'Jay Martin','Bowen Benedict'}
 # OPT: pre-filter SD[d] into named variable lists once; the constraint loop then calls lpSum on a
 # short pre-filtered list instead of scanning all SD[d] entries with a lambda predicate each time.
 _SDF={}
@@ -146,13 +195,13 @@ for d in range(7):
     _SDF[d,'h155']  =[x[(n,d,i)] for (n,i,a,b,pv) in sd if a<=15.5<b]
     _SDF[d,'h16']   =[x[(n,d,i)] for (n,i,a,b,pv) in sd if a<=16<b]
     _SDF[d,'h165']  =[x[(n,d,i)] for (n,i,a,b,pv) in sd if a<=16.5<b]
-    _SDF[d,'opener']=[x[(n,d,i)] for (n,i,a,b,pv) in sd if n!='John Martin (Jay)' and a<=10]
+    _SDF[d,'opener']=[x[(n,d,i)] for (n,i,a,b,pv) in sd if n!='Jay Martin' and a<=10]
     _SDF[d,'lunch'] =[x[(n,d,i)] for (n,i,a,b,pv) in sd if a<=12<b]
     _SDF[d,'dinner']=[x[(n,d,i)] for (n,i,a,b,pv) in sd if b>17]
     _SDF[d,'cl225'] =[x[(n,d,i)] for (n,i,a,b,pv) in sd if b>=22.5]
     _SDF[d,'cl21']  =[x[(n,d,i)] for (n,i,a,b,pv) in sd if b>21]
     _SDF[d,'cl215'] =[x[(n,d,i)] for (n,i,a,b,pv) in sd if b>21.5]
-    _SDF[d,'pb_op'] =[x[(n,d,i)] for (n,i,a,b,pv) in sd if n in PB and a<=10]
+    _SDF[d,'pb_op'] =[x[(n,d,i)] for (n,i,a,b,pv) in sd if n in PB and a<=9]
     _SDF[d,'pb_cl'] =[x[(n,d,i)] for (n,i,a,b,pv) in sd if n in PB and b>=22]
     _SDF[d,'w3_ln'] =[x[(n,d,i)] for (n,i,a,b,pv) in sd if n in weak3 and a<=12<b]
     _SDF[d,'w3_dn'] =[x[(n,d,i)] for (n,i,a,b,pv) in sd if n in weak3 and b>17]
@@ -171,6 +220,7 @@ for d in range(7):
     _SDF[d,'stag9'] =[x[(n,d,i)] for (n,i,a,b,pv) in sd if n not in _no_early and a<=9]
     _SDF[d,'prep9'] =[x[(n,d,i)] for (n,i,a,b,pv) in sd if n in prep and a<=9]
 
+# === COVERAGE TARGETS ===
 twoTar=[8,8,8,8,8,9,11]; threeTar=[6,6,6,6,7,8,8]; fourTar=[5,5,5,5,6,7,6]
 Otar=[6,6,6,6,6,6,6]; Ltar=[9,9,9,9,10,10,11]; Dtar=[10,10,10,11,14,13,12]; Ctar=[5,5,5,5,6,6,6]
 
@@ -184,25 +234,36 @@ def _sc(e,cap,t):   # soft ceiling: e <= cap + slack
     global prob; _s=pulp.LpVariable(t,lowBound=0); prob+=e<=cap+_s; _cov_slk.append(_s)
 def _sf(e,fl,t):    # soft floor: e + slack >= fl
     global prob; _s=pulp.LpVariable(t,lowBound=0); prob+=e+_s>=fl; _cov_slk.append(_s)
+# Hours floor soft constraints — two priority tiers so PT is sacrificed before SL/FT.
+# _HPEN_HI < _CPEN so coverage still wins; _HPEN_HI >> _HPEN_LO so SL/FT fills first.
+_HPEN_HI=490  # shift leaders + FT non-leaders — last to lose hours
+_HPEN_LO=150  # PT / medium PT — first to lose hours when budget is tight
+_hrs_slk={'hi':[], 'lo':[]}  # (tag, floor, slack) per tier
+def _sh(expr, floor, tag, hi=True, afl=None):
+    global prob
+    _s = pulp.LpVariable(f'hs_{tag}', lowBound=0)
+    prob += expr + _s >= floor
+    _hrs_slk['hi' if hi else 'lo'].append((tag, afl if afl is not None else floor, _s))
 
+# === COVERAGE CONSTRAINTS ===
 for d in range(7):
     _h14=pulp.lpSum(_SDF[d,'h14']); _h15=pulp.lpSum(_SDF[d,'h15']); _h16=pulp.lpSum(_SDF[d,'h16'])
     _cl225=pulp.lpSum(_SDF[d,'cl225']); _cl21=pulp.lpSum(_SDF[d,'cl21'])
     _op=pulp.lpSum(_SDF[d,'opener'])
-    # Hard floors (keep feasible region bounded below)
-    prob += _h14>=twoTar[d]
-    prob += _h15>=threeTar[d]
-    prob += _h16>=fourTar[d]
-    prob += _cl225>=Ctar[d]-1
-    prob += _op>=Otar[d]
-    prob += pulp.lpSum(_SDF[d,'lunch'])>=Ltar[d]
-    prob += pulp.lpSum(_SDF[d,'dinner'])>=Dtar[d]
-    prob += pulp.lpSum(_SDF[d,'cl215'])>=(7 if d>=4 else 6)
-    prob += pulp.lpSum(_SDF[d,'pb_op'])>=1
-    prob += pulp.lpSum(_SDF[d,'pb_cl'])>=1
-    prob += pulp.lpSum(_SDF[d,'prep9'])>=1
-    if d in (4,5): prob += _cl21>=8
-    else:          prob += _cl21>=7
+    # All coverage floors are soft — _CPEN=500 makes slack always 0 in normal solutions;
+    # soft floors prevent infeasibility when extreme req-offs deplete a day.
+    _sf(_h14,twoTar[d],                         f'sh14f_{d}')
+    _sf(_h15,threeTar[d],                        f'sh15f_{d}')
+    _sf(_h16,fourTar[d],                         f'sh16f_{d}')
+    _sf(_cl225,Ctar[d]-1,                        f'scl225fh_{d}')
+    _sf(_op,Otar[d],                             f'sopf_{d}')
+    _sf(pulp.lpSum(_SDF[d,'lunch']),Ltar[d],     f'slnf_{d}')
+    _sf(pulp.lpSum(_SDF[d,'dinner']),Dtar[d],    f'sdnf_{d}')
+    _sf(pulp.lpSum(_SDF[d,'cl215']),(7 if d>=4 else 6), f'scl215f_{d}')
+    _sf(pulp.lpSum(_SDF[d,'pb_op']),1,           f'spbop_{d}')
+    _sf(pulp.lpSum(_SDF[d,'pb_cl']),1,           f'spbcl_{d}')
+    _sf(pulp.lpSum(_SDF[d,'prep9']),1,           f'sprep9_{d}')
+    _sf(_cl21,(8 if d in (4,5) else 7),          f'scl21f_{d}')
     # Soft ceilings/targets — penalised, not hard. Ceiling == exact target → soft equality.
     _sc(_h14,twoTar[d],         f'sh14_{d}')
     _sc(_h15,threeTar[d],       f'sh15_{d}')
@@ -218,62 +279,105 @@ for d in range(7):
     if _SDF[d,'dep205']:  _sc(pulp.lpSum(_SDF[d,'dep205']), 2,      f'sdep205_{d}')
     if _SDF[d,'dep14']:   _sc(pulp.lpSum(_SDF[d,'dep14']),  2,      f'sdep14_{d}')
     if _SDF[d,'trio_cl']: _sc(pulp.lpSum(_SDF[d,'trio_cl']),1,      f'strio_{d}')
-    # Closer end-time staggering: 2×11pm, 2×10:30pm, 1×10:15pm, 1×10:45pm
-    for _key,_tgt in (('e23',2),('e225',2),('e2225',1),('e2275',1)):
+    # Closer end-time staggering: 2x11pm, 2x10:30pm, 1x10:15pm, 1x10:45pm
+    # e23 ceiling is 3 (not 2): shift leaders forced to 23.0 can fill 2 slots,
+    # so a manager who also closes would push ceiling of 2 over. Allow 3.
+    # e2225 (10:15pm): ceiling only — adding a floor requires a 7th closer slot since
+    # 22.25 < 22.5 doesn't count in cl225, which creates unavoidable budget conflicts.
+    for _key,_floor,_ceil in (('e23',2,3),('e225',2,2),('e2275',1,1)):
         if _SDF[d,_key]:
             _e=pulp.lpSum(_SDF[d,_key])
-            _sf(_e,_tgt,f's{_key}f_{d}')
-            _sc(_e,_tgt,f's{_key}c_{d}')
+            _sf(_e,_floor,f's{_key}f_{d}')
+            _sc(_e,_ceil, f's{_key}c_{d}')
+    if _SDF[d,'e2225']:
+        _sc(pulp.lpSum(_SDF[d,'e2225']),1,f'se2225c_{d}')
     if _SDF[d,'stag9']:   _sc(pulp.lpSum(_SDF[d,'stag9']),  2,      f'sstag9_{d}')
     for _key in ('la1725','la175','la1775','la18'):
         if _SDF[d,_key]: _sc(pulp.lpSum(_SDF[d,_key]),1,   f's{_key}_{d}')
     if _SDF[d,'w3_ln']: _sc(pulp.lpSum(_SDF[d,'w3_ln']),1, f'sw3ln_{d}')
     if _SDF[d,'w3_dn']: _sc(pulp.lpSum(_SDF[d,'w3_dn']),1, f'sw3dn_{d}')
 
+# === HOURS FLOORS ===
 for n in people:
-    if n=='John Martin (Jay)': continue
     prob += pulp.lpSum(x[(n,d,i)] for d in range(7) for i in range(len(shifts[(n,d)])))<=5
-def hours_expr(n): return pulp.lpSum(x[(n,d,i)]*(b-a) for d in range(7) for i,(a,b) in enumerate(shifts[(n,d)]))
-prob += hours_expr('Trinity Stringer')>=39   # leader range 39-40 (ceiling via global <=40)
-prob += hours_expr('Gobi Weathers')>=37      # Gobi fixed shifts max at 37h raw — can't reach 39
+hours_expr = {n: pulp.lpSum(x[(n,d,i)]*(b-a) for d in range(7) for i,(a,b) in enumerate(shifts[(n,d)])) for n in people}
+if len(avail_days('Trinity Stringer')) >= math.ceil(39/8):
+    _sh(hours_expr['Trinity Stringer'],40,'Trinity_Stringer',afl=39)
+if len(avail_days('Gobi Weathers')) >= math.ceil(37/8):
+    _sh(hours_expr['Gobi Weathers'],38,'Gobi_Weathers',afl=37)
 for n in FT_nonleader:
-    if len(avail_days(n))>=5:
-        prob += hours_expr(n)>=35; prob += hours_expr(n)<=40
-    else: prob += hours_expr(n)<=40
-# Adam has req-off Fri this week → 4 avail days (Mon-Thu). Dead zone caps starts at 2pm, max 9h/day.
-# Max achievable raw hours = 4×9h = 36. Target ≥35 (push to full 4-day coverage).
-prob += hours_expr('Adam Van Bogaert')>=35
-prob += hours_expr('Zac Duffy')>=30; prob += hours_expr('Zac Duffy')<=35
-# CHANGE 3: Cai, Hayden, Logan more hours (target >=15h each, within their availability)
-for nm,mn in [('Cai Cotton',15),('Hayden Roush',12),('Logan Frias',15)]:
-    prob += hours_expr(nm)>=mn
+    if n == 'Adam Van Bogaert':
+        prob += hours_expr[n]<=40
+        if len(avail_days(n)) >= 4:
+            prob += hours_expr[n] >= 40
+        else:
+            _sh(hours_expr[n], 40, 'Adam_Van_Bogaert')
+        continue
+    prob += hours_expr[n]<=40
+    floor = 33
+    max_per_day = 10.0 if n in TEN_HR else 8.0
+    min_days = math.ceil(floor / max_per_day)
+    if len(avail_days(n)) >= min_days:
+        _sh(hours_expr[n],floor+1,n.replace(' ','_'),afl=floor)
+prob += hours_expr['Zac Duffy']<=35
+if len(avail_days('Zac Duffy')) >= math.ceil(30/10):
+    _sh(hours_expr['Zac Duffy'],31,'Zac_Duffy',afl=30)
+for n in regular_PT:
+    max_pd = 10.0 if n in TEN_HR else 8.0
+    if len(avail_days(n)) >= math.ceil(12/max_pd):
+        _sh(hours_expr[n],12,n.replace(' ','_'),hi=False)
+_capped40 = FT_nonleader | {'Zac Duffy'}  # already have explicit caps above
 for n in people:
-    if n in ('John Martin (Jay)','Myles Palmer'): continue  # managers: no 40h cap
-    prob += hours_expr(n)<=40
-# Myles is REQUIRED to work 45 hours this week
-prob += hours_expr('Myles Palmer')>=45
-prob += hours_expr('James Baker')>=39   # leader range 39-40 (ceiling via global <=40)
-prob += hours_expr('Mary Dean')>=39     # leader range 39-40
-prob += hours_expr('Gracelyn Dailey')>=20; prob += hours_expr('Gracelyn Dailey')<=30  # PT, 20-30h
-# Medium-priority PT: at least 15h each, for those whose availability allows it this week.
-# Excluded: Peyton (Mon-only this week) and Harper (req-off all her available days) — can't reach 15h.
-for _n in ['Shayden Howard','John Dugan','Kayden Anderson','Logan Frias','Richard Raglin',
-           'Sandya Wright','Ryder','Oliver Croasdaile']:
-    prob += hours_expr(_n)>=15
-# INSTRUCTION: every shift leader works Tuesday AND Wednesday (spaced through the day)
-LEADERS_TW=['Bowen Benedict','James Baker','Trinity Stringer','Gobi Weathers','Mary Dean']
-for n in LEADERS_TW:
-    for d in [1,2]:  # Tue, Wed
-        if shifts[(n,d)]:
-            prob += pulp.lpSum(x[(n,d,i)] for i in range(len(shifts[(n,d)])))>=1
-
-# weak5: prefer 1 day each (rulesheet). Hard cap 2; strong objective penalty makes a 2nd day rare.
+    if n in ('Jay Martin','Myles Palmer') or n in _capped40: continue
+    prob += hours_expr[n]<=40
+if len(avail_days('Myles Palmer')) >= 5:
+    prob += hours_expr['Myles Palmer'] >= 45  # hard — solver works off-days to compensate
+else:
+    _sh(hours_expr['Myles Palmer'], 46, 'Myles_Palmer', afl=45)  # soft if heavily req'd off
+prob += hours_expr['Myles Palmer']<=52
+if len(avail_days('Jay Martin')) >= 5:
+    prob += hours_expr['Jay Martin'] >= 45  # hard — solver works off-days to compensate
+else:
+    _sh(hours_expr['Jay Martin'], 46, 'Jay_Martin', afl=45)  # soft if heavily req'd off
+prob += hours_expr['Jay Martin']<=54
+if len(avail_days('James Baker')) >= 5:
+    prob += hours_expr['James Baker'] >= 40
+else:
+    _sh(hours_expr['James Baker'], 40, 'James_Baker')
+if len(avail_days('Mary Dean')) >= math.ceil(39/8):
+    _sh(hours_expr['Mary Dean'],40,'Mary_Dean',afl=39)
+prob += hours_expr['Gracelyn Dailey']<=30
+for n in strong_PT:
+    max_pd = 10.0 if n in TEN_HR else 8.0
+    if len(avail_days(n)) >= math.ceil(20/max_pd):
+        _sh(hours_expr[n],20,n.replace(' ','_'),hi=False)
 for n in weak5:
-    prob += pulp.lpSum(x[(n,d,i)] for d in range(7) for i in range(len(shifts[(n,d)])))<=2
-# Bryan can be held to 1 day without breaking coverage — enforce the prefer-1 rule for him.
-prob += pulp.lpSum(x[('Bryan Bishop',d,i)] for d in range(7) for i in range(len(shifts[('Bryan Bishop',d)])))<=1
+    if len(avail_days(n)) >= 1:
+        _sh(hours_expr[n],4,n.replace(' ','_'),hi=False)
+# weak5: prefer 1 day each. Hard cap 2 days; Bryan capped at 1.
+for n in weak5:
+    cap = 1 if n == 'Bryan Bishop' else 2
+    prob += pulp.lpSum(x[(n,d,i)] for d in range(7) for i in range(len(shifts[(n,d)]))) <= cap
 
-# CHANGE 4: 12-hour close-then-open rule — AGGREGATED formulation.
+# Per-person above-floor incentive: small penalty for hours exceeding individual floor.
+# Nudges the solver to stay near each floor without a hard ceiling — if coverage or another
+# person's floor demands the extra hours, the penalty yields (it's << _HPEN).
+_AFLOOR_PEN = 5
+_afloor_terms = []
+_floor_map = ([(n,33) for n in FT_nonleader if n!='Adam Van Bogaert']
+            + [(n,20) for n in strong_PT]
+            + [(n,12) for n in regular_PT]
+            + [(n, 4) for n in weak5]
+            + [('Zac Duffy',30),('Trinity Stringer',39),('Gobi Weathers',37),
+               ('James Baker',40),('Mary Dean',39),
+               ('Myles Palmer',45),('Jay Martin',45)])
+for _n, _fl in _floor_map:
+    _ov = pulp.LpVariable(f'ovf_{pidx[_n]}', lowBound=0)
+    prob += _ov >= hours_expr[_n] - _fl
+    _afloor_terms.append(_ov)
+
+# === 12H RULE ===
+# 12-hour close-then-open rule — AGGREGATED formulation.
 # A day-d close ending at b1 conflicts with a day-(d+1) shift starting at a2 when (24-b1)+a2 < 12,
 # i.e. a2 < b1 - 12. Since each person works <=1 shift/day, we don't need a constraint per pair.
 # For each distinct close-end time b1 on day d, all next-day shifts starting before (b1-12) are
@@ -296,12 +400,25 @@ for n in people:
             prob += (pulp.lpSum(x[(n,d,i)] for i in idxs)
                      + pulp.lpSum(x[(n,d+1,j)] for j in early)) <= 1
 
-# ===== NO ZERO-SHIFT for anyone available (>=1 day avail must get >=1 shift) =====
+# ===== Both managers off → force ALL available shift leaders to work that day =====
+# Covers the "one manager gone all week, other can only work N days" scenario:
+# on any day where BOTH Jay and Myles are unavailable (req'd off or avail="X"),
+# every shift leader who IS available must work to guarantee PB open/close coverage.
+_PB_LEADERS = [n for n in PB if n not in NO_BREAK]  # Bowen, James, Trinity, Gobi, Mary
+for d in range(7):
+    if avwin('Jay Martin',d) is None and avwin('Myles Palmer',d) is None:
+        for _n in _PB_LEADERS:
+            _day_shifts = shifts.get((_n,d),[])
+            if _day_shifts:
+                prob += pulp.lpSum(x[(_n,d,i)] for i in range(len(_day_shifts))) >= 1
+
+# === ZERO-SHIFT ===
+# No zero-shift for anyone available (>=1 day avail must get >=1 shift) =====
 # Make it a HARD constraint for everyone with availability, EXCEPT allow the solver to drop
 # someone only if infeasible. Use soft with big penalty to stay feasible.
 zero_pen=[]
 for n in people:
-    if n in ('John Martin (Jay)','Myles Palmer'): continue  # managers handled by fixed
+    if n in ('Jay Martin','Myles Palmer'): continue  # managers handled by fixed
     ad=avail_days(n)
     if not ad: continue
     total_shifts=pulp.lpSum(x[(n,d,i)] for d in range(7) for i in range(len(shifts[(n,d)])))
@@ -310,7 +427,8 @@ for n in people:
     prob += total_shifts >= 1 - z
     zero_pen.append(z)
 
-# Objective: land total paid hours in [allowed+25, allowed+30], minimize zero-shift people,
+# === OBJECTIVE ===
+# Land total paid hours in [allowed+25, allowed+30], minimize zero-shift people,
 # minimize weak5 usage, prefer short shifts. No exact target — any value in the window is fine.
 # SD already carries pv=paid_val(n,a,b) — use it directly everywhere paid hours are needed.
 total_paid=pulp.lpSum(x[(n,d,i)]*pv for d in range(7) for (n,i,a,b,pv) in SD[d])
@@ -329,11 +447,40 @@ weak_use=pulp.lpSum(x[(n,d,i)] for d in range(7) for (n,i,a,b,pv) in SD[d] if n 
 # Same labor, more days, no break to manage. Light penalty on 5-5.5h shifts for non-managers.
 short_pref=pulp.lpSum(x[(n,d,i)] for d in range(7) for (n,i,a,b,pv) in SD[d]
                       if n not in NO_BREAK and 5<=(b-a)<=5.5)
-prob += 50*pulp.lpSum(zero_pen) + 8*weak_use + 0.3*short_pref + _CPEN*pulp.lpSum(_cov_slk)
+# Soft default-schedule preference for managers: discourage Jay from working Tue/Wed and
+# Myles from working Thu/Fri (their standard off-days). High enough to keep standard schedule;
+# low enough to allow backstop coverage when no other PB opener/closer is available.
+_JAY_OFFDAYS  = {1,2}   # Tue, Wed
+_MYLES_OFFDAYS = {3,4}  # Thu, Fri
+mgr_offday = (pulp.lpSum(x[('Jay Martin',d,i)]  for d in _JAY_OFFDAYS   for i in range(len(shifts[('Jay Martin',d)])))
+            + pulp.lpSum(x[('Myles Palmer',d,i)]       for d in _MYLES_OFFDAYS  for i in range(len(shifts[('Myles Palmer',d)]))))
+# Manager role priorities: Jay is the backstop OPENER, Myles is the backstop CLOSER.
+# Penalise Jay for taking closing shifts (b=23) and Myles for taking opening shifts (a<=10).
+# Penalty 20 < mgr_offday 30 < coverage floor 500, so backstop still fires when needed
+# but the preferred manager is chosen first.
+jay_closes  = pulp.lpSum(x[('Jay Martin',d,i)]
+                          for d in range(7)
+                          for i,(a,b) in enumerate(shifts[('Jay Martin',d)])
+                          if b == 23.0)
+myles_opens = pulp.lpSum(x[('Myles Palmer',d,i)]
+                          for d in range(7)
+                          for i,(a,b) in enumerate(shifts[('Myles Palmer',d)])
+                          if a <= 10)
+prob += (5000*pulp.lpSum(zero_pen) + 8*weak_use + 0.3*short_pref + 30*mgr_offday
+         + 20*jay_closes + 20*myles_opens
+         + _CPEN*pulp.lpSum(_cov_slk)
+         + _HPEN_HI*pulp.lpSum(s for _,_,s in _hrs_slk['hi'])
+         + _HPEN_LO*pulp.lpSum(s for _,_,s in _hrs_slk['lo'])
+         + _AFLOOR_PEN*pulp.lpSum(_afloor_terms))
 
+# === SOLVE ===
 print(f"Vars: {len(x)}. Solving with HiGHS...")
-_kw=dict(msg=False,timeLimit=240,gapRel=0.25)
+_tl=int(os.environ.get('SCHED_TIMELIMIT','240'))
+_gr=float(os.environ.get('SCHED_GAPREL','0.25'))
+_kw=dict(msg=False,timeLimit=_tl,gapRel=_gr)
 if _THREADS: _kw['threads']=_THREADS
+else: _kw['threads']=4
+if _HIGHS_SEED >= 0: _kw['randomSeed']=_HIGHS_SEED
 prob.solve(pulp.HiGHS(**_kw))
 _var=round(pulp.value(total_paid)-sum(allowed),2) if pulp.value(total_paid) else '?'
 print("Status:",pulp.LpStatus[prob.status],"| paid",pulp.value(total_paid),"| var",_var,"| zeros",sum(1 for z in zero_pen if z.value() and z.value()>0.5))
@@ -347,12 +494,10 @@ for d in range(7):
 with open(_OUT,'w') as _f: json.dump(sol,_f)
 with open(_OUT_ACTIVE,'w') as _f: json.dump({n:sh for n,sh in sol.items() if any(sh)},_f)
 
-# ---- Compact status summary ----
-def _pd(sh,n):
-    if not sh: return 0
-    r=sh[1]-sh[0]; return r if n in NO_BREAK else (r-0.5 if r>=5 else r)
+# === SUMMARY ===
+def _pd(sh, n): return paid_val(n, sh[0], sh[1]) if sh else 0
 def _hd(d,t): return sum(1 for n in sol if sol[n][d] and sol[n][d][0]<=t<sol[n][d][1])
-def _O(d): return sum(1 for n in sol if n!='John Martin (Jay)' and sol[n][d] and sol[n][d][0]<=10)
+def _O(d): return sum(1 for n in sol if n!='Jay Martin' and sol[n][d] and sol[n][d][0]<=10)
 def _C(d): return sum(1 for n in sol if sol[n][d] and sol[n][d][1]>=22.5)
 # ★ = over target (excess labor/coverage); ! = under target (shortage); blank = on target
 def _ck(v,t,exact=True):
@@ -380,7 +525,7 @@ for d in range(7):
 tot=sum(_pd(sol[n][d],n) for n in sol for d in range(7))-sum(allowed)
 print(f"TOTAL var: {tot:+.1f} | Status {pulp.LpStatus[prob.status]}")
 
-# ---- Inline rules audit ----
+# === AUDIT ===
 _fails=[]
 # 12h close-then-open
 for n in people:
@@ -390,7 +535,7 @@ for n in people:
             _fails.append(f"12h: {n} {dn[d]}end={s0[1]} {dn[d+1]}start={s1[0]}")
 # Leader open and close each day
 for d in range(7):
-    if not any(sol[n][d] and sol[n][d][0]<=10 for n in PB):
+    if not any(sol[n][d] and sol[n][d][0]<=9 for n in PB):
         _fails.append(f"LeaderOpen: {dn[d]} no leader/manager opens")
     if not any(sol[n][d] and sol[n][d][1]>=22 for n in PB):
         _fails.append(f"LeaderClose: {dn[d]} no leader/manager closes")
@@ -398,28 +543,16 @@ for d in range(7):
 for d in range(7):
     tc=sum(1 for n in _trio if sol[n][d] and sol[n][d][1]>=22)
     if tc>1: _fails.append(f"TrioClose: {dn[d]} {tc} of Gobi/James/Trinity closing")
-# Overtime / hours targets
+# Overtime check — all hours-under is reported via HoursUnder (_hrs_slk) below
 for n in people:
     raw=sum(sol[n][d][1]-sol[n][d][0] for d in range(7) if sol[n][d])
-    if n not in ('John Martin (Jay)','Myles Palmer') and raw>40.01:
+    if n not in ('Jay Martin','Myles Palmer') and raw>40.01:
         _fails.append(f"OT: {n} {raw:.1f}h")
-    if n=='Adam Van Bogaert' and raw<34.9:
-        _fails.append(f"Adam hours: {raw:.1f} (want ≥35 this week, Fri req-off)")
-    if n=='Zac Duffy' and raw<27.9:
-        _fails.append(f"Zac hours: {raw:.1f} (want 28+)")
-    if n=='Myles Palmer' and raw<44.9:
-        _fails.append(f"Myles hours: {raw:.1f} (want 45)")
-for nm,lo,hi in [('James Baker',39,40),('Trinity Stringer',39,40),('Gobi Weathers',37,40),('Mary Dean',39,40)]:
-    raw=sum(sol[nm][d][1]-sol[nm][d][0] for d in range(7) if sol[nm][d])
-    if raw<lo-0.1: _fails.append(f"{nm}: {raw:.2f}h (want {lo}-{hi})")
 # No starts before 9am except authorised people
-_pre9_ok={'John Martin (Jay)','Bowen Benedict'}
 for n in people:
     for d in range(7):
         sh=sol[n][d]
-        if not sh: continue
-        ok = n in _pre9_ok or (n in ('Gobi Weathers','Trinity Stringer') and d==5) or (n=='James Baker' and d==6)
-        if sh[0]<9 and not ok:
+        if sh and sh[0]<9 and not _early_ok(n, d):
             _fails.append(f"EarlyStart: {n} {dn[d]} {sh[0]}")
 # No one ends before 2pm (3pm Sunday)
 for n in people:
@@ -434,11 +567,15 @@ for d in range(7):
 # Coverage slacks (soft constraints violated)
 _sviol=[v.name for v in _cov_slk if v.value() and v.value()>0.001]
 if _sviol: _fails.append(f"CovSlack({len(_sviol)}): {_sviol[:4]}{'...' if len(_sviol)>4 else ''}")
+# Hours floor slacks (person couldn't reach their hours target due to req-offs)
+for _nm,_fl,_sv in (_hrs_slk['hi'] + _hrs_slk['lo']):
+    if _sv.value() and _sv.value()>0.01:
+        _fails.append(f"HoursUnder: {_nm.replace('_',' ')} {_fl-_sv.value():.1f}h actual (target ≥{_fl}h)")
 
 print(f"Audit: {'PASS' if not _fails else str(len(_fails))+' issue(s):'}")
 for _f in _fails: print(f"  {_f}")
 
-# ---- Excel output ----
+# === EXCEL OUTPUT ===
 def _hfmt(h):
     hi=int(h); mi=round((h-hi)*60)
     if mi==60: hi+=1; mi=0
