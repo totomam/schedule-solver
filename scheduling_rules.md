@@ -176,7 +176,7 @@ Higher forecasted sales → higher targets. Use lunch/dinner targets as your pri
 - Nathan Paaswee
 - Peyton Shaw
 - Reese Bezehertny
-- Sandya Wright
+- Sandy Wright
 - Gracelyn Dailey — **availability changes every month and is NOT in the standard availability sheet. She prints and brings her own calendar. Always verify her current availability before each build; do NOT assume she's "any"/open.** (Example: for 6/22-6/28 she was available Saturday only.)
 
 ### Weak / limited group — "don't pull their weight," spread out, prefer one day each
@@ -200,7 +200,7 @@ Higher forecasted sales → higher targets. Use lunch/dinner targets as your pri
 ### Special cases
 - **Sienna Underwood**: no availability listed, generally skip
 - **Hayden Roush**: depending on week — may request off entirely
-- **Sandya Wright**: weekdays-only normally (school); summer break may change
+- **Sandy Wright**: weekdays-only normally (school); summer break may change
 - **Tiffany Huffman**: set schedule Mon 9a–4p only (backbone-fixed). No hours floor — backbone handles her one shift.
 - **Izzy Simpson**: FT non-leader, 33–40h target
 
