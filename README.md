@@ -16,7 +16,6 @@ Uses [PuLP](https://coin-or.github.io/pulp/) + [HiGHS](https://highs.dev/) solve
 | `reqoff_6_29.json` | Request-offs by day name (update each week) |
 | `forecast_6_29.json` | `{"allowed_hours": [...]}` — labour budget per day (update each week) |
 | `CLAUDE.md` | Architecture reference for AI sessions |
-| `ai_reference.md` | Quick-reference sheet for AI sessions (people groups, hour targets, constraints) |
 
 ---
 
