@@ -483,24 +483,32 @@ prob += (5000*pulp.lpSum(zero_pen) + 8*weak_use + 0.3*short_pref + 30*mgr_offday
 
 # === SOLVE ===
 print(f"Vars: {len(x)}. Solving with HiGHS...")
-_tl=int(os.environ.get('SCHED_TIMELIMIT','240'))
-_gr=float(os.environ.get('SCHED_GAPREL','0.25'))
-_kw=dict(msg=False,timeLimit=_tl,gapRel=_gr)
-if _THREADS: _kw['threads']=_THREADS
-else: _kw['threads']=4
-if _HIGHS_SEED >= 0: _kw['randomSeed']=_HIGHS_SEED
-prob.solve(pulp.HiGHS(**_kw))
-_var=round(pulp.value(total_paid)-sum(allowed),2) if pulp.value(total_paid) else '?'
-print("Status:",pulp.LpStatus[prob.status],"| paid",pulp.value(total_paid),"| var",_var,"| zeros",sum(1 for z in zero_pen if z.value() and z.value()>0.5))
-_viol=[v.name for v in _cov_slk if v.value() and v.value()>0.001]
-if _viol: print(f"WARNING: {len(_viol)} coverage slack(s) nonzero: {_viol[:5]}...")
-sol={n:[None]*7 for n in people}
-for d in range(7):
-    for (n,i,a,b,pv) in SD[d]:
-        v=x[(n,d,i)].value()
-        if v and v>0.5: sol[n][d]=[a,b]
-with open(_OUT,'w') as _f: json.dump(sol,_f)
-with open(_OUT_ACTIVE,'w') as _f: json.dump({n:sh for n,sh in sol.items() if any(sh)},_f)
+# SCHED_XLSX_ONLY: re-render the .xlsx from the saved schedule.json without re-solving
+# (e.g. to apply a formatting change). Skips the solve; structural audit still re-validates.
+_XLSX_ONLY = bool(os.environ.get('SCHED_XLSX_ONLY'))
+if _XLSX_ONLY:
+    with open(_OUT) as _f: _saved=json.load(_f)
+    sol={n:(_saved[n] if n in _saved else [None]*7) for n in people}
+    print(f"XLSX-only mode: loaded existing {_OUT}, skipping solve.")
+else:
+    _tl=int(os.environ.get('SCHED_TIMELIMIT','240'))
+    _gr=float(os.environ.get('SCHED_GAPREL','0.25'))
+    _kw=dict(msg=False,timeLimit=_tl,gapRel=_gr)
+    if _THREADS: _kw['threads']=_THREADS
+    else: _kw['threads']=4
+    if _HIGHS_SEED >= 0: _kw['randomSeed']=_HIGHS_SEED
+    prob.solve(pulp.HiGHS(**_kw))
+    _var=round(pulp.value(total_paid)-sum(allowed),2) if pulp.value(total_paid) else '?'
+    print("Status:",pulp.LpStatus[prob.status],"| paid",pulp.value(total_paid),"| var",_var,"| zeros",sum(1 for z in zero_pen if z.value() and z.value()>0.5))
+    _viol=[v.name for v in _cov_slk if v.value() and v.value()>0.001]
+    if _viol: print(f"WARNING: {len(_viol)} coverage slack(s) nonzero: {_viol[:5]}...")
+    sol={n:[None]*7 for n in people}
+    for d in range(7):
+        for (n,i,a,b,pv) in SD[d]:
+            v=x[(n,d,i)].value()
+            if v and v>0.5: sol[n][d]=[a,b]
+    with open(_OUT,'w') as _f: json.dump(sol,_f)
+    with open(_OUT_ACTIVE,'w') as _f: json.dump({n:sh for n,sh in sol.items() if any(sh)},_f)
 
 # === SUMMARY ===
 def _pd(sh, n): return paid_val(n, sh[0], sh[1]) if sh else 0
@@ -531,7 +539,7 @@ for d in range(7):
           f"{h15:3}{_ck(h15,threeTar[d])}"
           f"{h16:3}{_ck(h16,fourTar[d])}")
 tot=sum(_pd(sol[n][d],n) for n in sol for d in range(7))-sum(allowed)
-print(f"TOTAL var: {tot:+.1f} | Status {pulp.LpStatus[prob.status]}")
+print(f"TOTAL var: {tot:+.1f} | Status {'(from saved)' if _XLSX_ONLY else pulp.LpStatus[prob.status]}")
 
 # === AUDIT ===
 _fails=[]
@@ -573,10 +581,10 @@ for d in range(7):
     sh=sol.get('Molly Summers',[None]*7)[d]
     if sh and sh[1]>17: _fails.append(f"MollyLate: {dn[d]} end={sh[1]}")
 # Coverage slacks (soft constraints violated)
-_sviol=[v.name for v in _cov_slk if v.value() and v.value()>0.001]
+_sviol=[] if _XLSX_ONLY else [v.name for v in _cov_slk if v.value() and v.value()>0.001]
 if _sviol: _fails.append(f"CovSlack({len(_sviol)}): {_sviol[:4]}{'...' if len(_sviol)>4 else ''}")
 # Hours floor slacks (person couldn't reach their hours target due to req-offs)
-for _nm,_fl,_sv in (_hrs_slk['hi'] + _hrs_slk['lo']):
+for _nm,_fl,_sv in ([] if _XLSX_ONLY else (_hrs_slk['hi'] + _hrs_slk['lo'])):
     if _sv.value() and _sv.value()>0.01:
         _fails.append(f"HoursUnder: {_nm.replace('_',' ')} {_fl-_sv.value():.1f}h actual (target ≥{_fl}h)")
 
@@ -594,7 +602,7 @@ def _hfmt(h):
 def _write_xlsx(out_xlsx):
     try:
         import openpyxl
-        from openpyxl.styles import Font, PatternFill, Alignment
+        from openpyxl.styles import Font, PatternFill, Alignment, Border, Side
         from openpyxl.utils import get_column_letter
     except ImportError:
         print("openpyxl not installed — skipping Excel output (pip install openpyxl)"); return
@@ -738,6 +746,14 @@ def _write_xlsx(out_xlsx):
     tot = round(sum(_pd(sol[n][d], n) for n in sol for d in range(7)) - sum(allowed), 4)
     ws.cell(sr, 1, 'TOTAL').font = BD10
     ws.cell(sr, 2, f'{tot:+.1f}').font = BD10
+
+    # Thin gridlines on every cell in the used range so the printed sheet is readable
+    # (Excel's screen gridlines don't print; explicit cell borders do).
+    _thin = Side(style='thin', color='B0B0B0')
+    _border = Border(left=_thin, right=_thin, top=_thin, bottom=_thin)
+    for _row in ws.iter_rows(min_row=1, max_row=ws.max_row, min_col=1, max_col=23):
+        for _c in _row:
+            _c.border = _border
 
     wb.save(out_xlsx)
     print(f"Excel saved → {out_xlsx}")
