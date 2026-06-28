@@ -148,6 +148,8 @@ Complete reference for building the weekly schedule. Given availability sheet, r
 
 Higher forecasted sales → higher targets. Use lunch/dinner targets as your primary coverage check. Closers run exactly 5/day (6 on Friday, Saturday, and Sunday) — see Closers section.
 
+**These lunch and dinner numbers are HARD minimums, not soft targets.** The solver enforces them as hard constraints: it must meet every day's lunch and dinner minimum or report the week as infeasible (a fail). It will never return a schedule that quietly misses a meal-period floor. When a thin roster forces a choice, meal-period minimums take priority over the afternoon headcount ceilings (2pm/3pm/4pm) — i.e. the afternoon may run over its target to keep the lunch crew working through to dinner.
+
 ---
 
 ## 6. VARIANCE TARGETS (paid hours over allowed hours)
@@ -260,7 +262,7 @@ Higher forecasted sales → higher targets. Use lunch/dinner targets as your pri
   - **Saturday: 2pm = 9, 3pm = 8, 4pm = 7**
   - **Sunday: 2pm = 11, 3pm = 8, 4pm = 6**
 - **Counting convention (applies to ALL headcount counts at every clock time):** a person counts toward the headcount at time T only if they are still working *past* T. If their shift ends exactly at T, they do NOT count toward T — they're considered gone. (Floor at T = shifts with start ≤ T AND end > T.) So someone ending at exactly 3:00 counts at 2pm but not 3pm.
-- Build the afternoon to land on these numbers. The 3-5pm peak ceiling still applies (≤8 normal/Fri/Sat; Sunday's 2pm/3pm run higher by design).
+- Build the afternoon to land on these numbers. The 3-5pm peak ceiling still applies (≤8 normal/Fri/Sat; Sunday's 2pm/3pm run higher by design). **Exception:** these afternoon ceilings yield to the hard lunch/dinner minimums — on a thin day the afternoon may run over target to keep the lunch crew on through to dinner.
 - Mechanics for hitting them cleanly: extend or trim daytime (lunch) shifts to control the 2pm and 3pm counts; stagger when the dinner crew starts (3/4/5pm) to control 3pm and 4pm; this also lets you push saved afternoon hours into dinner and weekend coverage.
 
 ### Departure timing

@@ -243,6 +243,8 @@ def _sc(e,cap,t):   # soft ceiling: e <= cap + slack
     global prob; _s=pulp.LpVariable(t,lowBound=0); prob+=e<=cap+_s; _cov_slk.append(_s)
 def _sf(e,fl,t):    # soft floor: e + slack >= fl
     global prob; _s=pulp.LpVariable(t,lowBound=0); prob+=e+_s>=fl; _cov_slk.append(_s)
+def _hardfloor(e,fl):  # HARD meal-period minimum — infeasible (fail) rather than a penalty if unmet
+    global prob; prob += e >= fl
 # Hours floor soft constraints — two priority tiers so PT is sacrificed before SL/FT.
 # _HPEN_HI < _CPEN so coverage still wins; _HPEN_HI >> _HPEN_LO so SL/FT fills first.
 _HPEN_HI=490  # shift leaders + FT non-leaders — last to lose hours
@@ -259,15 +261,17 @@ for d in range(7):
     _h14=pulp.lpSum(_SDF[d,'h14']); _h15=pulp.lpSum(_SDF[d,'h15']); _h16=pulp.lpSum(_SDF[d,'h16'])
     _cl225=pulp.lpSum(_SDF[d,'cl225']); _cl21=pulp.lpSum(_SDF[d,'cl21'])
     _op=pulp.lpSum(_SDF[d,'opener'])
-    # All coverage floors are soft — _CPEN=500 makes slack always 0 in normal solutions;
+    # Most coverage floors are soft — _CPEN=500 makes slack always 0 in normal solutions;
     # soft floors prevent infeasibility when extreme req-offs deplete a day.
     _sf(_h14,twoTar[d],                         f'sh14f_{d}')
     _sf(_h15,threeTar[d],                        f'sh15f_{d}')
     _sf(_h16,fourTar[d],                         f'sh16f_{d}')
     _sf(_cl225,Ctar[d]-1,                        f'scl225fh_{d}')
     _sf(_op,Otar[d],                             f'sopf_{d}')
-    _sf(pulp.lpSum(_SDF[d,'lunch']),Ltar[d],     f'slnf_{d}')
-    _sf(pulp.lpSum(_SDF[d,'dinner']),Dtar[d],    f'sdnf_{d}')
+    # Meal-period minimums (lunch at noon, dinner past 5pm) are HARD — the solver must meet
+    # them or report the week infeasible. Never hand back a schedule that misses a meal floor.
+    _hardfloor(pulp.lpSum(_SDF[d,'lunch']),  Ltar[d])
+    _hardfloor(pulp.lpSum(_SDF[d,'dinner']), Dtar[d])
     _sf(pulp.lpSum(_SDF[d,'cl215']),(7 if d>=4 else 6), f'scl215f_{d}')
     _sf(pulp.lpSum(_SDF[d,'pb_op']),1,           f'spbop_{d}')
     _sf(pulp.lpSum(_SDF[d,'pb_cl']),1,           f'spbcl_{d}')
