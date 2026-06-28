@@ -109,8 +109,7 @@ Complete reference for building the weekly schedule. Given availability sheet, r
 
 ### Openers (people working at or before 10am)
 - **Jay is NEVER counted as an opener, on any day** (admin time). All opener counts and targets below exclude Jay. The summary chart's "Open" column also excludes Jay, so the printed number matches these targets.
-- **Cap (not counting Jay): 5 openers every day, Monday through Sunday.** This is a cap — do not exceed 5 openers (start ≤10am) on any day.
-- A day may run one under if the bodies genuinely aren't available (weekend availability is the usual bottleneck).
+- **HARD 5 openers every day, Monday through Sunday (not counting Jay).** This is now a hard floor enforced by the solver: it must field 5 openers (start ≤10am) each day or report the week infeasible. The soft ceiling also holds at 5, so the count is effectively exactly 5.
 - **Stagger opener start times to lower labor.** Have **exactly 3 people start at 9:00**, then stagger the remaining 2 across **9:15, 9:30, 9:45, 10:00**. This trims paid hours off the slow early-morning window while still ramping coverage into the lunch build.
 - **No one may start between 10:00am and 11:00am.** Openers must be in by 10:00; the next valid start slot is 11:00am. Starts at 10:15, 10:30, and 10:45 are banned.
 
@@ -120,7 +119,10 @@ Complete reference for building the weekly schedule. Given availability sheet, r
 - Higher (10+) for days with higher forecasted sales (e.g., Sat target 10)
 
 ### Closers (people working past 10:30pm — i.e., to 11pm close)
-- **Hard target: exactly 5 closers per day, 6 on Friday, Saturday, and Sunday.** Do not run more than the target — too many closers was a recurring problem. Treat this as a firm number, not a "minimum."
+- **Target: 5 closers per day, 6 on Friday, Saturday, and Sunday.** Enforced in two tiers:
+  - **Hard floor: 4 on weekdays (Mon–Thu), 5 on weekends (Fri/Sat/Sun).** Below this the solver reports the week infeasible (a fail).
+  - **Extreme penalty for missing the real target (5 weekday / 6 weekend).** The solver fights hard to hit it, but if a thin roster makes it impossible without breaking another hard floor (e.g. lunch/dinner minimums consuming the bodies that would otherwise close), it lands at the hard floor and flags `CloserTargetMiss` in the audit.
+- Do not run *more* than the target — too many closers was a recurring problem (soft ceiling).
 - **Never have more than one of Gobi, James, or Trinity closing on the same day.** If Gobi or Trinity is closing, move James to a mid or open shift (he does not close that day). At most one of the three closes per day.
 
 ### Evening staffing floor (every day)

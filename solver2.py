@@ -232,19 +232,26 @@ for d in range(7):
 # === COVERAGE TARGETS ===
 twoTar=[8,8,8,8,8,9,11]; threeTar=[6,6,6,6,7,8,8]; fourTar=[5,5,5,5,6,7,6]
 Otar=[5,5,5,5,5,5,5]; Ltar=[9,9,9,9,10,10,11]; Dtar=[10,10,10,11,14,13,12]; Ctar=[5,5,5,5,6,6,6]
+# Closer hard floor: 4 weekdays / 5 weekends. Below this the week is infeasible (fail). Ctar
+# (5 wk / 6 wknd) is the real target — missing it above the hard floor costs the extreme penalty.
+Chard=[4,4,4,4,5,5,5]
 
 # Soft-constraint helpers: convert tight equality/ceiling constraints to penalised slack variables.
 # Penalty _CPEN=500 >> max possible objective gain (~80 units) so slacks are zero in any optimal
 # solution — the final schedule is identical, but the feasible region is much larger, letting
 # HiGHS find the first integer-feasible point dramatically faster.
 _CPEN=500
+_CLOSEPEN=2000  # EXTREME penalty for missing the closer target (5 wk / 6 wknd) above the hard floor
 _cov_slk=[]
+_close_slk=[]
 def _sc(e,cap,t):   # soft ceiling: e <= cap + slack
     global prob; _s=pulp.LpVariable(t,lowBound=0); prob+=e<=cap+_s; _cov_slk.append(_s)
 def _sf(e,fl,t):    # soft floor: e + slack >= fl
     global prob; _s=pulp.LpVariable(t,lowBound=0); prob+=e+_s>=fl; _cov_slk.append(_s)
-def _hardfloor(e,fl):  # HARD meal-period minimum — infeasible (fail) rather than a penalty if unmet
+def _hardfloor(e,fl):  # HARD minimum — infeasible (fail) rather than a penalty if unmet
     global prob; prob += e >= fl
+def _sfx(e,fl,t):   # extreme-penalty soft floor: e + slack >= fl, slack penalised at _CLOSEPEN
+    global prob; _s=pulp.LpVariable(t,lowBound=0); prob+=e+_s>=fl; _close_slk.append(_s)
 # Hours floor soft constraints — two priority tiers so PT is sacrificed before SL/FT.
 # _HPEN_HI < _CPEN so coverage still wins; _HPEN_HI >> _HPEN_LO so SL/FT fills first.
 _HPEN_HI=490  # shift leaders + FT non-leaders — last to lose hours
@@ -266,12 +273,16 @@ for d in range(7):
     _sf(_h14,twoTar[d],                         f'sh14f_{d}')
     _sf(_h15,threeTar[d],                        f'sh15f_{d}')
     _sf(_h16,fourTar[d],                         f'sh16f_{d}')
-    _sf(_cl225,Ctar[d]-1,                        f'scl225fh_{d}')
-    _sf(_op,Otar[d],                             f'sopf_{d}')
-    # Meal-period minimums (lunch at noon, dinner past 5pm) are HARD — the solver must meet
-    # them or report the week infeasible. Never hand back a schedule that misses a meal floor.
+    # HARD floors — solver must meet these or report the week infeasible (a fail, not a penalty):
+    #  • meal-period minimums (lunch at noon, dinner past 5pm)
+    #  • openers (start ≤10am): exactly 5/day (hard floor here + soft ceiling below)
+    #  • closers (end ≥10:30pm): 4 weekdays / 5 weekends. The real target (5 wk / 6 wknd, Ctar)
+    #    is enforced just below with an EXTREME penalty for any miss above the hard floor.
     _hardfloor(pulp.lpSum(_SDF[d,'lunch']),  Ltar[d])
     _hardfloor(pulp.lpSum(_SDF[d,'dinner']), Dtar[d])
+    _hardfloor(_op,    Otar[d])
+    _hardfloor(_cl225, Chard[d])
+    _sfx(_cl225, Ctar[d], f'sclx_{d}')   # extreme penalty below 5 wk / 6 wknd
     _sf(pulp.lpSum(_SDF[d,'cl215']),(7 if d>=4 else 6), f'scl215f_{d}')
     _sf(pulp.lpSum(_SDF[d,'pb_op']),1,           f'spbop_{d}')
     _sf(pulp.lpSum(_SDF[d,'pb_cl']),1,           f'spbcl_{d}')
@@ -281,9 +292,8 @@ for d in range(7):
     _sc(_h14,twoTar[d],         f'sh14_{d}')
     _sc(_h15,threeTar[d],       f'sh15_{d}')
     _sc(_h16,fourTar[d],        f'sh16_{d}')
-    _sf(_cl225,Ctar[d],         f'scl225f_{d}')
-    _sc(_cl225,Ctar[d],         f'scl225c_{d}')
-    _sc(_op,Otar[d],            f'sop_{d}')
+    _sc(_cl225,Ctar[d],         f'scl225c_{d}')   # soft ceiling: don't over-run closers
+    _sc(_op,Otar[d],            f'sop_{d}')        # soft ceiling: don't over-run openers (hard floor above)
     if d in (4,5): _sc(_cl21,8,f'scl21_{d}')
     _sc(pulp.lpSum(_SDF[d,'h155']),9,   f'sh155_{d}')
     _sc(pulp.lpSum(_SDF[d,'h165']),8,   f'sh165_{d}')
@@ -483,6 +493,7 @@ myles_opens = pulp.lpSum(x[('Myles Palmer',d,i)]
 prob += (5000*pulp.lpSum(zero_pen) + 8*weak_use + 0.3*short_pref + 30*mgr_offday
          + 20*jay_closes + 20*myles_opens
          + _CPEN*pulp.lpSum(_cov_slk)
+         + _CLOSEPEN*pulp.lpSum(_close_slk)
          + _HPEN_HI*pulp.lpSum(s for _,_,s in _hrs_slk['hi'])
          + _HPEN_LO*pulp.lpSum(s for _,_,s in _hrs_slk['lo'])
          + _AFLOOR_PEN*pulp.lpSum(_afloor_terms))
@@ -589,6 +600,9 @@ for d in range(7):
 # Coverage slacks (soft constraints violated)
 _sviol=[] if _XLSX_ONLY else [v.name for v in _cov_slk if v.value() and v.value()>0.001]
 if _sviol: _fails.append(f"CovSlack({len(_sviol)}): {_sviol[:4]}{'...' if len(_sviol)>4 else ''}")
+# Closer target misses (above the hard floor) — extreme-penalty slack nonzero
+_cviol=[] if _XLSX_ONLY else [v.name for v in _close_slk if v.value() and v.value()>0.001]
+if _cviol: _fails.append(f"CloserTargetMiss({len(_cviol)}): {_cviol} (below 5 wk / 6 wknd)")
 # Hours floor slacks (person couldn't reach their hours target due to req-offs)
 for _nm,_fl,_sv in ([] if _XLSX_ONLY else (_hrs_slk['hi'] + _hrs_slk['lo'])):
     if _sv.value() and _sv.value()>0.01:
