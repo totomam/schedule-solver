@@ -54,6 +54,7 @@ fx('Mary Dean', 5,15,23)
 # James Baker requested off all 7 days this week (vacation) — no backbone.
 fx('Tiffany Huffman', 0, 9,16)
 fx('Trinity Stringer', 4,17,23)
+fx('Zac Duffy', 6, 9, 17)  # this week: Zac opens Sunday at 9 (9-5, 8h — longest valid 9-start under his 10h cap)
 
 def _pb_closer_exists(d):
     """True if any shift leader (non-manager PB) can close (end ≥ 22) on day d.
