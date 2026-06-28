@@ -231,7 +231,7 @@ for d in range(7):
 
 # === COVERAGE TARGETS ===
 twoTar=[8,8,8,8,8,9,11]; threeTar=[6,6,6,6,7,8,8]; fourTar=[5,5,5,5,6,7,6]
-Otar=[5,5,5,5,5,5,5]; Ltar=[9,9,9,9,10,10,11]; Dtar=[10,10,10,11,14,13,12]; Ctar=[5,5,5,5,6,6,6]
+Otar=[5,5,5,5,5,5,5]; Ltar=[9,9,9,9,10,10,10]; Dtar=[10,10,10,11,14,13,12]; Ctar=[5,5,5,5,6,6,6]
 # Closer hard floor: 4 weekdays / 5 weekends. Below this the week is infeasible (fail). Ctar
 # (5 wk / 6 wknd) is the real target — missing it above the hard floor costs the extreme penalty.
 Chard=[4,4,4,4,5,5,5]
