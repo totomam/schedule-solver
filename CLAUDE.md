@@ -50,6 +50,9 @@ All `hi=True` penalty targets are set +1h above the real floor (e.g. floor=39 �
 - `regular_PT` — Amiyah Bartley, Harper Flynn, Jonathan Beacham, Hayden Roush, Logan Frias, Kayden Anderson, Richard Raglin, Ryder (12h target)
 - `_trio` — Gobi, James, Trinity (at most 1 closes per day)
 
+## Session preferences
+- When a PR is complete and ready, merge it to main without asking first.
+
 ## Common weekly tasks
 1. Update availability/reqoff/forecast JSON files (rename `avail_6_29.json` etc. to new date)
 2. Update backbone `fx()` calls in `# ===== BACKBONE =====` section of solver2.py
