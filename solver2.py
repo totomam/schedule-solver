@@ -10,9 +10,9 @@ _base = _OUT[:-5] if _OUT.endswith('.json') else _OUT
 _OUT_ACTIVE = _base + '_active.json'
 _THREADS=int(os.environ.get('SCHED_THREADS','0'))  # >0 enables HiGHS parallel B&B
 _HIGHS_SEED=int(os.environ.get('SCHED_HIGHS_SEED','-1'))  # -1 = HiGHS default
-_AVAIL_FILE    = os.environ.get('SCHED_AVAIL',    'avail_6_29.json')
-_REQOFF_FILE   = os.environ.get('SCHED_REQOFF',   'reqoff_6_29.json')
-_FORECAST_FILE = os.environ.get('SCHED_FORECAST', 'forecast_6_29.json')
+_AVAIL_FILE    = os.environ.get('SCHED_AVAIL',    'avail_7_6.json')
+_REQOFF_FILE   = os.environ.get('SCHED_REQOFF',   'reqoff_7_6.json')
+_FORECAST_FILE = os.environ.get('SCHED_FORECAST', 'forecast_7_6.json')
 with open(_AVAIL_FILE)    as _f: av=json.load(_f)
 with open(_REQOFF_FILE)   as _f: req=json.load(_f)
 with open(_FORECAST_FILE) as _f: fc=json.load(_f)
@@ -48,17 +48,19 @@ def fx(n,d,a,b): fixed[(n,d)]=[a,b]
 # ===== BACKBONE — update each week =====
 # Phase 1: non-manager backbones first so manager fallback checks below see the full picture.
 for d in range(5): fx('Bowen Benedict', d, 8, 16)
-fx('Gobi Weathers', 0,16,23); fx('Gobi Weathers',1,11,17); fx('Gobi Weathers',2,9,17)
-fx('Gobi Weathers', 5, 8,16); fx('Gobi Weathers',6,15,23)
+fx('Gobi Weathers', 0,16,23); fx('Gobi Weathers',1,11,17); fx('Gobi Weathers',2,9,17)  # Tue 11a (not 10a): 12h rule after Mon 11p close
+fx('Gobi Weathers', 5, 9,17); fx('Gobi Weathers',6,15,23)
 fx('Mary Dean', 5,15,23)
-fx('James Baker', 2,15,23); fx('James Baker', 6, 8,16)
+# James Baker requested off all 7 days this week (vacation) — no backbone.
 fx('Tiffany Huffman', 0, 9,16)
 fx('Trinity Stringer', 4,17,23)
 
 def _pb_closer_exists(d):
-    """True if any non-Myles PB member can close (end ≥ 22) on day d."""
+    """True if any shift leader (non-manager PB) can close (end ≥ 22) on day d.
+    Excludes both managers: Myles is the backstop being decided, and Jay is penalised
+    for closing so he must not count as a viable closer that keeps Myles on standard."""
     for n in PB:
-        if n == 'Myles Palmer': continue
+        if n in NO_BREAK: continue  # skip both managers (Jay, Myles)
         bk = fixed.get((n, d))
         if bk:
             if bk[1] >= 22 and avwin(n, d) is not None: return True
@@ -68,9 +70,11 @@ def _pb_closer_exists(d):
     return False
 
 def _pb_opener_exists(d):
-    """True if any non-Jay PB member can open (start ≤ 9) on day d."""
+    """True if any shift leader (non-manager PB) can open (start ≤ 9) on day d.
+    Excludes both managers: Jay is the backstop being decided, and Myles is penalised
+    for opening so he must not count as a viable opener that keeps Jay on standard."""
     for n in PB:
-        if n == 'Jay Martin': continue
+        if n in NO_BREAK: continue  # skip both managers (Jay, Myles)
         bk = fixed.get((n, d))
         if bk:
             if bk[0] <= 9 and avwin(n, d) is not None: return True
@@ -120,6 +124,9 @@ def gen(n,d):
         out.append((13.0, 23.0))
     for a in ANCH_START:
         if a<lo or a>hi-4: continue
+        # No starts strictly between 10am and 11am: openers must be in by 10:00,
+        # then the next start slot is 11:00 (10:15/10:30/10:45 are banned).
+        if 10 < a < 11: continue
         for b in ANCH_END:
             if b<=a or b>hi: continue
             L=b-a
@@ -222,7 +229,7 @@ for d in range(7):
 
 # === COVERAGE TARGETS ===
 twoTar=[8,8,8,8,8,9,11]; threeTar=[6,6,6,6,7,8,8]; fourTar=[5,5,5,5,6,7,6]
-Otar=[6,6,6,6,6,6,6]; Ltar=[9,9,9,9,10,10,11]; Dtar=[10,10,10,11,14,13,12]; Ctar=[5,5,5,5,6,6,6]
+Otar=[5,5,5,5,5,5,5]; Ltar=[9,9,9,9,10,10,11]; Dtar=[10,10,10,11,14,13,12]; Ctar=[5,5,5,5,6,6,6]
 
 # Soft-constraint helpers: convert tight equality/ceiling constraints to penalised slack variables.
 # Penalty _CPEN=500 >> max possible objective gain (~80 units) so slacks are zero in any optimal
@@ -291,7 +298,8 @@ for d in range(7):
             _sc(_e,_ceil, f's{_key}c_{d}')
     if _SDF[d,'e2225']:
         _sc(pulp.lpSum(_SDF[d,'e2225']),1,f'se2225c_{d}')
-    if _SDF[d,'stag9']:   _sc(pulp.lpSum(_SDF[d,'stag9']),  2,      f'sstag9_{d}')
+    if _SDF[d,'stag9']:   _sc(pulp.lpSum(_SDF[d,'stag9']),  3,      f'sstag9_{d}')
+    if _SDF[d,'stag9']:   _sf(pulp.lpSum(_SDF[d,'stag9']),  3,      f'sstag9f_{d}')  # exactly 3 start at 9:00
     for _key in ('la1725','la175','la1775','la18'):
         if _SDF[d,_key]: _sc(pulp.lpSum(_SDF[d,_key]),1,   f's{_key}_{d}')
     if _SDF[d,'w3_ln']: _sc(pulp.lpSum(_SDF[d,'w3_ln']),1, f'sw3ln_{d}')

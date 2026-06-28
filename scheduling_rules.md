@@ -109,9 +109,10 @@ Complete reference for building the weekly schedule. Given availability sheet, r
 
 ### Openers (people working at or before 10am)
 - **Jay is NEVER counted as an opener, on any day** (admin time). All opener counts and targets below exclude Jay. The summary chart's "Open" column also excludes Jay, so the printed number matches these targets.
-- **Target (not counting Jay): 6 openers every day, Monday through Sunday.**
+- **Cap (not counting Jay): 5 openers every day, Monday through Sunday.** This is a cap — do not exceed 5 openers (start ≤10am) on any day.
 - A day may run one under if the bodies genuinely aren't available (weekend availability is the usual bottleneck).
-- **Stagger opener start times to lower labor when possible.** Don't start everyone at 9:00 — only the open truly needs a couple of bodies at the door. Have **2 people start at 9:00** and stagger the rest across **9:15, 9:30, 9:45, 10:00**. This trims paid hours off the slow early-morning window while still ramping coverage into the lunch build. Only bunch multiple people at 9:00 when the day genuinely needs the early hands (e.g. heavy prep or a big forecast).
+- **Stagger opener start times to lower labor.** Have **exactly 3 people start at 9:00**, then stagger the remaining 2 across **9:15, 9:30, 9:45, 10:00**. This trims paid hours off the slow early-morning window while still ramping coverage into the lunch build.
+- **No one may start between 10:00am and 11:00am.** Openers must be in by 10:00; the next valid start slot is 11:00am. Starts at 10:15, 10:30, and 10:45 are banned.
 
 ### Lunch (people working at noon)
 - **Default target: 9 lunch every day if possible**
@@ -239,7 +240,7 @@ Higher forecasted sales → higher targets. Use lunch/dinner targets as your pri
 - The only people scheduled before 9am: **Jay** (Mon 6a), **Bowen** (8a Mon-Fri), **Gobi** (Saturday 8a), **Trinity** (Saturday, if needed), **James** (Sunday 8a). No one else.
 
 ### Morning starts
-- Don't have everyone start at 9am — stagger the openers. At most 2 people start at exactly 9:00 (plus Bowen's 8a anchor); stagger the rest at 9:15a, 9:30a, 9:45a, 10a.
+- Stagger the openers: **exactly 3 people start at 9:00** (plus Bowen's 8a anchor on weekdays), then stagger the remaining 2 at 9:15a, 9:30a, 9:45a, or 10a. **No starts between 10:00 and 11:00** — the next slot after 10:00 is 11:00.
 - At least one prep person (Michael, Tiffany, Noah, Gracelyn, Molly; Reilly = dough on Sunday) should be among the 9:00 starters.
 - Bowen anchors morning at 8a (set schedule)
 
@@ -249,8 +250,8 @@ Higher forecasted sales → higher targets. Use lunch/dinner targets as your pri
 
 ### Openers — cap (not counting Jay)
 - An opener is anyone who starts work at or before 10:00am. **Jay never counts toward the opener total on any day.**
-- Target is 6 openers every day (not counting Jay). Don't exceed the target for the day.
-- If a day is running over, push the extra early-starters to an 11am start — they still cover lunch and dinner, they're just no longer openers.
+- Cap is 5 openers every day (not counting Jay). Don't exceed 5 for the day.
+- If a day is running over, push the extra early-starters to an 11am start — they still cover lunch and dinner, they're just no longer openers. (Nothing may start 10:01–10:59; the next slot is 11:00.)
 
 ### Afternoon headcount (2pm / 3pm / 4pm) — HARD TARGETS
 - **These are hard targets to hit exactly, not a guide:**
@@ -336,7 +337,7 @@ When building a new schedule:
    - [ ] Molly never past 5pm
    - [ ] 2/3/4pm hard targets hit exactly (Mon-Thu 8/6/5; Fri 8/7/6; Sat 9/8/7; Sun 11/8/6)
    - [ ] Lunch hits day-target, dinner hits day-target
-   - [ ] Openers (Jay never counts): 6 every day. Closers exactly 5/day (6 Fri/Sat/Sun)
+   - [ ] Openers (Jay never counts): cap 5/day, 3 starting at 9:00. No starts 10:01–10:59. Closers exactly 5/day (6 Fri/Sat/Sun)
    - [ ] Every available person gets at least one shift
    - [ ] Weekly total variance lands in the +25 to +30 range (paid hours over allowed)
    - [ ] No shift under 4h
