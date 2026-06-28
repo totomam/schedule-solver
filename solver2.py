@@ -124,6 +124,9 @@ def gen(n,d):
         out.append((13.0, 23.0))
     for a in ANCH_START:
         if a<lo or a>hi-4: continue
+        # No starts strictly between 10am and 11am: openers must be in by 10:00,
+        # then the next start slot is 11:00 (10:15/10:30/10:45 are banned).
+        if 10 < a < 11: continue
         for b in ANCH_END:
             if b<=a or b>hi: continue
             L=b-a
@@ -226,7 +229,7 @@ for d in range(7):
 
 # === COVERAGE TARGETS ===
 twoTar=[8,8,8,8,8,9,11]; threeTar=[6,6,6,6,7,8,8]; fourTar=[5,5,5,5,6,7,6]
-Otar=[6,6,6,6,6,6,6]; Ltar=[9,9,9,9,10,10,11]; Dtar=[10,10,10,11,14,13,12]; Ctar=[5,5,5,5,6,6,6]
+Otar=[5,5,5,5,5,5,5]; Ltar=[9,9,9,9,10,10,11]; Dtar=[10,10,10,11,14,13,12]; Ctar=[5,5,5,5,6,6,6]
 
 # Soft-constraint helpers: convert tight equality/ceiling constraints to penalised slack variables.
 # Penalty _CPEN=500 >> max possible objective gain (~80 units) so slacks are zero in any optimal
@@ -295,7 +298,8 @@ for d in range(7):
             _sc(_e,_ceil, f's{_key}c_{d}')
     if _SDF[d,'e2225']:
         _sc(pulp.lpSum(_SDF[d,'e2225']),1,f'se2225c_{d}')
-    if _SDF[d,'stag9']:   _sc(pulp.lpSum(_SDF[d,'stag9']),  2,      f'sstag9_{d}')
+    if _SDF[d,'stag9']:   _sc(pulp.lpSum(_SDF[d,'stag9']),  3,      f'sstag9_{d}')
+    if _SDF[d,'stag9']:   _sf(pulp.lpSum(_SDF[d,'stag9']),  3,      f'sstag9f_{d}')  # exactly 3 start at 9:00
     for _key in ('la1725','la175','la1775','la18'):
         if _SDF[d,_key]: _sc(pulp.lpSum(_SDF[d,_key]),1,   f's{_key}_{d}')
     if _SDF[d,'w3_ln']: _sc(pulp.lpSum(_SDF[d,'w3_ln']),1, f'sw3ln_{d}')
