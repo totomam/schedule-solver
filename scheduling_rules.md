@@ -16,7 +16,7 @@ Complete reference for building the weekly schedule. Given availability sheet, r
 
 ### Manager hours (set defaults — only override when explicitly needed)
 - **Jay Martin**: Standard 45h. Mon 6a–3p, Thu 10a–8p, Fri 10a–8p, Sat 10a–8p, Sun 11a–5p. Off Tue/Wed normally.
-- **Myles Palmer**: Standard 45h. Mon–Wed 11a–8p, Sat–Sun 11a–8p. Off Thu/Fri normally. Shifts automatically adjust to 2p–11p on any day he is needed as the only PB closer.
+- **Myles Palmer**: Standard 45h. Mon & Sun 12p–9p; Tue/Wed/Sat 11a–8p. Off Thu/Fri normally. Shifts automatically adjust to 2p–11p on any day he is needed as the only PB closer.
 - Both managers have backbone shifts set each week by the solver. The backbone auto-adjusts: if no other PB member can open on a given day, Jay's shift slides earlier (≤9am); if no other PB member can close, Myles's shift slides later (2pm–11pm). No manual action needed.
 
 ### Non-manager hour caps
@@ -54,7 +54,7 @@ Complete reference for building the weekly schedule. Given availability sheet, r
 - Override default only when you explicitly need to (e.g., a one-off week covering 6 days)
 
 ### Myles-specific (default set schedule)
-- **Mon, Tue, Wed, Sat, Sun: 11a–8p** (9h each)
+- **Mon & Sun: 12p–9p; Tue, Wed, Sat: 11a–8p** (9h each)
 - **Off Thu, Fri**
 - **Default total: 45h raw**
 - **Shifts to 2p–11p** automatically on any day he is the only PB member who can close that night
@@ -313,7 +313,7 @@ When building a new schedule:
 
 1. **Lock in mandatory hours**:
    - Jay = 45h standard (Mon 6–3, Thu/Fri/Sat 10–8, Sun 11–5); off Tue/Wed normally
-   - Myles = 45h standard (Mon–Wed 11–8, Sat–Sun 11–8); off Thu/Fri normally
+   - Myles = 45h standard (Mon & Sun 12–9, Tue/Wed/Sat 11–8); off Thu/Fri normally
    - Shift leaders aim for 39–40h raw (Bowen, James, Trinity, Gobi, Mary)
 
 2. **Add FT regulars** at their set patterns (Bowen, Adam, Mary, Michael, etc.)
