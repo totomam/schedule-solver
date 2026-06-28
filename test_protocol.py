@@ -241,7 +241,7 @@ def make_reqoff(rng: random.Random) -> dict[str, list[str]]:
             buckets[day].add(rng.choice(candidates))
             placed += 1
 
-    total      = rng.randint(10, 25)
+    total      = rng.randint(20, 50)
     weekend_n  = total // 2
     weekday_n  = total - weekend_n
     fill(WEEKEND, weekend_n)

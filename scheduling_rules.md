@@ -146,7 +146,7 @@ Complete reference for building the weekly schedule. Given availability sheet, r
 | Thursday | 9 / 11 |
 | Friday | 10 / 14 |
 | Saturday | 10 / 13 |
-| Sunday | 11 / 12 |
+| Sunday | 10 / 12 |
 
 Higher forecasted sales → higher targets. Use lunch/dinner targets as your primary coverage check. Closers run exactly 5/day (6 on Friday, Saturday, and Sunday) — see Closers section.
 
