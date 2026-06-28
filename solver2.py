@@ -93,10 +93,11 @@ for _jd, (_ja, _jb) in _JAY_STD.items():
     else:
         fx('Jay Martin', _jd, _ja, _jb)
 
-# Phase 3: Myles — standard (11-20, 9h) unless he's the only PB closer that day → (14-23, 9h).
-# All 5 working days use 9h shifts so the ≥45h hard floor is always satisfied.
-for _md in [0, 1, 2, 5, 6]:
-    fx('Myles Palmer', _md, 11, 20) if _pb_closer_exists(_md) else fx('Myles Palmer', _md, 14, 23)
+# Phase 3: Myles — standard 9h shifts (Mon/Sun 12p-9p, Tue/Wed/Sat 11a-8p) unless he's the
+# only PB closer that day → (14-23, 9h). All 9h so the ≥45h hard floor is always satisfied.
+_MYLES_STD = {0:(12,21), 1:(11,20), 2:(11,20), 5:(11,20), 6:(12,21)}
+for _md,(_ma,_mb) in _MYLES_STD.items():
+    fx('Myles Palmer', _md, *((_ma,_mb) if _pb_closer_exists(_md) else (14,23)))
 
 # === SHIFT GENERATION ===
 # Shift anchors: three real-world windows (9am-noon, 2pm-6pm, 8pm-11pm).
