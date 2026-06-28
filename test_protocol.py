@@ -188,6 +188,7 @@ def _classify_issues(audit_issues: list, reqoff: dict, var, budget_constrained: 
               # are by-design soft (small penalty), NOT failures. The massive 2+-below closer tier
               # ('CLOSER 2+ BELOW TARGET') is left to fall through to hard.
               or i.startswith('CloserTargetMiss') or i.startswith('LunchTargetMiss')
+              or i.startswith('DinnerTargetMiss')
               or (near_ceiling and (i.startswith('LeaderClose') or i.startswith('LeaderOpen')))):
             soft.append(i)
         else:

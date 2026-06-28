@@ -232,6 +232,10 @@ for d in range(7):
 # === COVERAGE TARGETS ===
 twoTar=[8,8,8,8,8,9,11]; threeTar=[6,6,6,6,7,8,8]; fourTar=[5,5,5,5,6,7,6]
 Otar=[5,5,5,5,5,5,5]; Ltar=[9,9,9,9,10,10,10]; Dtar=[10,10,10,11,14,13,12]; Ctar=[5,5,5,5,6,6,6]
+# Dinner HARD floor (Dhard) is the per-day minimum that must be met or the week is infeasible.
+# It equals the Dtar target everywhere except Sunday, where the hard floor is 11 and the 12th
+# is only a small soft penalty (a depleted Sunday may sit at 11 rather than fail).
+Dhard=[10,10,10,11,14,13,11]
 # Closer target (graduated penalty, see _close_graded): 5 weekday / 6 weekend.
 # Lunch soft target (above the hard Ltar floor): aim for 11 on Sunday. Penalised, not hard.
 # Lunch's penalty outranks the single 6th-closer slot, so a thin Sunday prefers 11 lunch and
@@ -250,9 +254,10 @@ _CPEN=500
 _CLOSE_SMALL=300     # 1st closer below target (e.g. 5 instead of 6) — minor
 _CLOSE_MASSIVE=4000  # 2nd+ closer below target (e.g. 4 instead of 6) — basically never
 _LUNCHPEN=800        # missing the lunch soft target (Lsoft, e.g. 11 Sun); beats the 6th closer
+_DINPEN=300          # missing the dinner soft target (Dtar, e.g. 12 Sun) above the hard floor — small
 _cov_slk=[]
 _close_small_slk=[]; _close_massive_slk=[]
-_lunch_slk=[]
+_lunch_slk=[]; _din_slk=[]
 def _sc(e,cap,t):   # soft ceiling: e <= cap + slack
     global prob; _s=pulp.LpVariable(t,lowBound=0); prob+=e<=cap+_s; _cov_slk.append(_s)
 def _sf(e,fl,t):    # soft floor: e + slack >= fl
@@ -267,6 +272,8 @@ def _close_graded(e,tgt,t):  # graduated closer floor: small penalty 1 below tgt
     _close_small_slk.append(_s1); _close_massive_slk.append(_s2)
 def _sfl(e,fl,t):   # lunch soft target floor: e + slack >= fl, slack penalised at _LUNCHPEN
     global prob; _s=pulp.LpVariable(t,lowBound=0); prob+=e+_s>=fl; _lunch_slk.append(_s)
+def _sfd(e,fl,t):   # dinner soft target floor: e + slack >= fl, slack penalised at _DINPEN
+    global prob; _s=pulp.LpVariable(t,lowBound=0); prob+=e+_s>=fl; _din_slk.append(_s)
 # Hours floor soft constraints — two priority tiers so PT is sacrificed before SL/FT.
 # _HPEN_HI < _CPEN so coverage still wins; _HPEN_HI >> _HPEN_LO so SL/FT fills first.
 _HPEN_HI=490  # shift leaders + FT non-leaders — last to lose hours
@@ -292,7 +299,7 @@ for d in range(7):
     #  • meal-period minimums (lunch at noon, dinner past 5pm)
     #  • openers (start ≤10am): exactly 5/day (hard floor here + soft ceiling below)
     _hardfloor(pulp.lpSum(_SDF[d,'lunch']),  Ltar[d])
-    _hardfloor(pulp.lpSum(_SDF[d,'dinner']), Dtar[d])
+    _hardfloor(pulp.lpSum(_SDF[d,'dinner']), Dhard[d])
     _hardfloor(_op,    Otar[d])
     # Closers (end ≥10:30pm): graduated penalty toward Ctar (5 wk / 6 wknd) — small for the 1st
     # short, massive for the 2nd+. Not a hard floor; the massive tier keeps it from ever sinking
@@ -300,6 +307,8 @@ for d in range(7):
     _close_graded(_cl225, Ctar[d], f'scl_{d}')
     if Lsoft[d] > Ltar[d]:               # soft lunch aspiration above the hard floor (e.g. 11 Sun)
         _sfl(pulp.lpSum(_SDF[d,'lunch']), Lsoft[d], f'slunchx_{d}')
+    if Dtar[d] > Dhard[d]:               # soft dinner aspiration above the hard floor (e.g. 12 Sun)
+        _sfd(pulp.lpSum(_SDF[d,'dinner']), Dtar[d], f'sdinx_{d}')
     _sf(pulp.lpSum(_SDF[d,'cl215']),(7 if d>=4 else 6), f'scl215f_{d}')
     _sf(pulp.lpSum(_SDF[d,'pb_op']),1,           f'spbop_{d}')
     _sf(pulp.lpSum(_SDF[d,'pb_cl']),1,           f'spbcl_{d}')
@@ -513,6 +522,7 @@ prob += (5000*pulp.lpSum(zero_pen) + 8*weak_use + 0.3*short_pref + 30*mgr_offday
          + _CLOSE_SMALL*pulp.lpSum(_close_small_slk)
          + _CLOSE_MASSIVE*pulp.lpSum(_close_massive_slk)
          + _LUNCHPEN*pulp.lpSum(_lunch_slk)
+         + _DINPEN*pulp.lpSum(_din_slk)
          + _HPEN_HI*pulp.lpSum(s for _,_,s in _hrs_slk['hi'])
          + _HPEN_LO*pulp.lpSum(s for _,_,s in _hrs_slk['lo'])
          + _AFLOOR_PEN*pulp.lpSum(_afloor_terms))
@@ -627,6 +637,8 @@ if _cviol2: _fails.append(f"CLOSER 2+ BELOW TARGET({len(_cviol2)}): {_cviol2} (m
 # Lunch soft-target misses (above the hard floor) — aimed at 11 (Sun) but couldn't reach it
 _lviol=[] if _XLSX_ONLY else [v.name for v in _lunch_slk if v.value() and v.value()>0.001]
 if _lviol: _fails.append(f"LunchTargetMiss({len(_lviol)}): {_lviol} (below soft target)")
+_dviol=[] if _XLSX_ONLY else [v.name for v in _din_slk if v.value() and v.value()>0.001]
+if _dviol: _fails.append(f"DinnerTargetMiss({len(_dviol)}): {_dviol} (below soft target)")
 # Hours floor slacks (person couldn't reach their hours target due to req-offs)
 for _nm,_fl,_sv in ([] if _XLSX_ONLY else (_hrs_slk['hi'] + _hrs_slk['lo'])):
     if _sv.value() and _sv.value()>0.01:
