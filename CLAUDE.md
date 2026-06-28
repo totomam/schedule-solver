@@ -12,8 +12,17 @@ Primary file: `solver2.py`. Read `scheduling_rules.md` for the full business rul
 
 ## Key design decisions
 
-### Soft-constraint model
-All coverage constraints use penalised slack variables (`_CPEN=500`) instead of hard equalities — widens the feasible region so HiGHS finds the first integer-feasible point faster. Slacks are always 0 in any optimal solution. Helpers: `_sc(e, cap, t)` ceiling, `_sf(e, fl, t)` floor, `_sh(expr, floor, tag, hi, afl)` hours floor with penalty tier.
+### Constraint model — hard floors + penalised soft constraints
+Most coverage uses penalised slack variables (`_CPEN=500`) so the feasible region stays wide and HiGHS converges fast. Helpers: `_sc` ceiling, `_sf` floor, `_sh` hours floor (tiered), `_close_graded` graduated closers, `_sfl`/`_sfd` lunch/dinner soft targets.
+
+**Hard floors** (`_hardfloor` → infeasible, a real fail, if unmet — the solver never returns a schedule that misses them):
+- Lunch floor `Ltar=[9,9,9,9,10,10,10]`; dinner floor `Dhard=[10,10,10,11,14,13,11]`; openers `Otar=5`/day. Plus manager ≥45 and the weekly paid-hours bounds.
+
+**Soft targets above those floors** (penalised, not hard):
+- Sunday lunch aims for 11 (`Lsoft`, `_LUNCHPEN=800`); Sunday dinner aims for 12 (`Dtar`, `_DINPEN=300`).
+- Closers: graduated — `_CLOSE_SMALL=300` for 1 below `Ctar` (5 wk/6 wknd), `_CLOSE_MASSIVE=4000` for 2+ below (basically never).
+
+Priority order: `hard floors >> CLOSE_MASSIVE(4000) > LUNCH(800) > CLOSE_SMALL(300) ≈ DIN(300) ≈ ceilings(_CPEN 500)`. So a thin Sunday prefers an 11th lunch over the 6th closer, and may sit at dinner 11 / closers 5, but never drops closers to 4.
 
 ### Pre-filtered variable lists (`_SDF`)
 Built once before the constraint loop at `# === MIP VARIABLES ===`. Maps `(day, tag) → list[LpVariable]`. Grep that section for full tag list.
@@ -27,11 +36,12 @@ All others: paid = raw − 0.5 if raw ≥ 5h, else raw.
 All `hi=True` penalty targets are set +1h above the real floor (e.g. floor=39 → penalty target=40). The `afl=` param stores the real floor for audit display. Absorbs ~0.75h gapRel undershoot so early-stop never reports a false miss.
 
 ### Objective (minimise)
-`5000*zero_pen + 8*weak_use + 0.3*short_pref + 30*mgr_offday + 500*cov_slk + 490*hrs_hi_slk + 150*hrs_lo_slk`
+`5000*zero_pen + 8*weak_use + 0.3*short_pref + 30*mgr_offday + 500*cov_slk + 4000*close_massive + 800*lunch_slk + 300*close_small + 300*din_slk + 490*hrs_hi_slk + 150*hrs_lo_slk` (+ small per-person above-floor nudge)
 - Weekly paid hours hard-bounded to `[sum(allowed)+25, sum(allowed)+30]`
 - `zero_pen` — big penalty if any available person gets 0 shifts
 - `weak_use` — discourage weak5 extra shifts
 - `short_pref` — light penalty for 5–5.5h shifts (prefer 4–4.5h)
+- See "Constraint model" above for the coverage hard-floor / soft-target hierarchy.
 
 ### Solver parameters
 `HiGHS(timeLimit=240, gapRel=0.25)` — env vars `SCHED_TIMELIMIT`, `SCHED_GAPREL`, `SCHED_THREADS`, `SCHED_HIGHS_SEED`.

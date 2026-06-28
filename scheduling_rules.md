@@ -114,14 +114,14 @@ Complete reference for building the weekly schedule. Given availability sheet, r
 - **No one may start between 10:00am and 11:00am.** Openers must be in by 10:00; the next valid start slot is 11:00am. Starts at 10:15, 10:30, and 10:45 are banned.
 
 ### Lunch (people working at noon)
-- **Default target: 9 lunch every day if possible**
-- 8 is only acceptable in emergencies or on days with very low projected sales
-- Higher (10+) for days with higher forecasted sales (e.g., Sat target 10)
+- **Hard floor per day:** Mon–Thu = 9, Fri/Sat/Sun = 10. The solver must meet these or report the week infeasible — it never returns a schedule below the lunch floor.
+- **Sunday aims for 11** as a *soft* target: a penalty for sitting at 10 (the hard floor), not a failure. This lunch-11 penalty outranks the 6th weekend closer, so on a thin Sunday the solver prefers an 11th lunch over a 6th closer. Flagged as `LunchTargetMiss` when it can't reach 11.
 
 ### Closers (people working past 10:30pm — i.e., to 11pm close)
-- **Target: 5 closers per day, 6 on Friday, Saturday, and Sunday.** Enforced in two tiers:
-  - **Hard floor: 4 on weekdays (Mon–Thu), 5 on weekends (Fri/Sat/Sun).** Below this the solver reports the week infeasible (a fail).
-  - **Extreme penalty for missing the real target (5 weekday / 6 weekend).** The solver fights hard to hit it, but if a thin roster makes it impossible without breaking another hard floor (e.g. lunch/dinner minimums consuming the bodies that would otherwise close), it lands at the hard floor and flags `CloserTargetMiss` in the audit.
+- **Target: 5 closers per day, 6 on Friday, Saturday, and Sunday.** Enforced by a *graduated penalty* (no hard floor — closers never cause an infeasible week):
+  - **1 below target (5 weekend / 4 weekday): small penalty.** Acceptable on a thin day; flagged `CloserTargetMiss`.
+  - **2+ below target (4 weekend / 3 weekday): massive penalty.** Basically never happens; flagged `CLOSER 2+ BELOW TARGET`.
+- The 6th weekend closer is only a *small* priority — it loses to the Sunday lunch-11 target and to the afternoon ceilings, so a thin weekend may sit at 5 closers by design.
 - Do not run *more* than the target — too many closers was a recurring problem (soft ceiling).
 - **Never have more than one of Gobi, James, or Trinity closing on the same day.** If Gobi or Trinity is closing, move James to a mid or open shift (he does not close that day). At most one of the three closes per day.
 
@@ -133,7 +133,8 @@ Complete reference for building the weekly schedule. Given availability sheet, r
 - This is broader than the closer count (closers work to 10:30/11pm); it keeps enough hands on the floor through the back half of the dinner rush before close.
 
 ### Dinner (people working past 5pm)
-- Depends on day/forecasted sales (see table below)
+- **Hard floor per day** (see table below): Mon–Wed 10, Thu 11, Fri 14, Sat 13, **Sun 11**. The solver must meet these or report the week infeasible.
+- **Sunday aims for 12** as a *soft* target: a small penalty for sitting at 11 (the hard floor), not a failure. Flagged `DinnerTargetMiss` when it can't reach 12. (Sunday's hard floor is 11, not 12, because a depleted weekend often can't field 12 past 5pm — better to return an 11 schedule than fail.)
 
 ### Lunch/Dinner targets by day
 *(may shift week-to-week based on forecasted sales — these are the current working targets)*
@@ -146,11 +147,18 @@ Complete reference for building the weekly schedule. Given availability sheet, r
 | Thursday | 9 / 11 |
 | Friday | 10 / 14 |
 | Saturday | 10 / 13 |
-| Sunday | 10 / 12 |
+| Sunday | 10→11 / 11→12 |
 
-Higher forecasted sales → higher targets. Use lunch/dinner targets as your primary coverage check. Closers run exactly 5/day (6 on Friday, Saturday, and Sunday) — see Closers section.
+The numbers above are **hard floors**, except Sunday where the table shows `hard floor → soft target`: Sunday lunch is a hard 10 that aims for 11, and Sunday dinner is a hard 11 that aims for 12. Every other day's lunch and dinner number is a hard minimum.
 
-**These lunch and dinner numbers are HARD minimums, not soft targets.** The solver enforces them as hard constraints: it must meet every day's lunch and dinner minimum or report the week as infeasible (a fail). It will never return a schedule that quietly misses a meal-period floor. When a thin roster forces a choice, meal-period minimums take priority over the afternoon headcount ceilings (2pm/3pm/4pm) — i.e. the afternoon may run over its target to keep the lunch crew working through to dinner.
+**The hard floors are enforced as hard constraints:** the solver must meet every day's lunch and dinner hard floor or report the week infeasible (a fail) — it never returns a schedule that quietly misses one. The Sunday soft targets (lunch 11, dinner 12) are penalised, not hard, so a depleted Sunday may sit at the floor. When a thin roster forces a choice, the hard meal floors take priority over the afternoon headcount ceilings (2pm/3pm/4pm) — the afternoon may run over its target to keep the lunch crew working through to dinner.
+
+### Coverage priority hierarchy (when a thin day forces tradeoffs)
+From highest to lowest, what the solver protects first:
+1. **Hard floors** (infeasible if unmet): lunch floor, dinner floor, 5 openers/day. Plus the manager and weekly-budget hard bounds.
+2. **Massive penalty:** closers 2+ below target (4 weekend / 3 weekday) — effectively never allowed.
+3. **Lunch soft target** (Sunday 11) — beats the 6th closer.
+4. **Small penalties:** the 6th weekend closer (5 instead of 6) and the Sunday dinner 12th (sits at 11). Roughly tied with the afternoon over-staffing ceilings.
 
 ---
 
@@ -340,8 +348,8 @@ When building a new schedule:
    - [ ] ≤2 people leave at 2:00/2:30pm; ≤1 person starts at each of 5:15/5:30/5:45/6:00pm
    - [ ] Molly never past 5pm
    - [ ] 2/3/4pm hard targets hit exactly (Mon-Thu 8/6/5; Fri 8/7/6; Sat 9/8/7; Sun 11/8/6)
-   - [ ] Lunch hits day-target, dinner hits day-target
-   - [ ] Openers (Jay never counts): cap 5/day, 3 starting at 9:00. No starts 10:01–10:59. Closers exactly 5/day (6 Fri/Sat/Sun)
+   - [ ] Lunch ≥ hard floor (Mon–Thu 9, Fri/Sat/Sun 10; Sun aims 11); dinner ≥ hard floor (Sun 11, aims 12)
+   - [ ] Openers (Jay never counts): hard 5/day, 3 starting at 9:00. No starts 10:01–10:59. Closers target 5/day (6 Fri/Sat/Sun) — graduated penalty, a thin day may sit 1 below
    - [ ] Every available person gets at least one shift
    - [ ] Weekly total variance lands in the +25 to +30 range (paid hours over allowed)
    - [ ] No shift under 4h
