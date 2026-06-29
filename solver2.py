@@ -27,11 +27,14 @@ def paid_val(n,a,b):
     # Closers scheduled to 11pm almost always finish and clock out ~10:45, so count an
     # 11pm end (23.0) as 22.75 everywhere paid hours matter — including the weekly/daily
     # budget band — which gives the solver ~0.25h/closer more clock time to schedule.
-    # Same principle as the 30-min break deduction. (Hours-FLOOR constraints use raw b−a,
-    # not paid_val, so this does not touch anyone's target hours.) The schedule still
-    # SHOWS 11pm because the grid cells render the raw shift times, not paid_val.
-    if round(b,2) >= 23: b = 22.75
-    r=b-a; return r if n in NO_BREAK else (r-0.5 if r>=5 else r)
+    # Same principle as the 30-min break deduction, applied ON TOP of it: the break test
+    # keys on the RAW length, then 11pm shaves another 0.25h — so a raw-5h closer (18-23)
+    # is 5 − 0.5 break − 0.25 = 4.25, not 4.75. (Hours-FLOOR constraints use raw b−a, not
+    # paid_val, so this does not touch anyone's target hours.) The schedule still SHOWS
+    # 11pm because the grid cells render the raw shift times, not paid_val.
+    r=b-a; p = r if n in NO_BREAK else (r-0.5 if r>=5 else r)
+    if round(b,2) >= 23: p -= 0.25
+    return p
 TEN_HR=PB|{'Adam Van Bogaert','Mason Doyle','Ava Shade','Remi Sullinger','Izzy Simpson','Zac Duffy','Kara Thompson'}
 weak3={'Brian Carver','Bryan Bishop','Jason Britt'}
 weak5=weak3|{'Emily Owens','Shayden Howard','Oliver Croasdaile','John Dugan'}
