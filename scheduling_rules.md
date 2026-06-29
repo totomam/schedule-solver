@@ -34,9 +34,10 @@ Complete reference for building the weekly schedule. Given availability sheet, r
   - Example: 4:30p-9p (4.5h raw) shows as 4.5 paid (under 5h = no deduction)
 - Per-person cells in the .xlsx show FULL (raw) hours; the bottom "Scheduled Hours (paid)" row shows paid totals after break deductions. This paid model is the correct basis for planning.
 
-### 11pm closers reported at 10:45 (variance only)
-- **A closer scheduled until 11:00pm is counted as 10:45pm (22.75) in the variance/paid reporting** — they almost always finish closing duties and clock out ~10:45, so this reflects real labor cost (a −0.25h reporting deduction, on top of any break).
-- This is **reporting only**: the schedule (per-person cells and the printed grid) still SHOWS the 11pm end, and the solver still plans against the true 11pm hours. So the "Scheduled Hours (paid)" / variance rows read ~0.25h lower per 11pm closer than the raw clock time (≈3–4h/week across all closers).
+### 11pm closers counted as 10:45 in paid hours
+- **A closer scheduled until 11:00pm is counted as 10:45pm (22.75) in paid hours** — they almost always finish closing duties and clock out ~10:45 (a −0.25h deduction, same principle as the 30-min break, on top of it).
+- This is built into `paid_val`, so it applies **everywhere paid hours are used, including the weekly/daily labor budget band**. Effect: the solver treats each 11pm closer as 0.25h cheaper, so it has ~4h/week more clock time to schedule against the same budget.
+- The schedule (per-person cells and the printed grid) still **SHOWS** the 11pm end — only the paid/variance math uses 10:45. Target/floor hours are unaffected (those use raw clock hours, not paid).
 
 ### FT target hours (raw hours)
 - Shift leaders (Bowen, James, Trinity, Gobi, Mary): **39–40h raw**. Gobi is capped at ~37h raw by her fixed schedule and the 12h close-then-open rule — she's the exception.
