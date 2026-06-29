@@ -233,18 +233,20 @@ def make_reqoff(rng: random.Random) -> dict[str, list[str]]:
         return True
 
     def fill(day_pool: list[str], target: int) -> None:
-        placed = 0
-        attempts = 0
-        while placed < target:
-            attempts += 1
-            if attempts > 50_000:
-                break  # safety valve — shouldn't trigger with this roster size
-            day = rng.choice(day_pool)
-            candidates = [p for p in AVAIL if eligible(p, day) and p not in buckets[day]]
-            if not candidates:
-                continue
-            buckets[day].add(rng.choice(candidates))
-            placed += 1
+        # Spread `target` req-offs EVENLY across the days in day_pool (weekend → ~1/3 each day,
+        # weekday → ~1/4 each), so no single day gets gutted by random clustering. The remainder
+        # is sprinkled onto random days. People within each day are still chosen at random.
+        per = {d: target // len(day_pool) for d in day_pool}
+        for d in rng.sample(day_pool, target % len(day_pool)):
+            per[d] += 1
+        for day in day_pool:
+            placed = 0
+            while placed < per[day]:
+                candidates = [p for p in AVAIL if eligible(p, day) and p not in buckets[day]]
+                if not candidates:
+                    break  # this day is tapped out — drop the remaining share rather than pile elsewhere
+                buckets[day].add(rng.choice(candidates))
+                placed += 1
 
     total      = rng.randint(20, 50)
     weekday_n  = round(total * 0.55)   # 55% weekday / 45% weekend — matches the real-book skew
