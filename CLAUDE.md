@@ -16,10 +16,10 @@ Primary file: `solver2.py`. Read `scheduling_rules.md` for the full business rul
 Most coverage uses penalised slack variables (`_CPEN=500`) so the feasible region stays wide and HiGHS converges fast. Helpers: `_sc` ceiling, `_sf` floor, `_sh` hours floor (tiered), `_close_graded` graduated closers, `_sfl`/`_sfd` lunch/dinner soft targets.
 
 **Hard floors** (`_hardfloor` → infeasible, a real fail, if unmet — the solver never returns a schedule that misses them):
-- Lunch floor `Ltar=[9,9,9,9,10,10,10]`; dinner floor `Dhard=[10,10,10,11,14,13,11]`; openers `Otar=5`/day. Plus manager ≥45 and the weekly paid-hours bounds.
+- Lunch floor `Ltar=[9,9,9,9,10,10,10]`; dinner floor `Dhard=[10,10,10,11,14,13,10]`; openers `Otar=5`/day. Plus manager ≥45 and the weekly paid-hours bounds.
 
 **Soft targets above those floors** (penalised, not hard):
-- Sunday lunch aims for 11 (`Lsoft`, `_LUNCHPEN=800`); Sunday dinner aims for 12 (`Dtar`, `_DINPEN=300`).
+- Sunday lunch aims for 11 (`Lsoft`, `_LUNCHPEN=800`); Sunday dinner aims for 11 (`Dtar`, `_DINPEN=300`).
 - Closers: graduated — `_CLOSE_SMALL=300` for 1 below `Ctar` (5 wk/6 wknd), `_CLOSE_MASSIVE=4000` for 2+ below (basically never).
 
 Priority order: `hard floors >> CLOSE_MASSIVE(4000) > LUNCH(800) > CLOSE_SMALL(300) ≈ DIN(300) ≈ ceilings(_CPEN 500)`. So a thin Sunday prefers an 11th lunch over the 6th closer, and may sit at dinner 11 / closers 5, but never drops closers to 4.
