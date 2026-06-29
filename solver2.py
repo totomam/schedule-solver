@@ -639,10 +639,14 @@ _lviol=[] if _XLSX_ONLY else [v.name for v in _lunch_slk if v.value() and v.valu
 if _lviol: _fails.append(f"LunchTargetMiss({len(_lviol)}): {_lviol} (below soft target)")
 _dviol=[] if _XLSX_ONLY else [v.name for v in _din_slk if v.value() and v.value()>0.001]
 if _dviol: _fails.append(f"DinnerTargetMiss({len(_dviol)}): {_dviol} (below soft target)")
-# Hours floor slacks (person couldn't reach their hours target due to req-offs)
+# Hours-under: report ACTUAL scheduled (raw) hours from the final solution, not the LP slack
+# value (which lags the integer solution at gapRel stop and produced phantom ~1h shortfalls).
 for _nm,_fl,_sv in ([] if _XLSX_ONLY else (_hrs_slk['hi'] + _hrs_slk['lo'])):
-    if _sv.value() and _sv.value()>0.01:
-        _fails.append(f"HoursUnder: {_nm.replace('_',' ')} {_fl-_sv.value():.1f}h actual (target ≥{_fl}h)")
+    _person=_nm.replace('_',' ')
+    _sched=sol.get(_person) or []
+    _act=sum(sh[1]-sh[0] for sh in _sched if sh)
+    if _act < _fl-0.01:
+        _fails.append(f"HoursUnder: {_person} {_act:.1f}h actual (target ≥{_fl}h)  [{_fl-_act:.1f}h short]")
 
 print(f"Audit: {'PASS' if not _fails else str(len(_fails))+' issue(s):'}")
 for _f in _fails: print(f"  {_f}")
