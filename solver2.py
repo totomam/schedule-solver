@@ -1,7 +1,7 @@
 import json, math, pulp, os
 from collections import defaultdict
 from datetime import datetime, timedelta
-from backbone import STATIC_BACKBONE, JAY_STD, JAY_OPEN, MYLES_STD, MGR_OFFDAY_SHIFT
+from backbone import STATIC_BACKBONE, JAY_STD, JAY_OPEN, MYLES_STD, MGR_OFFDAY_SHIFT, early_ok
 
 # === CONFIG ===
 _OUT = os.environ.get('SCHED_OUT', 'schedule.json')   # tests set SCHED_OUT to write elsewhere
@@ -112,17 +112,11 @@ ANCH_START = ([round(9  +0.25*i,2) for i in range(int((12-9 )/0.25)+1)]  # 9:00-
             + [round(14 +0.25*i,2) for i in range(int((18-14)/0.25)+1)]) # 14:00-18:00 (17 values)
 ANCH_END   = ([round(14 +0.25*i,2) for i in range(int((18-14)/0.25)+1)]  # 14:00-18:00 (17 values)
             + [round(20 +0.25*i,2) for i in range(int((23-20)/0.25)+1)]) # 20:00-23:00 (13 values)
-def _early_ok(n, d):
-    """True if n is allowed to start before 9am on day d."""
-    return (n in ('Jay Martin', 'Bowen Benedict')
-            or (n in ('Gobi Weathers', 'Trinity Stringer') and d == 5)
-            or n == 'James Baker' and d == 6)
-
 def gen(n,d):
     w=avwin(n,d)
     if not w: return []
     lo,hi=w; out=[]; maxlen=10 if n in TEN_HR else 8
-    if not _early_ok(n, d): lo=max(lo,9)
+    if not early_ok(n, d): lo=max(lo,9)
     # Molly never works past 5pm
     if n=='Molly Summers': hi=min(hi,17)
     # Adam's 10h standard shift: 1pm-11pm. 13:00 is in the ANCH dead zone so add it explicitly.
@@ -616,7 +610,7 @@ for n in people:
 for n in people:
     for d in range(7):
         sh=sol[n][d]
-        if sh and sh[0]<9 and not _early_ok(n, d):
+        if sh and sh[0]<9 and not early_ok(n, d):
             _fails.append(f"EarlyStart: {n} {dn[d]} {sh[0]}")
 # No one ends before 2pm (3pm Sunday)
 for n in people:

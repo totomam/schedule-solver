@@ -39,3 +39,11 @@ MGR_OFFDAY_SHIFT = {
     ('Jay Martin', 1): (10.0, 20.0), ('Jay Martin', 2): (10.0, 20.0),
     ('Myles Palmer', 3): (11.0, 20.0), ('Myles Palmer', 4): (11.0, 20.0),
 }
+
+
+def early_ok(person, d):
+    """Who may start before 9am on day d (mirrors the solver's gen() floor).
+    Structural/weekly, so it lives here and is shared by solver2.py and test_protocol.py."""
+    return (person in ('Jay Martin', 'Bowen Benedict')
+            or (person in ('Gobi Weathers', 'Trinity Stringer') and d == 5)
+            or (person == 'James Baker' and d == 6))

@@ -20,7 +20,7 @@ What it does:
 import json, os, random, re, subprocess, sys, tempfile, time
 from pathlib import Path
 
-from backbone import STATIC_BACKBONE
+from backbone import STATIC_BACKBONE, early_ok
 
 # ── Config ──────────────────────────────────────────────────────────────────────────
 SEED    = int(os.environ.get('TEST_SEED',  str(random.randint(0, 2**31 - 1))))
@@ -109,12 +109,6 @@ _TEN_HR = _PB_ALL | {
     'Noah Hiner', 'Ava Shade', 'Remi Sullinger', 'Izzy Simpson', 'Zac Duffy', 'Kara Thompson',
 }
 
-def _early_ok(person: str, d: int) -> bool:
-    """Mirror solver2.py gen(): who may start before 9am on day d."""
-    return (person in (_JAY, 'Bowen Benedict')
-            or (person in ('Gobi Weathers', 'Trinity Stringer') and d == 5)
-            or (person == 'James Baker' and d == 6))
-
 def _max_achievable_raw(person: str, reqoff: dict) -> float:
     """Max raw hours a person could work this week, respecting the constraints that
     actually cap reachable hours: avail windows, req-offs, the 9am start floor, per-person
@@ -140,7 +134,7 @@ def _max_achievable_raw(person: str, reqoff: dict) -> float:
         if bk:                                   # fixed backbone shift — exact window
             day_win.append(('fixed', float(bk[0]), float(bk[1]))); continue
         lo, hi = (6.0, 23.0) if w in ('any', 'open') else (float(w[0]), float(w[1]))
-        if not _early_ok(person, d):
+        if not early_ok(person, d):
             lo = max(lo, 9.0)
         if person == 'Molly Summers':
             hi = min(hi, 17.0)
