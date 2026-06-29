@@ -1,7 +1,8 @@
 import json, math, pulp, os
 from collections import defaultdict
 from datetime import datetime, timedelta
-from backbone import STATIC_BACKBONE, JAY_STD, JAY_OPEN, MYLES_STD, MGR_OFFDAY_SHIFT, early_ok
+from backbone import (STATIC_BACKBONE, JAY_STD, JAY_OPEN, MYLES_STD, MGR_OFFDAY_SHIFT, early_ok,
+                      PB, NO_BREAK, FT_NONLEADER, TEN_HR)
 
 # === CONFIG ===
 _OUT = os.environ.get('SCHED_OUT', 'schedule.json')   # tests set SCHED_OUT to write elsewhere
@@ -19,11 +20,7 @@ with open(_REQOFF_FILE)   as _f: req=json.load(_f)
 with open(_FORECAST_FILE) as _f: fc=json.load(_f)
 allowed=fc['allowed_hours']
 dn=['Mon','Tue','Wed','Thu','Fri','Sat','Sun']
-# === GROUPS ===
-PB={'Jay Martin','Myles Palmer','Bowen Benedict','James Baker','Trinity Stringer','Gobi Weathers','Mary Dean'}
-# NO_BREAK = people who do NOT clock out for an unpaid break (no 0.5h deduction).
-# As of now: only the two managers (Jay/Myles) get paid = raw hours (no break deduction).
-NO_BREAK={'Jay Martin','Myles Palmer'}
+# === GROUPS ===  (PB, NO_BREAK, FT_NONLEADER, TEN_HR are imported from backbone.py)
 def paid_val(n,a,b):
     # Closers scheduled to 11pm almost always finish and clock out ~10:45, so count an
     # 11pm end (23.0) as 22.75 everywhere paid hours matter — including the weekly/daily
@@ -36,11 +33,9 @@ def paid_val(n,a,b):
     r=b-a; p = r if n in NO_BREAK else (r-0.5 if r>=5 else r)
     if round(b,2) >= 23: p -= 0.25
     return p
-TEN_HR=PB|{'Adam Van Bogaert','Mason Doyle','Ava Shade','Remi Sullinger','Izzy Simpson','Zac Duffy','Kara Thompson'}
 weak3={'Brian Carver','Bryan Bishop','Jason Britt'}
 weak5=weak3|{'Emily Owens','Shayden Howard','Oliver Croasdaile','John Dugan'}
 prep={'Michael Calderon','Tiffany Huffman','Noah Hiner','Gracelyn Dailey','Molly Summers','Reilly Weakley'}
-FT_nonleader={'Adam Van Bogaert','Mason Doyle','Michael Calderon','Molly Summers','Noah Hiner','Ava Shade','Izzy Simpson','Remi Sullinger','Reilly Weakley'}
 strong_PT={'Gracelyn Dailey','Cai Cotton','Sandy Wright','Kara Thompson','Nathan Paaswee','Peyton Shaw','Reese Bezehertny'}
 regular_PT={'Amiyah Bartley','Harper Flynn','Jonathan Beacham',
             'Hayden Roush','Logan Frias',
@@ -337,7 +332,7 @@ if len(avail_days('Trinity Stringer')) >= math.ceil(39/8):
     _sh(hours_expr['Trinity Stringer'],40,'Trinity_Stringer',afl=39)
 if len(avail_days('Gobi Weathers')) >= math.ceil(37/8):
     _sh(hours_expr['Gobi Weathers'],38,'Gobi_Weathers',afl=37)
-for n in FT_nonleader:
+for n in FT_NONLEADER:
     if n == 'Adam Van Bogaert':
         prob += hours_expr[n]<=40
         if len(avail_days(n)) >= 4:
@@ -358,7 +353,7 @@ for n in regular_PT:
     max_pd = 10.0 if n in TEN_HR else 8.0
     if len(avail_days(n)) >= math.ceil(12/max_pd):
         _sh(hours_expr[n],12,n.replace(' ','_'),hi=False)
-_capped40 = FT_nonleader | {'Zac Duffy'}  # already have explicit caps above
+_capped40 = FT_NONLEADER | {'Zac Duffy'}  # already have explicit caps above
 for n in people:
     if n in ('Jay Martin','Myles Palmer') or n in _capped40: continue
     prob += hours_expr[n]<=40
@@ -396,7 +391,7 @@ for n in weak5:
 # person's floor demands the extra hours, the penalty yields (it's << _HPEN).
 _AFLOOR_PEN = 5
 _afloor_terms = []
-_floor_map = ([(n,33) for n in FT_nonleader if n!='Adam Van Bogaert']
+_floor_map = ([(n,33) for n in FT_NONLEADER if n!='Adam Van Bogaert']
             + [(n,20) for n in strong_PT]
             + [(n,12) for n in regular_PT]
             + [(n, 4) for n in weak5]
