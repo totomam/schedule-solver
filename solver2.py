@@ -231,11 +231,11 @@ for d in range(7):
 
 # === COVERAGE TARGETS ===
 twoTar=[8,8,8,8,8,9,11]; threeTar=[6,6,6,6,7,8,8]; fourTar=[5,5,5,5,6,7,6]
-Otar=[5,5,5,5,5,5,5]; Ltar=[9,9,9,9,10,10,10]; Dtar=[10,10,10,11,14,13,12]; Ctar=[5,5,5,5,6,6,6]
+Otar=[5,5,5,5,5,5,5]; Ltar=[9,9,9,9,10,10,10]; Dtar=[10,10,10,11,14,13,11]; Ctar=[5,5,5,5,6,6,6]
 # Dinner HARD floor (Dhard) is the per-day minimum that must be met or the week is infeasible.
-# It equals the Dtar target everywhere except Sunday, where the hard floor is 11 and the 12th
-# is only a small soft penalty (a depleted Sunday may sit at 11 rather than fail).
-Dhard=[10,10,10,11,14,13,11]
+# It equals the Dtar target everywhere except Sunday, where the hard floor is 10 and the 11th
+# is only a small soft penalty (a depleted Sunday may sit at 10 rather than fail).
+Dhard=[10,10,10,11,14,13,10]
 # Closer target (graduated penalty, see _close_graded): 5 weekday / 6 weekend.
 # Lunch soft target (above the hard Ltar floor): aim for 11 on Sunday. Penalised, not hard.
 # Lunch's penalty outranks the single 6th-closer slot, so a thin Sunday prefers 11 lunch and
