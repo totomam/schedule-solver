@@ -65,8 +65,19 @@ All `hi=True` penalty targets are set +1h above the real floor (e.g. floor=39 �
 ## Session preferences
 - When a PR is complete and ready, merge it to main without asking first.
 
-## Common weekly tasks
-1. Update availability/reqoff/forecast JSON files (rename `avail_6_29.json` etc. to new date)
-2. Update the backbone in `backbone.py` (`STATIC_BACKBONE` for non-managers; `JAY_STD`/`JAY_OPEN`/`MYLES_STD`/`MGR_OFFDAY_SHIFT` for managers). It's the single source of truth — both `solver2.py` and `test_protocol.py` import it, so the stress test can't drift from the live backbone.
-3. Run: `python solver2.py`
-4. Read the printed audit — fix flagged issues and re-run
+## Weekly workflow — the human provides inputs, Claude does the rest
+**The human only supplies the three input files for the new week** (availability, request-offs,
+forecast). Everything below is **Claude's job** — do not ask the human to edit the backbone or
+run the solver; that's the whole point of this split.
+
+Given the new inputs, Claude:
+1. Adds the new dated JSONs and points the solver at them — set `_AVAIL_FILE`/`_REQOFF_FILE`/`_FORECAST_FILE`
+   in `solver2.py` (or pass `SCHED_AVAIL`/`SCHED_REQOFF`/`SCHED_FORECAST`) to the new files.
+2. **Derives and updates the backbone in `backbone.py`** from those inputs + `scheduling_rules.md`:
+   `STATIC_BACKBONE` for non-managers (who's fixed to which shift this week — e.g. anyone on vacation
+   gets no backbone), and `JAY_STD`/`JAY_OPEN`/`MYLES_STD`/`MGR_OFFDAY_SHIFT` for the managers' standard
+   and backstop shifts. `backbone.py` is the single source of truth — `solver2.py` and `test_protocol.py`
+   both import it, so the stress test can't drift from the live backbone.
+3. Runs `python solver2.py`.
+4. Reads the printed audit, fixes flagged issues (adjust the backbone / inputs), and re-runs until clean.
+5. Reports the final schedule + audit back to the human; commits and (per session prefs) opens/merges the PR.
