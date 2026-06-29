@@ -250,11 +250,12 @@ _CPEN=500
 # Closer penalty is GRADUATED (no hard floor): 1 below target (5 wknd / 4 wkday) is a small
 # penalty; 2+ below (4 wknd / 3 wkday) is massive. Lunch (11) sits between the two so on a thin
 # day the solver prefers an 11th lunch over the 6th closer (closers slip to 5), but never lets
-# closers fall to 4 to chase lunch.  Order: CLOSE_MASSIVE >> LUNCHPEN > CLOSE_SMALL > _CPEN(ceilings)
+# closers fall to 4 to chase lunch.  Order: CLOSE_MASSIVE >> LUNCH(800) > DIN(790) > _CPEN(ceilings,500) > CLOSE_SMALL(300)
 _CLOSE_SMALL=300     # 1st closer below target (e.g. 5 instead of 6) — minor
 _CLOSE_MASSIVE=4000  # 2nd+ closer below target (e.g. 4 instead of 6) — basically never
 _LUNCHPEN=800        # missing the lunch soft target (Lsoft, e.g. 11 Sun); beats the 6th closer
-_DINPEN=300          # missing the dinner soft target (Dtar, e.g. 12 Sun) above the hard floor — small
+_DINPEN=790          # missing the dinner soft target (Dtar, e.g. 11 Sun); ranks just below lunch (800),
+                     # above ceilings & the 6th closer, but below the massive closer floor
 _cov_slk=[]
 _close_small_slk=[]; _close_massive_slk=[]
 _lunch_slk=[]; _din_slk=[]

@@ -22,7 +22,7 @@ Most coverage uses penalised slack variables (`_CPEN=500`) so the feasible regio
 - Sunday lunch aims for 11 (`Lsoft`, `_LUNCHPEN=800`); Sunday dinner aims for 11 (`Dtar`, `_DINPEN=300`).
 - Closers: graduated — `_CLOSE_SMALL=300` for 1 below `Ctar` (5 wk/6 wknd), `_CLOSE_MASSIVE=4000` for 2+ below (basically never).
 
-Priority order: `hard floors >> CLOSE_MASSIVE(4000) > LUNCH(800) > CLOSE_SMALL(300) ≈ DIN(300) ≈ ceilings(_CPEN 500)`. So a thin Sunday prefers an 11th lunch over the 6th closer, and may sit at dinner 11 / closers 5, but never drops closers to 4.
+Priority order: `hard floors >> CLOSE_MASSIVE(4000) > LUNCH(800) > DIN(790) > ceilings(_CPEN 500) > CLOSE_SMALL(300)`. Dinner→11 ranks just below the lunch push, above the afternoon ceilings and the 6th closer, but below the massive closer floor — so a thin Sunday protects dinner 11 ahead of those, yet never drops closers to 4 to get it.
 
 ### Pre-filtered variable lists (`_SDF`)
 Built once before the constraint loop at `# === MIP VARIABLES ===`. Maps `(day, tag) → list[LpVariable]`. Grep that section for full tag list.
@@ -36,7 +36,7 @@ All others: paid = raw − 0.5 if raw ≥ 5h, else raw.
 All `hi=True` penalty targets are set +1h above the real floor (e.g. floor=39 → penalty target=40). The `afl=` param stores the real floor for audit display. Absorbs ~0.75h gapRel undershoot so early-stop never reports a false miss.
 
 ### Objective (minimise)
-`5000*zero_pen + 8*weak_use + 0.3*short_pref + 30*mgr_offday + 500*cov_slk + 4000*close_massive + 800*lunch_slk + 300*close_small + 300*din_slk + 490*hrs_hi_slk + 150*hrs_lo_slk` (+ small per-person above-floor nudge)
+`5000*zero_pen + 8*weak_use + 0.3*short_pref + 30*mgr_offday + 500*cov_slk + 4000*close_massive + 800*lunch_slk + 790*din_slk + 300*close_small + 490*hrs_hi_slk + 150*hrs_lo_slk` (+ small per-person above-floor nudge)
 - Weekly paid hours hard-bounded to `[sum(allowed)+25, sum(allowed)+30]`
 - `zero_pen` — big penalty if any available person gets 0 shifts
 - `weak_use` — discourage weak5 extra shifts
