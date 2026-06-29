@@ -24,6 +24,13 @@ PB={'Jay Martin','Myles Palmer','Bowen Benedict','James Baker','Trinity Stringer
 # As of now: only the two managers (Jay/Myles) get paid = raw hours (no break deduction).
 NO_BREAK={'Jay Martin','Myles Palmer'}
 def paid_val(n,a,b):
+    # Closers scheduled to 11pm almost always finish and clock out ~10:45, so count an
+    # 11pm end (23.0) as 22.75 everywhere paid hours matter — including the weekly/daily
+    # budget band — which gives the solver ~0.25h/closer more clock time to schedule.
+    # Same principle as the 30-min break deduction. (Hours-FLOOR constraints use raw b−a,
+    # not paid_val, so this does not touch anyone's target hours.) The schedule still
+    # SHOWS 11pm because the grid cells render the raw shift times, not paid_val.
+    if round(b,2) >= 23: b = 22.75
     r=b-a; return r if n in NO_BREAK else (r-0.5 if r>=5 else r)
 TEN_HR=PB|{'Adam Van Bogaert','Mason Doyle','Ava Shade','Remi Sullinger','Izzy Simpson','Zac Duffy','Kara Thompson'}
 weak3={'Brian Carver','Bryan Bishop','Jason Britt'}
@@ -558,15 +565,7 @@ else:
     with open(_OUT_ACTIVE,'w') as _f: json.dump({n:sh for n,sh in sol.items() if any(sh)},_f)
 
 # === SUMMARY ===
-def _pd(sh, n):
-    # Closers scheduled until 11pm almost always finish and clock out ~10:45, so the
-    # paid/variance REPORTING counts an 11pm end as 10:45 (22.75). The schedule still
-    # SHOWS 11pm (grid cells use the raw shift times), and the solver still optimises on
-    # true paid_val — this is a reporting adjustment only, mirroring the break deduction.
-    if not sh: return 0
-    a, b = sh[0], sh[1]
-    if round(b, 2) >= 23: b = 22.75
-    return paid_val(n, a, b)
+def _pd(sh, n): return paid_val(n, sh[0], sh[1]) if sh else 0  # 11pm→10:45 handled in paid_val
 def _hd(d,t): return sum(1 for n in sol if sol[n][d] and sol[n][d][0]<=t<sol[n][d][1])
 def _O(d): return sum(1 for n in sol if n!='Jay Martin' and sol[n][d] and sol[n][d][0]<=10)
 def _C(d): return sum(1 for n in sol if sol[n][d] and sol[n][d][1]>=22.5)

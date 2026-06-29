@@ -32,7 +32,7 @@ Built once before the constraint loop at `# === MIP VARIABLES ===`. Maps `(day, 
 All others: paid = raw − 0.5 if raw ≥ 5h, else raw.
 `paid_val(n, a, b)` computes this. Hours floor constraints use RAW hours (b−a).
 
-**11pm → 10:45 variance reporting.** Closers scheduled to 11pm (end 23.0) almost always finish and clock out ~10:45, so the **variance/paid REPORTING** counts an 11pm end as 22.75 (a −0.25h reporting deduction, like the break). This lives in `_pd()` (the display-only paid fn), so it affects the printed per-day `Var`, `TOTAL var`, and the Excel paid/variance rows ONLY. The schedule grid still SHOWS 11pm, and the solver still optimises on true `paid_val` (so the `Status: … paid/var` solver line shows true clock hours, which can read ~3–4h above `TOTAL var`).
+**11pm → 10:45 paid adjustment.** Closers scheduled to 11pm (end 23.0) almost always finish and clock out ~10:45, so `paid_val` counts an 11pm end as 22.75 (a −0.25h deduction, same principle as the break). Because it lives in `paid_val`, it flows through **everywhere paid hours matter** — including the weekly `[allowed+25, allowed+30]` and per-day budget bands — giving the solver ~0.25h/closer (~4h/week) more clock time to schedule. Hours-FLOOR constraints use raw `b−a` (not `paid_val`), so target hours are untouched. The schedule grid still SHOWS 11pm (cells render raw shift times). The `Status: … var` solver line and the `TOTAL var` reporting now agree (both on adjusted hours).
 
 ### Hours floor buffer
 All `hi=True` penalty targets are set +1h above the real floor (e.g. floor=39 → penalty target=40). The `afl=` param stores the real floor for audit display. Absorbs ~0.75h gapRel undershoot so early-stop never reports a false miss.
