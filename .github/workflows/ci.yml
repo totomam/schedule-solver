@@ -17,4 +17,5 @@ jobs:
       - name: Install dependencies
         run: pip install -r requirements.txt
       - name: Run solver smoke test (1 run)
-        run: TEST_RUNS=1 python test_protocol.py
+        # Pinned seed → reproducible; the test now exits nonzero if the run fails the audit.
+        run: TEST_SEED=42 TEST_RUNS=1 python test_protocol.py

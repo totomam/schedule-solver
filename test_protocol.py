@@ -20,6 +20,8 @@ What it does:
 import json, os, random, re, subprocess, sys, tempfile, time
 from pathlib import Path
 
+from backbone import STATIC_BACKBONE
+
 # ── Config ──────────────────────────────────────────────────────────────────────────
 SEED    = int(os.environ.get('TEST_SEED',  str(random.randint(0, 2**31 - 1))))
 N_RUNS  = int(os.environ.get('TEST_RUNS',   '1'))
@@ -51,27 +53,24 @@ _FT_AND_LEADERS = _LEADERS | {
 }
 _PB_ALL = {_JAY, _MYLES} | _LEADERS
 
-# Backbone shifts (mirrors solver2.py) — needed to know which PB members can actually
-# open (start ≤ 10am) or close (end ≥ 10pm) on each day once backbone locks them in.
+# Backbone shifts — needed to know which PB members can actually open (start ≤ 10am) or
+# close (end ≥ 10pm) on each day once backbone locks them in.
 # Format: (person, day_index 0=Mon…6=Sun) → (start_h, end_h)
+#
+# The NON-manager backbone is imported from backbone.py (the same source solver2.py uses)
+# so it can never drift from the solver. The MANAGER entries below stay local because they
+# approximate the solver's DYNAMIC manager logic, not a fixed backbone:
+#   • Myles working days (Mon/Tue/Wed/Sat/Sun) are omitted: the solver shifts him to (14,23)
+#     when he's the only PB closer that day, so we fall back to raw avail (any → hi=23 → can
+#     close). Thu/Fri are compensation-only days capped at (11,20) → can't close.
+#   • Jay is modelled on his standard shifts.
 _BACKBONE_SHIFTS: dict[tuple, tuple] = {
     (_JAY,   0): ( 6, 15),  (_JAY,   1): (10, 20),  (_JAY,   2): (10, 20),
     (_JAY,   3): (10, 20),  (_JAY,   4): (10, 20),
     (_JAY,   5): (10, 20),  (_JAY,   6): (11, 17),
-    # Myles working days (Mon/Tue/Wed/Sat/Sun) omitted: solver shifts to (14,23) when he's
-    # the only PB closer that day, so the stress test uses raw avail (any → hi=23 → can close).
-    # Thu/Fri are compensation-only days capped at (11,20) by _MGR_OFFDAY_SHIFT → can't close.
     (_MYLES, 3): (11, 20),  (_MYLES, 4): (11, 20),
-    ('Bowen Benedict',   0): (8, 16),  ('Bowen Benedict',   1): (8, 16),
-    ('Bowen Benedict',   2): (8, 16),  ('Bowen Benedict',   3): (8, 16),
-    ('Bowen Benedict',   4): (8, 16),
-    ('Gobi Weathers',    0): (16, 23), ('Gobi Weathers',    1): (11, 17),
-    ('Gobi Weathers',    2): ( 9, 17), ('Gobi Weathers',    5): ( 8, 16),
-    ('Gobi Weathers',    6): (15, 23),
-    ('Mary Dean',        5): (15, 23),
-    ('James Baker',      2): (15, 23), ('James Baker',      6): ( 8, 16),
-    ('Trinity Stringer', 4): (17, 23),
 }
+_BACKBONE_SHIFTS.update(STATIC_BACKBONE)  # non-manager backbone — shared with the solver
 
 def _pb_can_open_day(person: str, day_idx: int) -> bool:
     """True if this PB member has a BACKBONE shift starting ≤9am on this day,
@@ -129,7 +128,7 @@ def _max_achievable_raw(person: str, reqoff: dict) -> float:
     preceding day's shift, shifts used so far); we maximise total raw hours."""
     max_shift = 10.0 if person in _TEN_HR else 8.0
     GRID = 0.25
-    limit = 7 if person == _JAY else 5  # ≤5 shifts/week for everyone except Jay
+    limit = 5  # ≤5 shifts/week for everyone — matches the solver's hard per-person cap
 
     # Per-day window: None (off), ('fixed', a, b) for a backbone shift, or ('free', lo, hi).
     day_win: list = []
@@ -429,7 +428,8 @@ def parse_output(stdout: str, stderr: str, returncode: int) -> dict:
 
 
 # ── Main ─────────────────────────────────────────────────────────────────────────────────
-def main() -> None:
+def main() -> bool:
+    """Run the suite; return True iff every run passed (drives the process exit code)."""
     master_rng = random.Random(SEED)
     print(f"=== Solver Test Protocol  seed={SEED}  runs={N_RUNS} ===\n")
 
@@ -563,6 +563,8 @@ def main() -> None:
     if tmp.exists() and not any(tmp.iterdir()):
         tmp.rmdir()
 
+    return len(failed) == 0
+
 
 if __name__ == '__main__':
-    main()
+    sys.exit(0 if main() else 1)

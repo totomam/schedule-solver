@@ -1,6 +1,7 @@
 import json, math, pulp, os
 from collections import defaultdict
 from datetime import datetime, timedelta
+from backbone import STATIC_BACKBONE, JAY_STD, JAY_OPEN, MYLES_STD, MGR_OFFDAY_SHIFT
 
 # === CONFIG ===
 _OUT = os.environ.get('SCHED_OUT', 'schedule.json')   # tests set SCHED_OUT to write elsewhere
@@ -55,16 +56,9 @@ def avail_days(n): return [d for d in range(7) if avwin(n,d)]
 
 fixed={}
 def fx(n,d,a,b): fixed[(n,d)]=[a,b]
-# ===== BACKBONE — update each week =====
+# ===== BACKBONE — update backbone.py each week (shared with test_protocol.py) =====
 # Phase 1: non-manager backbones first so manager fallback checks below see the full picture.
-for d in range(5): fx('Bowen Benedict', d, 8, 16)
-fx('Gobi Weathers', 0,16,23); fx('Gobi Weathers',1,11,17); fx('Gobi Weathers',2,9,17)  # Tue 11a (not 10a): 12h rule after Mon 11p close
-fx('Gobi Weathers', 5, 9,17); fx('Gobi Weathers',6,15,23)
-fx('Mary Dean', 5,15,23)
-# James Baker requested off all 7 days this week (vacation) — no backbone.
-fx('Tiffany Huffman', 0, 9,16)
-fx('Trinity Stringer', 4,17,23)
-fx('Zac Duffy', 6, 9, 17)  # this week: Zac opens Sunday at 9 (9-5, 8h — longest valid 9-start under his 10h cap)
+for (_bn,_bd),(_ba,_bb) in STATIC_BACKBONE.items(): fx(_bn,_bd,_ba,_bb)
 
 def _pb_closer_exists(d):
     """True if any shift leader (non-manager PB) can close (end ≥ 22) on day d.
@@ -96,8 +90,8 @@ def _pb_opener_exists(d):
 
 # Phase 2: Jay — standard backbone; fall back to open ≤9 when no other PB member can that day.
 # Mon (6,15) already opens; Thu/Fri/Sat fallback (9,19) = same 10h; Sun fallback (9,17) = same 8h.
-_JAY_STD  = {0: (6,15), 3: (10,20), 4: (10,20), 5: (10,20), 6: (11,17)}
-_JAY_OPEN = {             3: (9,19),  4: (9,19),  5: (9,19),  6:  (9,17)}
+_JAY_STD  = JAY_STD
+_JAY_OPEN = JAY_OPEN
 for _jd, (_ja, _jb) in _JAY_STD.items():
     if _jd in _JAY_OPEN and not _pb_opener_exists(_jd) and avwin('Jay Martin', _jd) is not None:
         fx('Jay Martin', _jd, *_JAY_OPEN[_jd])
@@ -106,7 +100,7 @@ for _jd, (_ja, _jb) in _JAY_STD.items():
 
 # Phase 3: Myles — standard 9h shifts (Mon/Sun 12p-9p, Tue/Wed/Sat 11a-8p) unless he's the
 # only PB closer that day → (14-23, 9h). All 9h so the ≥45h hard floor is always satisfied.
-_MYLES_STD = {0:(12,21), 1:(11,20), 2:(11,20), 5:(11,20), 6:(12,21)}
+_MYLES_STD = MYLES_STD
 for _md,(_ma,_mb) in _MYLES_STD.items():
     fx('Myles Palmer', _md, *((_ma,_mb) if _pb_closer_exists(_md) else (14,23)))
 
@@ -180,10 +174,7 @@ def dedup(cands,n):
         if k not in seen: seen[k]=(a,b)
     return list(seen.values())
 # Compensation shifts for manager off-days are restricted to a single predictable shift
-_MGR_OFFDAY_SHIFT = {
-    ('Jay Martin', 1): (10.0, 20.0), ('Jay Martin', 2): (10.0, 20.0),
-    ('Myles Palmer',      3): (11.0, 20.0), ('Myles Palmer',      4): (11.0, 20.0),
-}
+_MGR_OFFDAY_SHIFT = MGR_OFFDAY_SHIFT
 for n in people:
     for d in range(7):
         shifts[(n,d)]=[tuple(fixed[(n,d)])] if ((n,d) in fixed and avwin(n,d) is not None) else dedup(gen(n,d),n)

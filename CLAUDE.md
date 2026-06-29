@@ -67,6 +67,6 @@ All `hi=True` penalty targets are set +1h above the real floor (e.g. floor=39 �
 
 ## Common weekly tasks
 1. Update availability/reqoff/forecast JSON files (rename `avail_6_29.json` etc. to new date)
-2. Update backbone `fx()` calls in `# ===== BACKBONE =====` section of solver2.py
+2. Update the backbone in `backbone.py` (`STATIC_BACKBONE` for non-managers; `JAY_STD`/`JAY_OPEN`/`MYLES_STD`/`MGR_OFFDAY_SHIFT` for managers). It's the single source of truth — both `solver2.py` and `test_protocol.py` import it, so the stress test can't drift from the live backbone.
 3. Run: `python solver2.py`
 4. Read the printed audit — fix flagged issues and re-run
