@@ -455,10 +455,8 @@ def main() -> None:
             limit = None if full else 4
             print(f"  hrs-under : {len(hours_under)} person(s) below target (req-offs expected)")
             for iss in hours_under[:limit]:
-                m_a = re.search(r'(\d+\.?\d*)h actual', iss)
-                m_t = re.search(r'target ≥(\d+\.?\d*)h', iss)
-                shortfall = f"  [{float(m_t.group(1))-float(m_a.group(1)):.1f}h short]" if m_a and m_t else ''
-                print(f"              {iss}{shortfall}")
+                # solver audit line already includes the "[Nh short]" suffix
+                print(f"              {iss}")
 
         record = {
             'run':          run_id + 1,
