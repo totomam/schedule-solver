@@ -110,31 +110,76 @@ _TEN_HR = _PB_ALL | {
     'Noah Hiner', 'Ava Shade', 'Remi Sullinger', 'Izzy Simpson', 'Zac Duffy', 'Kara Thompson',
 }
 
+def _early_ok(person: str, d: int) -> bool:
+    """Mirror solver2.py gen(): who may start before 9am on day d."""
+    return (person in (_JAY, 'Bowen Benedict')
+            or (person in ('Gobi Weathers', 'Trinity Stringer') and d == 5)
+            or (person == 'James Baker' and d == 6))
+
 def _max_achievable_raw(person: str, reqoff: dict) -> float:
-    """Max raw hours a person could work this week given their avail windows and req-offs."""
+    """Max raw hours a person could work this week, respecting the constraints that
+    actually cap reachable hours: avail windows, req-offs, the 9am start floor, per-person
+    shift-length caps, fixed backbone shifts, the ≤5-shift/week cap, AND the 12-hour
+    close-then-open rest rule (a close ending ≥9pm forces the next calendar day's start
+    to ≥ end−12). The naive "5 longest windows" sum ignored the rest rule and backbone
+    closes, over-stating reachable hours (e.g. it claimed 39h for Trinity whose fixed
+    Fri 17-23 close + the rest rule cap her at 37h) — which produced false hard flags.
+
+    Solved as a tiny DP across the 7 calendar days. State = (end time of the immediately
+    preceding day's shift, shifts used so far); we maximise total raw hours."""
     max_shift = 10.0 if person in _TEN_HR else 8.0
-    # Per-person hard caps that reduce the effective max shift regardless of avail window
-    if person == 'Molly Summers':
-        max_shift = min(max_shift, 8.0)  # never past 5pm; earliest start 9am → 8h ceiling
-    day_maxes = []
+    GRID = 0.25
+    limit = 7 if person == _JAY else 5  # ≤5 shifts/week for everyone except Jay
+
+    # Per-day window: None (off), ('fixed', a, b) for a backbone shift, or ('free', lo, hi).
+    day_win: list = []
     for d, day in enumerate(DAYS):
         w = AVAIL[person][d]
         if w == 'X' or person in reqoff.get(day, []):
-            continue
-        if w in ('any', 'open'):
-            lo, hi = 6.0, 23.0
-        else:
-            lo, hi = float(w[0]), float(w[1])
-        # Apply solver's per-person floor/ceiling rules
-        if person not in (_JAY, 'Bowen Benedict'):
-            lo = max(lo, 9.0)   # 9am start floor for most people
+            day_win.append(None); continue
+        bk = _BACKBONE_SHIFTS.get((person, d))
+        if bk:                                   # fixed backbone shift — exact window
+            day_win.append(('fixed', float(bk[0]), float(bk[1]))); continue
+        lo, hi = (6.0, 23.0) if w in ('any', 'open') else (float(w[0]), float(w[1]))
+        if not _early_ok(person, d):
+            lo = max(lo, 9.0)
         if person == 'Molly Summers':
             hi = min(hi, 17.0)
-        window = max(0.0, hi - lo)
-        day_maxes.append(min(window, max_shift))
-    day_maxes.sort(reverse=True)
-    limit = 7 if person == _JAY else 5  # Jay has no 5-day cap
-    return sum(day_maxes[:limit])
+        day_win.append(('free', lo, hi))
+
+    # DP: state (prev_end, used) -> best total hours. prev_end == 0.0 means prev day was off.
+    NEG = float('-inf')
+    states = {(0.0, 0): 0.0}
+    for d in range(7):
+        win = day_win[d]
+        nxt = {}
+        def relax(key, val):
+            if val > nxt.get(key, NEG):
+                nxt[key] = val
+        for (prev_end, used), tot in states.items():
+            relax((0.0, used), tot)              # option: don't work day d
+            if used >= limit or win is None:
+                continue
+            rest_floor = prev_end - 12.0 if prev_end >= 21.0 else 0.0  # 12h close→open rule
+            if win[0] == 'fixed':
+                a, b = win[1], win[2]
+                if a < rest_floor - 1e-9:
+                    continue                     # backbone close-then-open rest violation
+                length = min(b - a, max_shift)
+                if length >= 4.0 - 1e-9:
+                    relax((b, used + 1), tot + length)
+            else:                                # 'free': start as early as the rest rule allows
+                _, lo, hi = win
+                a = max(lo, rest_floor)
+                if hi - a < 4.0 - 1e-9:
+                    continue
+                b = a + 4.0
+                bmax = min(hi, a + max_shift)     # length capped by the per-person shift max
+                while b <= bmax + 1e-9:           # enumerate end times: a late close (b≥21) costs
+                    relax((round(b, 2), used + 1), tot + (b - a))  # the next day; an early end frees it
+                    b += GRID
+        states = nxt
+    return max(states.values()) if states else 0.0
 
 def _compute_budget_constrained(audit_issues: list, var) -> bool:
     """True if total FT/SL raw-hour shortfall exceeds paid budget headroom (+30 ceiling)."""
