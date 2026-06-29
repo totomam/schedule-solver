@@ -14,6 +14,23 @@ What's shared vs. local:
     local approximation — see _BACKBONE_SHIFTS in test_protocol.py.
 """
 
+# ── People groups (shared so the solver and the stress test can't drift apart) ──
+# Shift leaders + managers.
+PB = {'Jay Martin', 'Myles Palmer', 'Bowen Benedict', 'James Baker',
+      'Trinity Stringer', 'Gobi Weathers', 'Mary Dean'}
+# Managers: paid = raw hours, no 0.5h unpaid-break deduction.
+NO_BREAK = {'Jay Martin', 'Myles Palmer'}
+# Full-time non-leaders (33h+ target). NOTE: being full-time does NOT by itself mean
+# 10h-eligible — the prep full-timers below leave by ~5pm and so top out at 8h. See TEN_HR.
+FT_NONLEADER = {'Adam Van Bogaert', 'Mason Doyle', 'Michael Calderon', 'Molly Summers',
+                'Noah Hiner', 'Ava Shade', 'Izzy Simpson', 'Remi Sullinger', 'Reilly Weakley'}
+# 10-hour-shift eligible: leaders/managers + the full-timers who can work late
+# (Adam, Mason, Ava, Remi, Izzy) + Zac & Kara. Deliberately EXCLUDES the prep full-timers
+# (Michael Calderon, Noah Hiner, Molly Summers, Reilly Weakley): they aren't available past
+# ~5pm, so a 9am start already caps them at 8h.
+TEN_HR = PB | {'Adam Van Bogaert', 'Mason Doyle', 'Ava Shade', 'Remi Sullinger',
+               'Izzy Simpson', 'Zac Duffy', 'Kara Thompson'}
+
 # Non-manager backbone: {(person, day): (start_h, end_h)} — fixed shifts for the week.
 STATIC_BACKBONE = {
     **{('Bowen Benedict', d): (8, 16) for d in range(5)},

@@ -20,7 +20,7 @@ What it does:
 import json, os, random, re, subprocess, sys, time
 from pathlib import Path
 
-from backbone import STATIC_BACKBONE, early_ok
+from backbone import STATIC_BACKBONE, early_ok, PB, NO_BREAK, FT_NONLEADER, TEN_HR
 
 # ── Config ──────────────────────────────────────────────────────────────────────────
 SEED    = int(os.environ.get('TEST_SEED',  str(random.randint(0, 2**31 - 1))))
@@ -43,15 +43,13 @@ WEEKDAY = ['Mon','Tue','Wed','Thu']
 
 _JAY   = 'Jay Martin'
 _MYLES = 'Myles Palmer'
-# Shift leaders — not managers
-_LEADERS = {'Bowen Benedict', 'James Baker', 'Trinity Stringer', 'Gobi Weathers', 'Mary Dean'}
+# Group memberships are imported from backbone.py (shared with the solver) so the test's
+# hard/soft classification and reachability math can't drift from the solver's definitions.
+_LEADERS = PB - NO_BREAK                 # shift leaders (PB minus the two managers)
+_PB_ALL = PB
 # FT employees + shift leaders: missing their hours floor is a hard scheduling failure
 # (unless req-offs made it mathematically impossible to reach the target)
-_FT_AND_LEADERS = _LEADERS | {
-    'Adam Van Bogaert', 'Mason Doyle', 'Michael Calderon', 'Molly Summers',
-    'Noah Hiner', 'Ava Shade', 'Izzy Simpson', 'Remi Sullinger', 'Reilly Weakley',
-}
-_PB_ALL = {_JAY, _MYLES} | _LEADERS
+_FT_AND_LEADERS = _LEADERS | FT_NONLEADER
 
 # Backbone shifts — needed to know which PB members can actually open (start ≤ 10am) or
 # close (end ≥ 10pm) on each day once backbone locks them in.
@@ -104,10 +102,7 @@ _PB_VIABLE_CLOSERS: dict[str, list] = {
     day: [p for p in _PB_ALL if _pb_can_close_day(p, d)] for d, day in enumerate(DAYS)
 }
 
-_TEN_HR = _PB_ALL | {
-    'Adam Van Bogaert', 'Mason Doyle', 'Michael Calderon', 'Molly Summers',
-    'Noah Hiner', 'Ava Shade', 'Remi Sullinger', 'Izzy Simpson', 'Zac Duffy', 'Kara Thompson',
-}
+_TEN_HR = TEN_HR  # imported from backbone.py — the prep full-timers are correctly excluded
 
 def _max_achievable_raw(person: str, reqoff: dict) -> float:
     """Max raw hours a person could work this week, respecting the constraints that
