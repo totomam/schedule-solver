@@ -9,7 +9,7 @@ Usage:
 
 What it does:
   - Generates N random (reqoff, forecast) pairs, runs solver2.py for each.
-  - 10–25 request-offs per run (random), split 50/50 between Fri/Sat/Sun and Mon-Thu.
+  - 20–50 request-offs per run (random), split 55% weekday / 45% weekend.
   - Sales vary ±random in [-1000, +2500] from a $35,500 baseline,
     scaling allowed_hours proportionally across all 7 days.
   - Availability stays fixed (avail_6_29.json unchanged).
@@ -197,7 +197,7 @@ def _classify_issues(audit_issues: list, reqoff: dict, var, budget_constrained: 
 
 # ── Request-off generator ─────────────────────────────────────────────────────────────────────────
 def make_reqoff(rng: random.Random) -> dict[str, list[str]]:
-    """10–25 request-offs (random), split 50/50 between Fri/Sat/Sun and Mon-Thu.
+    """20–50 request-offs (random), split 55% weekday (Mon-Thu) / 45% weekend (Fri/Sat/Sun).
     Each (person, day) pair is unique; persons may appear on multiple days.
     No one is excluded — including people with fixed backbone shifts.
     Only people already marked 'X' on a day are skipped (already not working).
@@ -247,8 +247,8 @@ def make_reqoff(rng: random.Random) -> dict[str, list[str]]:
             placed += 1
 
     total      = rng.randint(20, 50)
-    weekend_n  = total // 2
-    weekday_n  = total - weekend_n
+    weekday_n  = round(total * 0.55)   # 55% weekday / 45% weekend — matches the real-book skew
+    weekend_n  = total - weekday_n     # (real July 6 book was 54/46; 50/50 over-loaded the weekend)
     fill(WEEKEND, weekend_n)
     fill(WEEKDAY,  weekday_n)
 
