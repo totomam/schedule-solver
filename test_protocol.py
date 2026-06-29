@@ -17,7 +17,7 @@ What it does:
   - Writes test_report.json with full per-run details.
 """
 
-import json, os, random, re, subprocess, sys, tempfile, time
+import json, os, random, re, subprocess, sys, time
 from pathlib import Path
 
 from backbone import STATIC_BACKBONE, early_ok
@@ -174,9 +174,16 @@ def _max_achievable_raw(person: str, reqoff: dict) -> float:
         states = nxt
     return max(states.values()) if states else 0.0
 
+# Classifier thresholds. BUDGET_CEILING / NEAR_CEILING_VAR are coupled to the solver's weekly
+# paid band `[sum(allowed)+25, sum(allowed)+30]` (solver2.py): var can't exceed +30, and within
+# ~4h of that ceiling the solver can't extend a close shift, so leader open/close gaps go soft.
+BUDGET_CEILING  = 30.0   # top of the weekly paid band (var ceiling)
+NEAR_CEILING_VAR = 26    # var ≥ this → exempt LeaderClose/LeaderOpen from hard status
+GRID_TOLERANCE_H = 0.5   # shortfall ≤ this is grid/structural rounding, not a real miss
+
 def _compute_budget_constrained(audit_issues: list, var) -> bool:
     """True if total FT/SL raw-hour shortfall exceeds paid budget headroom (+30 ceiling)."""
-    budget_headroom = 30.0 - float(var or 0)
+    budget_headroom = BUDGET_CEILING - float(var or 0)
     total = 0.0
     for iss in audit_issues:
         if not iss.startswith('HoursUnder:'):
@@ -202,7 +209,7 @@ def _ft_leader_hu_is_hard(issue: str, reqoff: dict, budget_constrained: bool = F
         return True  # can't parse target — treat as hard
     target = float(m_target.group(1))
     # ≤0.5h shortfall: within grid/structural tolerance (12h rule, shift-length grid)
-    if m_actual and (target - float(m_actual.group(1))) <= 0.5:
+    if m_actual and (target - float(m_actual.group(1))) <= GRID_TOLERANCE_H:
         return False
     # Budget ceiling (+30) prevented full satisfaction — not a solver failure
     if budget_constrained:
@@ -216,7 +223,7 @@ def _classify_issues(audit_issues: list, reqoff: dict, var, budget_constrained: 
     """
     if budget_constrained is None:
         budget_constrained = _compute_budget_constrained(audit_issues, var)
-    near_ceiling = (var is not None and float(var) >= 26)
+    near_ceiling = (var is not None and float(var) >= NEAR_CEILING_VAR)
     hard, soft = [], []
     for i in audit_issues:
         if _ft_leader_hu_is_hard(i, reqoff, budget_constrained):

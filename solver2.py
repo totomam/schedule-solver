@@ -60,48 +60,34 @@ def fx(n,d,a,b): fixed[(n,d)]=[a,b]
 # Phase 1: non-manager backbones first so manager fallback checks below see the full picture.
 for (_bn,_bd),(_ba,_bb) in STATIC_BACKBONE.items(): fx(_bn,_bd,_ba,_bb)
 
-def _pb_closer_exists(d):
-    """True if any shift leader (non-manager PB) can close (end ≥ 22) on day d.
-    Excludes both managers: Myles is the backstop being decided, and Jay is penalised
-    for closing so he must not count as a viable closer that keeps Myles on standard."""
+def _pb_edge_exists(d, idx, ok):
+    """True if any shift leader (non-manager PB) can cover a day-d edge:
+    (idx=1, ok=end≥22) → can CLOSE; (idx=0, ok=start≤9) → can OPEN.
+    Excludes both managers: the one being decided is the backstop, and the other is
+    penalised for that edge, so neither should count as keeping the backstop on standard."""
     for n in PB:
         if n in NO_BREAK: continue  # skip both managers (Jay, Myles)
         bk = fixed.get((n, d))
         if bk:
-            if bk[1] >= 22 and avwin(n, d) is not None: return True
+            if ok(bk[idx]) and avwin(n, d) is not None: return True
         else:
             w = avwin(n, d)
-            if w and w[1] >= 22: return True
+            if w and ok(w[idx]): return True
     return False
-
-def _pb_opener_exists(d):
-    """True if any shift leader (non-manager PB) can open (start ≤ 9) on day d.
-    Excludes both managers: Jay is the backstop being decided, and Myles is penalised
-    for opening so he must not count as a viable opener that keeps Jay on standard."""
-    for n in PB:
-        if n in NO_BREAK: continue  # skip both managers (Jay, Myles)
-        bk = fixed.get((n, d))
-        if bk:
-            if bk[0] <= 9 and avwin(n, d) is not None: return True
-        else:
-            w = avwin(n, d)
-            if w and w[0] <= 9: return True
-    return False
+def _pb_closer_exists(d): return _pb_edge_exists(d, 1, lambda v: v >= 22)
+def _pb_opener_exists(d): return _pb_edge_exists(d, 0, lambda v: v <= 9)
 
 # Phase 2: Jay — standard backbone; fall back to open ≤9 when no other PB member can that day.
 # Mon (6,15) already opens; Thu/Fri/Sat fallback (9,19) = same 10h; Sun fallback (9,17) = same 8h.
-_JAY_STD  = JAY_STD
-_JAY_OPEN = JAY_OPEN
-for _jd, (_ja, _jb) in _JAY_STD.items():
-    if _jd in _JAY_OPEN and not _pb_opener_exists(_jd) and avwin('Jay Martin', _jd) is not None:
-        fx('Jay Martin', _jd, *_JAY_OPEN[_jd])
+for _jd, (_ja, _jb) in JAY_STD.items():
+    if _jd in JAY_OPEN and not _pb_opener_exists(_jd) and avwin('Jay Martin', _jd) is not None:
+        fx('Jay Martin', _jd, *JAY_OPEN[_jd])
     else:
         fx('Jay Martin', _jd, _ja, _jb)
 
 # Phase 3: Myles — standard 9h shifts (Mon/Sun 12p-9p, Tue/Wed/Sat 11a-8p) unless he's the
 # only PB closer that day → (14-23, 9h). All 9h so the ≥45h hard floor is always satisfied.
-_MYLES_STD = MYLES_STD
-for _md,(_ma,_mb) in _MYLES_STD.items():
+for _md,(_ma,_mb) in MYLES_STD.items():
     fx('Myles Palmer', _md, *((_ma,_mb) if _pb_closer_exists(_md) else (14,23)))
 
 # === SHIFT GENERATION ===
@@ -168,12 +154,11 @@ def dedup(cands,n):
         if k not in seen: seen[k]=(a,b)
     return list(seen.values())
 # Compensation shifts for manager off-days are restricted to a single predictable shift
-_MGR_OFFDAY_SHIFT = MGR_OFFDAY_SHIFT
 for n in people:
     for d in range(7):
         shifts[(n,d)]=[tuple(fixed[(n,d)])] if ((n,d) in fixed and avwin(n,d) is not None) else dedup(gen(n,d),n)
-        if (n, d) in _MGR_OFFDAY_SHIFT and shifts[(n,d)]:
-            fa, fb = _MGR_OFFDAY_SHIFT[(n,d)]
+        if (n, d) in MGR_OFFDAY_SHIFT and shifts[(n,d)]:
+            fa, fb = MGR_OFFDAY_SHIFT[(n,d)]
             std = [(a,b) for (a,b) in shifts[(n,d)] if round(a,2)==fa and round(b,2)==fb]
             if std: shifts[(n,d)] = std
         for i in range(len(shifts[(n,d)])):
@@ -336,8 +321,9 @@ for d in range(7):
             _sc(_e,_ceil, f's{_key}c_{d}')
     if _SDF[d,'e2225']:
         _sc(pulp.lpSum(_SDF[d,'e2225']),1,f'se2225c_{d}')
-    if _SDF[d,'stag9']:   _sc(pulp.lpSum(_SDF[d,'stag9']),  3,      f'sstag9_{d}')
-    if _SDF[d,'stag9']:   _sf(pulp.lpSum(_SDF[d,'stag9']),  3,      f'sstag9f_{d}')  # exactly 3 start at 9:00
+    if _SDF[d,'stag9']:                                              # exactly 3 start at 9:00
+        _stag9=pulp.lpSum(_SDF[d,'stag9'])
+        _sc(_stag9, 3, f'sstag9_{d}'); _sf(_stag9, 3, f'sstag9f_{d}')
     for _key in ('la1725','la175','la1775','la18'):
         if _SDF[d,_key]: _sc(pulp.lpSum(_SDF[d,_key]),1,   f's{_key}_{d}')
     if _SDF[d,'w3_ln']: _sc(pulp.lpSum(_SDF[d,'w3_ln']),1, f'sw3ln_{d}')
@@ -557,6 +543,8 @@ def _pd(sh, n): return paid_val(n, sh[0], sh[1]) if sh else 0  # 11pm→10:45 ha
 def _hd(d,t): return sum(1 for n in sol if sol[n][d] and sol[n][d][0]<=t<sol[n][d][1])
 def _O(d): return sum(1 for n in sol if n!='Jay Martin' and sol[n][d] and sol[n][d][0]<=10)
 def _C(d): return sum(1 for n in sol if sol[n][d] and sol[n][d][1]>=22.5)
+def _D(d): return sum(1 for n in sol if sol[n][d] and sol[n][d][1]>17)  # dinner: ends after 5pm
+# Lunch (present at noon) is exactly _hd(d,12).
 # ★ = over target (excess labor/coverage); ! = under target (shortage); blank = on target
 def _ck(v,t,exact=True):
     if v>t: return '★'
@@ -567,8 +555,7 @@ def _ckf(v,t): return '!' if v<t else ' '  # floor only: flag if under
 print(f"Day  Var    O   L    D   C  9p 930  2pm  3pm  4pm")
 for d in range(7):
     var=sum(_pd(sol[n][d],n) for n in sol)-allowed[d]
-    L=sum(1 for n in sol if sol[n][d] and sol[n][d][0]<=12<sol[n][d][1])
-    D=sum(1 for n in sol if sol[n][d] and sol[n][d][1]>17)
+    L=_hd(d,12); D=_D(d)
     O=_O(d); C=_C(d); h14=_hd(d,14); h15=_hd(d,15); h16=_hd(d,16)
     cl21=_hd(d,21); cl215=_hd(d,21.5)
     print(f"{dn[d]:3}{var:+6.1f}  "
@@ -791,8 +778,7 @@ def _write_xlsx(out_xlsx):
     sr += 1
     for d in range(7):
         var_d = round(sum(_pd(sol[n][d], n) for n in sol) - allowed[d], 4)
-        L = sum(1 for n in sol if sol[n][d] and sol[n][d][0]<=12<sol[n][d][1])
-        D = sum(1 for n in sol if sol[n][d] and sol[n][d][1]>17)
+        L = _hd(d,12); D = _D(d)
         O = _O(d); C = _C(d)
         h14=_hd(d,14); h15=_hd(d,15); h16=_hd(d,16)
         cl21=_hd(d,21); cl215=_hd(d,21.5); cl22=_hd(d,22)
