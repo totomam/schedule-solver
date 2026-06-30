@@ -12,7 +12,7 @@ What it does:
   - 20–50 request-offs per run (random), split 55% weekday / 45% weekend.
   - Sales vary ±random in [-1000, +2500] from a $35,500 baseline,
     scaling allowed_hours proportionally across all 7 days.
-  - Availability stays fixed (avail_6_29.json unchanged).
+  - Availability stays fixed (stress_avail.json — a frozen baseline, not the live week).
   - Reports: solve status, audit pass/fail, coverage warnings, timing.
   - Writes test_report.json with full per-run details.
 """
@@ -29,9 +29,9 @@ N_RUNS  = int(os.environ.get('TEST_RUNS',   '1'))
 BASE_DIR = Path(__file__).resolve().parent
 
 # ── Load base data ────────────────────────────────────────────────────────────────────────
-with open(BASE_DIR / 'avail_6_29.json')    as f: AVAIL   = json.load(f)
-with open(BASE_DIR / 'reqoff_6_29.json')   as f: BASE_REQOFF   = json.load(f)
-with open(BASE_DIR / 'forecast_6_29.json') as f: BASE_FORECAST = json.load(f)
+with open(BASE_DIR / 'stress_avail.json')    as f: AVAIL   = json.load(f)
+with open(BASE_DIR / 'stress_reqoff.json')   as f: BASE_REQOFF   = json.load(f)
+with open(BASE_DIR / 'stress_forecast.json') as f: BASE_FORECAST = json.load(f)
 
 BASE_HOURS = BASE_FORECAST['allowed_hours']          # [Mon..Sun]
 BASE_SALES = BASE_FORECAST['forecasted_sales']       # [Mon..Sun]
@@ -343,7 +343,7 @@ def run_solver(reqoff: dict, forecast: dict, run_id: int) -> tuple[int, str, str
     forecast_path.write_text(json.dumps(forecast, indent=2))
 
     env = os.environ.copy()
-    env['SCHED_AVAIL']    = str(BASE_DIR / 'avail_6_29.json')
+    env['SCHED_AVAIL']    = str(BASE_DIR / 'stress_avail.json')
     env['SCHED_REQOFF']   = str(reqoff_path)
     env['SCHED_FORECAST'] = str(forecast_path)
     env['SCHED_OUT']      = str(out_path)
