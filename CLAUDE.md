@@ -66,7 +66,23 @@ All `hi=True` penalty targets are set +1h above the real floor (e.g. floor=39 �
 - `_trio` — Gobi, James, Trinity (at most 1 closes per day)
 
 ## Session preferences
-- When a PR is complete and ready, merge it to main without asking first.
+
+### Git/GitHub: the human does not use GitHub — never ask, just handle it
+The human knows nothing about Git or GitHub and does not want to. **Never ask them anything
+about branches, commits, pushes, pull requests, or merging** — not "should I open a PR?", not
+"want me to merge?", not "keep going on the branch or merge?". Use your best judgement and do
+the whole thing yourself. The default end-to-end flow, with no confirmation at any step:
+1. Commit the change on the working branch.
+2. Push.
+3. Open a PR (only when there's a coherent unit of work to land — you don't need a PR per commit).
+4. **Merge it to main yourself** as soon as it's green/ready.
+Only surface Git to the human if something is genuinely stuck (e.g. a conflict you can't safely
+resolve) and you actually need a decision only they can make — and even then, frame it in plain
+English, not Git jargon. Report *what shipped*, not *whether to ship it*.
+
+### Deliverables
+- When asked for "the schedule", deliver the **`schedule.xlsx` file** (via the file-send tool),
+  not just an inline table. Lead with the file.
 
 ## Weekly workflow — the human provides inputs, Claude does the rest
 **The human only supplies the three input files for the new week** (availability, request-offs,
