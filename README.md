@@ -10,11 +10,13 @@ Uses [PuLP](https://coin-or.github.io/pulp/) + [HiGHS](https://highs.dev/) solve
 | File | Purpose |
 |---|---|
 | `solver2.py` | **Main solver** — run this each week to generate the schedule |
-| `test_protocol.py` | **Stress tester** — randomises req-offs across 20 runs to verify the solver handles edge cases |
+| `backbone.py` | **Weekly backbone + shared definitions** — fixed shifts, people groups, hour floors, per-person rules. Edit here each week; imported by both the solver and the stress tester |
+| `test_protocol.py` | **Stress tester** — randomises req-offs/forecasts to verify the solver handles edge cases |
 | `scheduling_rules.md` | **Full business rules** — narrative + checklist for all scheduling constraints |
-| `avail_6_29.json` | Availability per person per day (update filename/content each week) |
-| `reqoff_6_29.json` | Request-offs by day name (update each week) |
-| `forecast_6_29.json` | `{"allowed_hours": [...]}` — labour budget per day (update each week) |
+| `avail.json` | Availability per person per day — overwrite contents each week (filename never changes) |
+| `reqoff.json` | Request-offs by day name — overwrite each week |
+| `forecast.json` | `{"week_start": "YYYY-MM-DD", "allowed_hours": [...], ...}` — labour budget + the week's date |
+| `stress_avail.json` / `stress_reqoff.json` / `stress_forecast.json` | Frozen baseline for the stress tester (not the live week) |
 | `CLAUDE.md` | Architecture reference for AI sessions |
 
 ---
@@ -39,11 +41,12 @@ A summary table and rules audit print to the terminal — read it and fix any fl
 
 ## Weekly update checklist
 
-1. Copy last week's `avail_*.json`, `reqoff_*.json`, `forecast_*.json` → rename with the new Mon date.
-2. Update availability and req-off data for the new week.
-3. Update the `fx()` backbone block near the top of `solver2.py` for any manager schedule changes.
-4. Update the filename references inside `solver2.py` (search for `avail_6_29`).
-5. Run `python solver2.py` and read the audit output.
+Filenames are stable, so there's nothing to rename and no code path to repoint:
+
+1. Overwrite `avail.json` and `reqoff.json` with the new week's data.
+2. Overwrite `forecast.json` (set `week_start` to the new Monday — that's where the date lives now).
+3. Update `backbone.py` for any backbone changes (manager schedules, who's fixed where, vacations).
+4. Run `python solver2.py` and read the audit output.
 
 ---
 

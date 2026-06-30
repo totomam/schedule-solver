@@ -5,10 +5,13 @@ MIP (Mixed Integer Programming) weekly shift scheduler for Paddock restaurant. U
 
 Primary file: `solver2.py`. Read `scheduling_rules.md` for the full business rules.
 
-## Input files (change each week)
-- `avail_6_29.json` — availability per person per day (array of 7 days)
-- `reqoff_6_29.json` — request-offs by day name
-- `forecast_6_29.json` — `{"allowed_hours": [Mon..Sun]}`
+## Input files (stable names — overwrite contents each week, no rename/code edit)
+- `avail.json` — availability per person per day (array of 7 days)
+- `reqoff.json` — request-offs by day name
+- `forecast.json` — `{"week_start": "YYYY-MM-DD", "allowed_hours": [Mon..Sun], ...}`. The week's
+  date lives here in `week_start` (feeds the Excel headers), so the filenames never carry a date.
+- `stress_avail.json` / `stress_reqoff.json` / `stress_forecast.json` — frozen baseline for
+  `test_protocol.py` (NOT the live week; deliberately fixed so the stress suite is reproducible).
 
 ## Key design decisions
 
@@ -71,8 +74,8 @@ forecast). Everything below is **Claude's job** — do not ask the human to edit
 run the solver; that's the whole point of this split.
 
 Given the new inputs, Claude:
-1. Adds the new dated JSONs and points the solver at them — set `_AVAIL_FILE`/`_REQOFF_FILE`/`_FORECAST_FILE`
-   in `solver2.py` (or pass `SCHED_AVAIL`/`SCHED_REQOFF`/`SCHED_FORECAST`) to the new files.
+1. Overwrites `avail.json` / `reqoff.json` / `forecast.json` with the new week's contents (set
+   `week_start` in `forecast.json`). Filenames are stable — no rename, no code edit to point at them.
 2. **Derives and updates the backbone in `backbone.py`** from those inputs + `scheduling_rules.md`:
    `STATIC_BACKBONE` for non-managers (who's fixed to which shift this week — e.g. anyone on vacation
    gets no backbone), and `JAY_STD`/`JAY_OPEN`/`MYLES_STD`/`MGR_OFFDAY_SHIFT` for the managers' standard

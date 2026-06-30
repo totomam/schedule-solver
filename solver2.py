@@ -13,9 +13,11 @@ _base = _OUT[:-5] if _OUT.endswith('.json') else _OUT
 _OUT_ACTIVE = _base + '_active.json'
 _THREADS=int(os.environ.get('SCHED_THREADS','0'))  # >0 enables HiGHS parallel B&B
 _HIGHS_SEED=int(os.environ.get('SCHED_HIGHS_SEED','-1'))  # -1 = HiGHS default
-_AVAIL_FILE    = os.environ.get('SCHED_AVAIL',    'avail_7_6.json')
-_REQOFF_FILE   = os.environ.get('SCHED_REQOFF',   'reqoff_7_6.json')
-_FORECAST_FILE = os.environ.get('SCHED_FORECAST', 'forecast_7_6.json')
+# Stable, date-free input filenames — overwrite these each week (the week's date lives
+# inside forecast.json as "week_start"), so no code edit is needed per week.
+_AVAIL_FILE    = os.environ.get('SCHED_AVAIL',    'avail.json')
+_REQOFF_FILE   = os.environ.get('SCHED_REQOFF',   'reqoff.json')
+_FORECAST_FILE = os.environ.get('SCHED_FORECAST', 'forecast.json')
 with open(_AVAIL_FILE)    as _f: av=json.load(_f)
 with open(_REQOFF_FILE)   as _f: req=json.load(_f)
 with open(_FORECAST_FILE) as _f: fc=json.load(_f)
