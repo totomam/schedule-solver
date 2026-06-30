@@ -257,7 +257,7 @@ From highest to lowest, what the solver protects first:
 - The only people scheduled before 9am: **Jay** (Mon 6a), **Bowen** (8a Mon-Fri), **Gobi** (Saturday 8a), **Trinity** (Saturday, if needed), **James** (Sunday 8a). No one else.
 
 ### Morning starts
-- Stagger the openers: **exactly 3 people in by 9:00, counting Bowen's 8a anchor** (Mon–Fri = Bowen + 2 others at 9:00; weekends = 3 others at 9:00), then stagger the remaining 2 at 9:15a, 9:30a, 9:45a, or 10a. **No starts between 10:00 and 11:00** — the next slot after 10:00 is 11:00.
+- Opener count and start-time stagger: see **§5 → Openers** (the single source for the 3-in-by-9 / 2-staggered-to-10 rule and the 10:01–10:59 ban). The notes below add only the staffing detail.
 - At least one prep person (Michael, Tiffany, Noah, Gracelyn, Molly; Reilly = dough on Sunday) should be among the 9:00 starters.
 - Bowen anchors morning at 8a (set schedule)
 
@@ -266,9 +266,8 @@ From highest to lowest, what the solver protects first:
 - Use 3p, 3:30p, 4p, 4:30p, 5p, 5:30p starts
 
 ### Openers — cap (not counting Jay)
-- An opener is anyone who starts work at or before 10:00am. **Jay never counts toward the opener total on any day.**
-- Cap is 5 openers every day (not counting Jay). Don't exceed 5 for the day.
-- If a day is running over, push the extra early-starters to an 11am start — they still cover lunch and dinner, they're just no longer openers. (Nothing may start 10:01–10:59; the next slot is 11:00.)
+- The definition (start ≤10am, Jay never counts) and the hard floor/ceiling of 5 live in **§5 → Openers**.
+- If a day is running over 5, push the extra early-starters to an 11am start — they still cover lunch and dinner, they're just no longer openers. (Nothing may start 10:01–10:59; the next slot is 11:00.)
 
 ### Afternoon headcount (2pm / 3pm / 4pm) — HARD TARGETS
 - **These are hard targets to hit exactly, not a guide:**
@@ -354,7 +353,7 @@ When building a new schedule:
    - [ ] Molly never past 5pm
    - [ ] 2/3/4pm hard targets hit exactly (Mon-Thu 8/6/5; Fri 8/7/6; Sat 9/8/7; Sun 11/8/6)
    - [ ] Lunch ≥ hard floor (Mon–Thu 9, Fri/Sat/Sun 10; Sun aims 11); dinner ≥ hard floor (Sun 10, aims 11)
-   - [ ] Openers (Jay never counts): hard 5/day, 3 in by 9:00 (Bowen counts; Mon–Fri = Bowen + 2). No starts 10:01–10:59. Closers target 5/day (6 Fri/Sat/Sun) — graduated penalty, a thin day may sit 1 below
+   - [ ] Openers (Jay never counts): hard 5/day, 3 in by 9:00 (Bowen-counts detail in §5 → Openers). No starts 10:01–10:59. Closers target 5/day (6 Fri/Sat/Sun) — graduated penalty, a thin day may sit 1 below
    - [ ] Every available person gets at least one shift
    - [ ] Weekly total variance lands in the +25 to +30 range (paid hours over allowed)
    - [ ] No shift under 4h
