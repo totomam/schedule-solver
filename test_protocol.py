@@ -20,7 +20,8 @@ What it does:
 import json, os, random, re, subprocess, sys, time
 from pathlib import Path
 
-from backbone import STATIC_BACKBONE, early_ok, PB, NO_BREAK, FT_NONLEADER, TEN_HR
+from backbone import (STATIC_BACKBONE, early_ok, PB, NO_BREAK, FT_NONLEADER, TEN_HR, rest_floor,
+                      LATEST_END)
 
 # ── Config ──────────────────────────────────────────────────────────────────────────
 SEED    = int(os.environ.get('TEST_SEED',  str(random.randint(0, 2**31 - 1))))
@@ -131,8 +132,8 @@ def _max_achievable_raw(person: str, reqoff: dict) -> float:
         lo, hi = (6.0, 23.0) if w in ('any', 'open') else (float(w[0]), float(w[1]))
         if not early_ok(person, d):
             lo = max(lo, 9.0)
-        if person == 'Molly Summers':
-            hi = min(hi, 17.0)
+        if person in LATEST_END:
+            hi = min(hi, float(LATEST_END[person]))
         day_win.append(('free', lo, hi))
 
     # DP: state (prev_end, used) -> best total hours. prev_end == 0.0 means prev day was off.
@@ -148,17 +149,17 @@ def _max_achievable_raw(person: str, reqoff: dict) -> float:
             relax((0.0, used), tot)              # option: don't work day d
             if used >= limit or win is None:
                 continue
-            rest_floor = prev_end - 12.0 if prev_end >= 21.0 else 0.0  # 12h close→open rule
+            rfloor = rest_floor(prev_end)        # 12h close→open rule (shared with the solver)
             if win[0] == 'fixed':
                 a, b = win[1], win[2]
-                if a < rest_floor - 1e-9:
+                if a < rfloor - 1e-9:
                     continue                     # backbone close-then-open rest violation
                 length = min(b - a, max_shift)
                 if length >= 4.0 - 1e-9:
                     relax((b, used + 1), tot + length)
             else:                                # 'free': start as early as the rest rule allows
                 _, lo, hi = win
-                a = max(lo, rest_floor)
+                a = max(lo, rfloor)
                 if hi - a < 4.0 - 1e-9:
                     continue
                 b = a + 4.0
