@@ -170,7 +170,11 @@ for n in people:
 # helpers don't rebuild the people x shifts cross product on every call.
 SD={d:[(n,i,a,b,paid_val(n,a,b)) for n in people for i,(a,b) in enumerate(shifts[(n,d)])] for d in range(7)}
 _trio={'Gobi Weathers','James Baker','Trinity Stringer'}
-_no_early={'Jay Martin','Bowen Benedict'}
+# Excluded from the "3 start at 9am" stagger target (see stag9 below). Only Jay: he's the
+# manager backstop opener (starts ≤9 when no other PB can open), not regular 9am floor staff.
+# Bowen IS counted — his fixed 8am start fills one of the three 9am slots, so Mon–Fri the
+# stagger needs only 2 more 9am starts (Bowen + 2 nines), leaving 2 openers at 10am.
+_no_early={'Jay Martin'}
 # OPT: pre-filter SD[d] into named variable lists once; the constraint loop then calls lpSum on a
 # short pre-filtered list instead of scanning all SD[d] entries with a lambda predicate each time.
 _SDF={}
@@ -318,7 +322,7 @@ for d in range(7):
             _sc(_e,_ceil, f's{_key}c_{d}')
     if _SDF[d,'e2225']:
         _sc(pulp.lpSum(_SDF[d,'e2225']),1,f'se2225c_{d}')
-    if _SDF[d,'stag9']:                                              # exactly 3 start at 9:00
+    if _SDF[d,'stag9']:    # exactly 3 in by 9am (Mon–Fri: Bowen + 2 others; weekends: 3 others)
         _stag9=pulp.lpSum(_SDF[d,'stag9'])
         _sc(_stag9, 3, f'sstag9_{d}'); _sf(_stag9, 3, f'sstag9f_{d}')
     for _key in ('la1725','la175','la1775','la18'):
