@@ -115,7 +115,7 @@ Complete reference for building the weekly schedule. Given availability sheet, r
 ### Openers (people working at or before 10am)
 - **Jay is NEVER counted as an opener, on any day** (admin time). All opener counts and targets below exclude Jay. The summary chart's "Open" column also excludes Jay, so the printed number matches these targets.
 - **HARD 5 openers every day, Monday through Sunday (not counting Jay).** This is now a hard floor enforced by the solver: it must field 5 openers (start ≤10am) each day or report the week infeasible. The soft ceiling also holds at 5, so the count is effectively exactly 5.
-- **Stagger opener start times to lower labor.** Have **exactly 3 people start at 9:00**, then stagger the remaining 2 across **9:15, 9:30, 9:45, 10:00**. This trims paid hours off the slow early-morning window while still ramping coverage into the lunch build.
+- **Stagger opener start times to lower labor.** Have **exactly 3 people in by 9:00, counting Bowen's 8a anchor** (so Mon–Fri that's Bowen + 2 others at 9:00; on weekends when Bowen is off it's 3 others at 9:00), then stagger the remaining 2 openers across **9:15, 9:30, 9:45, 10:00**. This trims paid hours off the slow early-morning window while still ramping coverage into the lunch build.
 - **No one may start between 10:00am and 11:00am.** Openers must be in by 10:00; the next valid start slot is 11:00am. Starts at 10:15, 10:30, and 10:45 are banned.
 
 ### Lunch (people working at noon)
@@ -257,7 +257,7 @@ From highest to lowest, what the solver protects first:
 - The only people scheduled before 9am: **Jay** (Mon 6a), **Bowen** (8a Mon-Fri), **Gobi** (Saturday 8a), **Trinity** (Saturday, if needed), **James** (Sunday 8a). No one else.
 
 ### Morning starts
-- Stagger the openers: **exactly 3 people start at 9:00** (plus Bowen's 8a anchor on weekdays), then stagger the remaining 2 at 9:15a, 9:30a, 9:45a, or 10a. **No starts between 10:00 and 11:00** — the next slot after 10:00 is 11:00.
+- Stagger the openers: **exactly 3 people in by 9:00, counting Bowen's 8a anchor** (Mon–Fri = Bowen + 2 others at 9:00; weekends = 3 others at 9:00), then stagger the remaining 2 at 9:15a, 9:30a, 9:45a, or 10a. **No starts between 10:00 and 11:00** — the next slot after 10:00 is 11:00.
 - At least one prep person (Michael, Tiffany, Noah, Gracelyn, Molly; Reilly = dough on Sunday) should be among the 9:00 starters.
 - Bowen anchors morning at 8a (set schedule)
 
@@ -354,7 +354,7 @@ When building a new schedule:
    - [ ] Molly never past 5pm
    - [ ] 2/3/4pm hard targets hit exactly (Mon-Thu 8/6/5; Fri 8/7/6; Sat 9/8/7; Sun 11/8/6)
    - [ ] Lunch ≥ hard floor (Mon–Thu 9, Fri/Sat/Sun 10; Sun aims 11); dinner ≥ hard floor (Sun 10, aims 11)
-   - [ ] Openers (Jay never counts): hard 5/day, 3 starting at 9:00. No starts 10:01–10:59. Closers target 5/day (6 Fri/Sat/Sun) — graduated penalty, a thin day may sit 1 below
+   - [ ] Openers (Jay never counts): hard 5/day, 3 in by 9:00 (Bowen counts; Mon–Fri = Bowen + 2). No starts 10:01–10:59. Closers target 5/day (6 Fri/Sat/Sun) — graduated penalty, a thin day may sit 1 below
    - [ ] Every available person gets at least one shift
    - [ ] Weekly total variance lands in the +25 to +30 range (paid hours over allowed)
    - [ ] No shift under 4h
