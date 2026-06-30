@@ -2,7 +2,8 @@ import json, math, pulp, os
 from collections import defaultdict
 from datetime import datetime, timedelta
 from backbone import (STATIC_BACKBONE, JAY_STD, JAY_OPEN, MYLES_STD, MGR_OFFDAY_SHIFT, early_ok,
-                      PB, NO_BREAK, FT_NONLEADER, TEN_HR)
+                      PB, NO_BREAK, FT_NONLEADER, TEN_HR, LATE_CLOSE, rest_floor, rest_conflict,
+                      LATEST_END, WEAK5_MAX_DAYS, MUST_CLOSE_AT, EXTRA_SHIFTS)
 
 # === CONFIG ===
 _OUT = os.environ.get('SCHED_OUT', 'schedule.json')   # tests set SCHED_OUT to write elsewhere
@@ -98,11 +99,10 @@ def gen(n,d):
     if not w: return []
     lo,hi=w; out=[]; maxlen=10 if n in TEN_HR else 8
     if not early_ok(n, d): lo=max(lo,9)
-    # Molly never works past 5pm
-    if n=='Molly Summers': hi=min(hi,17)
-    # Adam's 10h standard shift: 1pm-11pm. 13:00 is in the ANCH dead zone so add it explicitly.
-    if n=='Adam Van Bogaert' and lo<=13.0 and hi>=23.0:
-        out.append((13.0, 23.0))
+    if n in LATEST_END: hi=min(hi, LATEST_END[n])   # e.g. Molly never works past 5pm
+    # Seed any fixed shifts the anchor grid can't generate (e.g. Adam's 1pm-11pm: 13:00 is a dead-zone start)
+    for (_sa,_sb) in EXTRA_SHIFTS.get(n, []):
+        if lo<=_sa and _sb<=hi: out.append((_sa,_sb))
     for a in ANCH_START:
         if a<lo or a>hi-4: continue
         # No starts strictly between 10am and 11am: openers must be in by 10:00,
@@ -115,8 +115,8 @@ def gen(n,d):
             # (evening departures land only at 8:00, 8:30, or 9:00+). 6:00pm & 8:00pm ok.
             # Also no one may end before 2pm (before 3pm on Sunday) — hard rule, no exceptions.
             if L<4 or L>maxlen or (18 < b < 20) or b in (20.25, 20.75): continue
-            # Adam always ends at 11pm (set pattern)
-            if n=='Adam Van Bogaert' and b!=23.0: continue
+            # Fixed closers (e.g. Adam) only ever end at their set close time
+            if n in MUST_CLOSE_AT and b!=MUST_CLOSE_AT[n]: continue
             # All PB (shift leaders AND managers): if closing (end ≥10pm), must end at exactly 11pm
             if n in PB and b>=22 and b!=23.0: continue
             min_end = 15 if d==6 else 14   # Sunday: nobody leaves before 3pm; else 2pm
@@ -328,76 +328,80 @@ for d in range(7):
 for n in people:
     prob += pulp.lpSum(x[(n,d,i)] for d in range(7) for i in range(len(shifts[(n,d)])))<=5
 hours_expr = {n: pulp.lpSum(x[(n,d,i)]*(b-a) for d in range(7) for i,(a,b) in enumerate(shifts[(n,d)])) for n in people}
-if len(avail_days('Trinity Stringer')) >= math.ceil(39/8):
-    _sh(hours_expr['Trinity Stringer'],40,'Trinity_Stringer',afl=39)
-if len(avail_days('Gobi Weathers')) >= math.ceil(37/8):
-    _sh(hours_expr['Gobi Weathers'],38,'Gobi_Weathers',afl=37)
+# Per-person weekly RAW-hour floors — the SINGLE source used by BOTH the floor constraints
+# below and the above-floor incentive (_floor_map). Edit a target here and both pick it up.
+_FLOOR = {n: 33 for n in FT_NONLEADER}
+_FLOOR['Adam Van Bogaert'] = 40                 # Adam: exact-40h closer (cap == floor, see below)
+_FLOOR.update({n: 20 for n in strong_PT})
+_FLOOR.update({n: 12 for n in regular_PT})
+_FLOOR.update({n: 4 for n in weak5})
+_FLOOR.update({'Zac Duffy': 30, 'Trinity Stringer': 39, 'Gobi Weathers': 37,
+               'James Baker': 40, 'Mary Dean': 39, 'Myles Palmer': 45, 'Jay Martin': 45})
+if len(avail_days('Trinity Stringer')) >= math.ceil(_FLOOR['Trinity Stringer']/8):
+    _sh(hours_expr['Trinity Stringer'],_FLOOR['Trinity Stringer']+1,'Trinity_Stringer',afl=_FLOOR['Trinity Stringer'])
+if len(avail_days('Gobi Weathers')) >= math.ceil(_FLOOR['Gobi Weathers']/8):
+    _sh(hours_expr['Gobi Weathers'],_FLOOR['Gobi Weathers']+1,'Gobi_Weathers',afl=_FLOOR['Gobi Weathers'])
 for n in FT_NONLEADER:
-    if n == 'Adam Van Bogaert':
-        prob += hours_expr[n]<=40
+    if n == 'Adam Van Bogaert':                 # exact hours: cap == floor
+        prob += hours_expr[n]<=_FLOOR[n]
         if len(avail_days(n)) >= 4:
-            prob += hours_expr[n] >= 40
+            prob += hours_expr[n] >= _FLOOR[n]
         else:
-            _sh(hours_expr[n], 40, 'Adam_Van_Bogaert')
+            _sh(hours_expr[n], _FLOOR[n], 'Adam_Van_Bogaert')
         continue
     prob += hours_expr[n]<=40
-    floor = 33
+    floor = _FLOOR[n]
     max_per_day = 10.0 if n in TEN_HR else 8.0
     min_days = math.ceil(floor / max_per_day)
     if len(avail_days(n)) >= min_days:
         _sh(hours_expr[n],floor+1,n.replace(' ','_'),afl=floor)
 prob += hours_expr['Zac Duffy']<=35
-if len(avail_days('Zac Duffy')) >= math.ceil(30/10):
-    _sh(hours_expr['Zac Duffy'],31,'Zac_Duffy',afl=30)
+if len(avail_days('Zac Duffy')) >= math.ceil(_FLOOR['Zac Duffy']/10):
+    _sh(hours_expr['Zac Duffy'],_FLOOR['Zac Duffy']+1,'Zac_Duffy',afl=_FLOOR['Zac Duffy'])
 for n in regular_PT:
     max_pd = 10.0 if n in TEN_HR else 8.0
-    if len(avail_days(n)) >= math.ceil(12/max_pd):
-        _sh(hours_expr[n],12,n.replace(' ','_'),hi=False)
+    if len(avail_days(n)) >= math.ceil(_FLOOR[n]/max_pd):
+        _sh(hours_expr[n],_FLOOR[n],n.replace(' ','_'),hi=False)
 _capped40 = FT_NONLEADER | {'Zac Duffy'}  # already have explicit caps above
 for n in people:
     if n in ('Jay Martin','Myles Palmer') or n in _capped40: continue
     prob += hours_expr[n]<=40
 if len(avail_days('Myles Palmer')) >= 5:
-    prob += hours_expr['Myles Palmer'] >= 45  # hard — solver works off-days to compensate
+    prob += hours_expr['Myles Palmer'] >= _FLOOR['Myles Palmer']  # hard — solver works off-days to compensate
 else:
-    _sh(hours_expr['Myles Palmer'], 46, 'Myles_Palmer', afl=45)  # soft if heavily req'd off
+    _sh(hours_expr['Myles Palmer'], _FLOOR['Myles Palmer']+1, 'Myles_Palmer', afl=_FLOOR['Myles Palmer'])  # soft if heavily req'd off
 prob += hours_expr['Myles Palmer']<=52
 if len(avail_days('Jay Martin')) >= 5:
-    prob += hours_expr['Jay Martin'] >= 45  # hard — solver works off-days to compensate
+    prob += hours_expr['Jay Martin'] >= _FLOOR['Jay Martin']  # hard — solver works off-days to compensate
 else:
-    _sh(hours_expr['Jay Martin'], 46, 'Jay_Martin', afl=45)  # soft if heavily req'd off
+    _sh(hours_expr['Jay Martin'], _FLOOR['Jay Martin']+1, 'Jay_Martin', afl=_FLOOR['Jay Martin'])  # soft if heavily req'd off
 prob += hours_expr['Jay Martin']<=54
 if len(avail_days('James Baker')) >= 5:
-    prob += hours_expr['James Baker'] >= 40
+    prob += hours_expr['James Baker'] >= _FLOOR['James Baker']
 else:
-    _sh(hours_expr['James Baker'], 40, 'James_Baker')
-if len(avail_days('Mary Dean')) >= math.ceil(39/8):
-    _sh(hours_expr['Mary Dean'],40,'Mary_Dean',afl=39)
+    _sh(hours_expr['James Baker'], _FLOOR['James Baker'], 'James_Baker')
+if len(avail_days('Mary Dean')) >= math.ceil(_FLOOR['Mary Dean']/8):
+    _sh(hours_expr['Mary Dean'],_FLOOR['Mary Dean']+1,'Mary_Dean',afl=_FLOOR['Mary Dean'])
 prob += hours_expr['Gracelyn Dailey']<=30
 for n in strong_PT:
     max_pd = 10.0 if n in TEN_HR else 8.0
-    if len(avail_days(n)) >= math.ceil(20/max_pd):
-        _sh(hours_expr[n],20,n.replace(' ','_'),hi=False)
+    if len(avail_days(n)) >= math.ceil(_FLOOR[n]/max_pd):
+        _sh(hours_expr[n],_FLOOR[n],n.replace(' ','_'),hi=False)
 for n in weak5:
     if len(avail_days(n)) >= 1:
-        _sh(hours_expr[n],4,n.replace(' ','_'),hi=False)
-# weak5: prefer 1 day each. Hard cap 2 days; Bryan capped at 1.
+        _sh(hours_expr[n],_FLOOR[n],n.replace(' ','_'),hi=False)
+# weak5: prefer 1 day each. Default hard cap 2 days; per-person overrides in WEAK5_MAX_DAYS.
 for n in weak5:
-    cap = 1 if n == 'Bryan Bishop' else 2
+    cap = WEAK5_MAX_DAYS.get(n, 2)
     prob += pulp.lpSum(x[(n,d,i)] for d in range(7) for i in range(len(shifts[(n,d)]))) <= cap
 
 # Per-person above-floor incentive: small penalty for hours exceeding individual floor.
 # Nudges the solver to stay near each floor without a hard ceiling — if coverage or another
 # person's floor demands the extra hours, the penalty yields (it's << _HPEN).
+# (Adam is excluded — his hours are pinned to exactly 40, so an incentive term is a no-op.)
 _AFLOOR_PEN = 5
 _afloor_terms = []
-_floor_map = ([(n,33) for n in FT_NONLEADER if n!='Adam Van Bogaert']
-            + [(n,20) for n in strong_PT]
-            + [(n,12) for n in regular_PT]
-            + [(n, 4) for n in weak5]
-            + [('Zac Duffy',30),('Trinity Stringer',39),('Gobi Weathers',37),
-               ('James Baker',40),('Mary Dean',39),
-               ('Myles Palmer',45),('Jay Martin',45)])
+_floor_map = [(n, fl) for n, fl in _FLOOR.items() if n != 'Adam Van Bogaert']
 for _n, _fl in _floor_map:
     _ov = pulp.LpVariable(f'ovf_{pidx[_n]}', lowBound=0)
     prob += _ov >= hours_expr[_n] - _fl
@@ -414,12 +418,12 @@ for n in people:
     for d in range(6):
         nxt = shifts[(n,d+1)]
         if not nxt: continue
-        # group day-d shifts by close-end time (only closes b1>=21 can ever conflict)
+        # group day-d shifts by close-end time (only late closes can ever conflict)
         by_end = defaultdict(list)
         for i,(a1,b1) in enumerate(shifts[(n,d)]):
-            if b1 >= 21: by_end[b1].append(i)
+            if b1 >= LATE_CLOSE: by_end[b1].append(i)
         for b1, idxs in by_end.items():
-            thresh = b1 - 12  # next-day starts strictly below this conflict
+            thresh = rest_floor(b1)  # next-day starts strictly below this conflict
             early = [j for j,(a2,b2) in enumerate(nxt) if a2 < thresh]
             if not early: continue
             # all of (these closes) + (these early next-day shifts) can host at most ONE selection,
@@ -571,7 +575,7 @@ _fails=[]
 for n in people:
     for d in range(6):
         s0=sol[n][d]; s1=sol[n][d+1]
-        if s0 and s1 and s0[1]>21 and s1[0]<s0[1]-12:
+        if s0 and s1 and rest_conflict(s0[1], s1[0]):
             _fails.append(f"12h: {n} {dn[d]}end={s0[1]} {dn[d+1]}start={s1[0]}")
 # Leader open and close each day
 for d in range(7):

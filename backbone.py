@@ -64,3 +64,25 @@ def early_ok(person, d):
     return (person in ('Jay Martin', 'Bowen Benedict')
             or (person in ('Gobi Weathers', 'Trinity Stringer') and d == 5)
             or (person == 'James Baker' and d == 6))
+
+
+# ── Per-person special constraints (collected here so they're visible in one place) ──
+LATEST_END = {'Molly Summers': 17}            # never scheduled to end after this hour
+WEAK5_MAX_DAYS = {'Bryan Bishop': 1}          # overrides the default weak5 cap of 2 days/week
+# Adam Van Bogaert works a fixed 1pm–11pm closing pattern:
+MUST_CLOSE_AT = {'Adam Van Bogaert': 23.0}    # when working, the shift must END exactly here
+EXTRA_SHIFTS  = {'Adam Van Bogaert': [(13.0, 23.0)]}  # seed shifts the anchor grid can't make
+                                                       # (13:00 is a dead-zone start time)
+
+# ── 12-hour close-then-open rest rule (one definition for the constraint, audit, and test) ──
+REST_HOURS = 12   # required rest between a late close and the next day's opening shift
+LATE_CLOSE = 21   # a shift ending at/AFTER this (9pm) is a "late close" that triggers the rule
+
+def rest_floor(prev_close_end):
+    """Earliest the NEXT day may start, given the previous day ended at prev_close_end.
+    A close at/after LATE_CLOSE forces a start ≥ end − REST_HOURS; otherwise no restriction (0)."""
+    return prev_close_end - REST_HOURS if prev_close_end >= LATE_CLOSE else 0.0
+
+def rest_conflict(prev_close_end, next_start):
+    """True if ending at prev_close_end then starting at next_start the next day breaks the rule."""
+    return next_start < rest_floor(prev_close_end)
