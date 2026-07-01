@@ -20,12 +20,13 @@ Most coverage uses penalised slack variables (`_CPEN=500`) so the feasible regio
 
 **Hard floors** (`_hardfloor` → infeasible, a real fail, if unmet — the solver never returns a schedule that misses them):
 - Lunch floor `Ltar=[9,9,9,9,10,10,10]`; dinner floor `Dhard=[10,10,10,11,14,13,10]`; openers `Otar=5`/day. Plus manager ≥45 and the weekly paid-hours bounds.
+- Trio cap: at most 1 of `_trio` (Gobi/James/Trinity/Mary Dean) closes per day — hard, not penalised. A soft ceiling here was proven (stress testing) to get silently traded away for a marginally better coverage-ceiling fit even when a fully-compliant alternative existed at equal cost.
 
 **Soft targets above those floors** (penalised, not hard):
 - Sunday lunch aims for 11 (`Lsoft`, `_LUNCHPEN=800`); Sunday dinner aims for 11 (`Dtar`, `_DINPEN=300`).
 - Closers: graduated — `_CLOSE_SMALL=300` for 1 below `Ctar` (5 wk/6 wknd), `_CLOSE_MASSIVE=4000` for 2+ below (basically never).
 
-Priority order: `hard floors >> CLOSE_MASSIVE(4000) > LUNCH(800) > DIN(790) > ceilings(_CPEN 500) > CLOSE_SMALL(300)`. Dinner→11 ranks just below the lunch push, above the afternoon ceilings and the 6th closer, but below the massive closer floor — so a thin Sunday protects dinner 11 ahead of those, yet never drops closers to 4 to get it.
+Priority order: `hard floors >> CLOSE_MASSIVE(4000) > LUNCH(800) > DIN(790) > HPEN_HI(510) > ceilings(_CPEN 500) > CLOSE_SMALL(300) > HPEN_LO(150)`. Dinner→11 ranks just below the lunch push, above the afternoon ceilings and the 6th closer, but below the massive closer floor — so a thin Sunday protects dinner 11 ahead of those, yet never drops closers to 4 to get it. `HPEN_HI` (shift-leader/FT-nonleader hours floor) sits just above the generic coverage ceilings — deliberately, after stress testing showed an achievable leader/FT hours floor was occasionally sacrificed to avoid a trivial coverage-ceiling nick when it sat below.
 
 ### Pre-filtered variable lists (`_SDF`)
 Built once before the constraint loop at `# === MIP VARIABLES ===`. Maps `(day, tag) → list[LpVariable]`. Grep that section for full tag list.
@@ -41,7 +42,7 @@ All others: paid = raw − 0.5 if raw ≥ 5h, else raw.
 All `hi=True` penalty targets are set +1h above the real floor (e.g. floor=39 → penalty target=40). The `afl=` param stores the real floor for audit display. Absorbs ~0.75h gapRel undershoot so early-stop never reports a false miss.
 
 ### Objective (minimise)
-`5000*zero_pen + 8*weak_use + 0.3*short_pref + 30*mgr_offday + 500*cov_slk + 4000*close_massive + 800*lunch_slk + 790*din_slk + 300*close_small + 490*hrs_hi_slk + 150*hrs_lo_slk` (+ small per-person above-floor nudge)
+`5000*zero_pen + 8*weak_use + 0.3*short_pref + 30*mgr_offday + 500*cov_slk + 4000*close_massive + 800*lunch_slk + 790*din_slk + 300*close_small + 510*hrs_hi_slk + 150*hrs_lo_slk` (+ small per-person above-floor nudge). The trio cap (at most 1 of Gobi/James/Trinity/Mary Dean closing per day) is a hard constraint, not part of this objective.
 - Weekly paid hours hard-bounded to `[sum(allowed)+25, sum(allowed)+30]`
 - `zero_pen` — big penalty if any available person gets 0 shifts
 - `weak_use` — discourage weak5 extra shifts
@@ -63,7 +64,7 @@ All `hi=True` penalty targets are set +1h above the real floor (e.g. floor=39 �
 - `FT_nonleader` — Adam Van Bogaert, Mason Doyle, Michael Calderon, Molly Summers, Noah Hiner, Ava Shade, Izzy Simpson, Remi Sullinger, Reilly Weakley (33–40h target)
 - `strong_PT` — Gracelyn Dailey, Cai Cotton, Sandy Wright, Kara Thompson, Nathan Paaswee, Peyton Shaw, Reese Bezehertny (20h target)
 - `regular_PT` — Amiyah Bartley, Harper Flynn, Jonathan Beacham, Hayden Roush, Logan Frias, Kayden Anderson, Richard Raglin, Ryder (12h target)
-- `_trio` — Gobi, James, Trinity (at most 1 closes per day)
+- `_trio` — Gobi, James, Trinity, Mary Dean (at most 1 closes per day — hard constraint)
 
 ## Session preferences
 
