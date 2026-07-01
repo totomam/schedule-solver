@@ -63,6 +63,17 @@ All `hi=True` penalty targets are set +1h above the real floor (e.g. floor=39 �
 
 `gapRel=0.25`: HiGHS finds its best solution at ~83s via Sub-MIP heuristic and never improves it; only the dual bound moves. MIP gap is structurally ~18-22% so gapRel=0.01 always hit the 240s limit. gapRel=0.25 exits at ~90s — same schedule, 62% faster.
 
+### Infeasibility diagnostic
+When the main solve is `Infeasible`, every tagged hard coverage floor (`_hard_diag_log` — lunch,
+dinner, opener count, PB opener/closer, closer floor, the exact-3@9/exact-2@10 equalities) is
+replayed as a soft constraint on the *same* `prob` object, the objective is swapped to "minimize
+total shortfall", and it's re-solved once (capped at 60s). This isolates exactly which floor(s)
+and day(s) are the real blocker and prints it in the `FATAL` message — no schedule is ever written
+from this pass, it's purely diagnostic. Scope is coverage floors only: if the true blocker
+involves something outside that set (the per-day/weekly paid-hours bands, per-person hour
+equalities, shift-count caps, the 12h rest rule), the diagnostic re-solve stays Infeasible too and
+says so explicitly ("Diagnostic inconclusive... outside coverage floors") rather than guessing.
+
 ## People groups
 - `PB` — shift leaders + managers: Jay Martin, Myles Palmer, Bowen Benedict, James Baker, Trinity Stringer, Gobi Weathers, Mary Dean
 - `NO_BREAK` — Jay + Myles (no break deduction)
