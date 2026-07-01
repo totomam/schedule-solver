@@ -20,7 +20,10 @@ Most coverage uses penalised slack variables (`_CPEN=500`) so the feasible regio
 
 **Hard floors** (`_hardfloor` → infeasible, a real fail, if unmet — the solver never returns a schedule that misses them):
 - Lunch floor `Ltar=[9,9,9,9,10,10,10]`; dinner floor `Dhard=[10,10,10,11,14,13,10]`; openers `Otar=5`/day. Plus manager ≥45 and the weekly paid-hours bounds.
-- Trio cap: at most 1 of `_trio` (Gobi/James/Trinity/Mary Dean) closes per day — hard, not penalised. A soft ceiling here was proven (stress testing) to get silently traded away for a marginally better coverage-ceiling fit even when a fully-compliant alternative existed at equal cost.
+- Trio-close rules (hard, not penalised — a soft ceiling here was proven by stress testing to get silently traded away for a marginally better coverage-ceiling fit even when a fully-compliant alternative existed at equal cost):
+  - **Mary Dean always closes when available.** Every non-backbone day she works is pruned to closing-only candidates, and a hard floor forces her to work all but 1 of her available days — so in practice she closes on `(available days − 1)`.
+  - **James Baker never closes alongside Mary Dean.**
+  - Absent Mary (she's off/unavailable that day), the original cap still holds: at most 1 of Gobi/James/Trinity closes. When Mary *is* closing, Gobi and Trinity may freely join her — only James is excluded.
 
 **Soft targets above those floors** (penalised, not hard):
 - Sunday lunch aims for 11 (`Lsoft`, `_LUNCHPEN=800`); Sunday dinner aims for 11 (`Dtar`, `_DINPEN=300`).
@@ -64,7 +67,7 @@ All `hi=True` penalty targets are set +1h above the real floor (e.g. floor=39 �
 - `FT_nonleader` — Adam Van Bogaert, Mason Doyle, Michael Calderon, Molly Summers, Noah Hiner, Ava Shade, Izzy Simpson, Remi Sullinger, Reilly Weakley (33–40h target)
 - `strong_PT` — Gracelyn Dailey, Cai Cotton, Sandy Wright, Kara Thompson, Nathan Paaswee, Peyton Shaw, Reese Bezehertny (20h target)
 - `regular_PT` — Amiyah Bartley, Harper Flynn, Jonathan Beacham, Hayden Roush, Logan Frias, Kayden Anderson, Richard Raglin, Ryder (12h target)
-- `_trio` — Gobi, James, Trinity, Mary Dean (at most 1 closes per day — hard constraint)
+- `_trio` — Gobi, James, Trinity, Mary Dean: Mary always closes when available; James never closes with Mary; absent Mary, at most 1 of Gobi/James/Trinity closes (all hard — see "Constraint model" above)
 
 ## Session preferences
 

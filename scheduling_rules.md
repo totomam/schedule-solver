@@ -128,7 +128,9 @@ Complete reference for building the weekly schedule. Given availability sheet, r
   - **2+ below target (4 weekend / 3 weekday): massive penalty.** Basically never happens; flagged `CLOSER 2+ BELOW TARGET`.
 - The 6th weekend closer is only a *small* priority — it loses to the Sunday lunch-11 target and to the afternoon ceilings, so a thin weekend may sit at 5 closers by design.
 - Do not run *more* than the target — too many closers was a recurring problem (soft ceiling).
-- **Never have more than one of Gobi, James, Trinity, or Mary Dean closing on the same day (hard rule, enforced by the solver — not a preference).** If Gobi or Trinity is closing, move James to a mid or open shift (he does not close that day). At most one of the four closes per day.
+- **Mary Dean always closes on every day she's available, except 1 (hard rule, enforced by the solver — not a preference).** She works all but 1 of her available days, and every day she works is a close.
+- **James Baker never closes on the same day as Mary Dean (hard rule).** Move James to a mid or open shift instead — he does not close that day.
+- **Absent Mary (she's off that day), the old rule still applies: never more than one of Gobi, James, or Trinity closing the same day (hard rule).** When Mary *is* closing, Gobi and Trinity may freely join her — only James is excluded.
 
 ### Evening staffing floor (every day)
 - **9pm: at least 7 people still working past 9:00pm Mon–Thu and Sun.**
@@ -344,7 +346,7 @@ When building a new schedule:
    - [ ] All request-offs honored (cross-check against book line-by-line)
    - [ ] All shifts within each person's availability (cross-check avail sheet; verify Gracelyn's monthly calendar)
    - [ ] Every day has leader open (PB member ≤9am) AND close (PB member ≥10pm)
-   - [ ] At most ONE of Gobi/James/Trinity/Mary Dean closes per day (hard)
+   - [ ] Mary Dean closes all but 1 of her available days; James never closes with Mary; absent Mary, at most ONE of Gobi/James/Trinity closes per day (all hard)
    - [ ] No close-then-open under 12h (incl. leaders — Gobi opens Tue at 11a)
    - [ ] No hourly over 40h; Adam exactly 40 and always ends 11pm; FT non-leaders 33-40h; Zac 30-35h
    - [ ] No one starts before 9am except Jay/Bowen/Gobi(Sat)/Trinity(Sat)/James(Sun)
