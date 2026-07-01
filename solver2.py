@@ -158,6 +158,13 @@ for n in people:
             fa, fb = MGR_OFFDAY_SHIFT[(n,d)]
             std = [(a,b) for (a,b) in shifts[(n,d)] if round(a,2)==fa and round(b,2)==fb]
             if std: shifts[(n,d)] = std
+        # Mary Dean: whenever she works a non-backbone day, it must be a closing shift —
+        # her only backbone day (Saturday) is already a close, so this makes "if she works,
+        # she closes" true every day. The separate hard floor below then forces her to work
+        # all but 1 of her available days, so in practice she closes on (avail_days − 1) days.
+        if n == 'Mary Dean' and (n,d) not in fixed:
+            _mary_cl = [(a,b) for (a,b) in shifts[(n,d)] if b >= 22]
+            if _mary_cl: shifts[(n,d)] = _mary_cl
         for i in range(len(shifts[(n,d)])):
             x[(n,d,i)]=pulp.LpVariable(f'x_{pidx[n]}_{d}_{i}',cat='Binary')
 for (n,d) in fixed:
@@ -165,6 +172,14 @@ for (n,d) in fixed:
 for n in people:
     for d in range(7):
         if shifts[(n,d)]: prob += pulp.lpSum(x[(n,d,i)] for i in range(len(shifts[(n,d)])))<=1
+
+# Mary Dean must work all but 1 of her available days (every such day is a close, per the
+# shift-pruning above), so she effectively "always closes when available" within the generic
+# ≤5-shifts/week cap. avail_days already excludes req-offs/unavailable days (avwin is None).
+_mary_avail_days = [d for d in range(7) if shifts.get(('Mary Dean',d))]
+if len(_mary_avail_days) > 1:
+    prob += pulp.lpSum(x[('Mary Dean',d,i)] for d in _mary_avail_days
+                        for i in range(len(shifts[('Mary Dean',d)]))) >= len(_mary_avail_days) - 1
 
 # OPT: flatten the per-day (person, shift-index, start, end) tuples ONCE so the hot constraint
 # helpers don't rebuild the people x shifts cross product on every call.
@@ -202,7 +217,13 @@ for d in range(7):
     _SDF[d,'dep20'] =[x[(n,d,i)] for (n,i,a,b,pv) in sd if b==20.0 and n not in PB]
     _SDF[d,'dep205']=[x[(n,d,i)] for (n,i,a,b,pv) in sd if b==20.5 and n not in PB]
     _SDF[d,'dep14'] =[x[(n,d,i)] for (n,i,a,b,pv) in sd if b in (14,14.5)]
-    _SDF[d,'trio_cl']=[x[(n,d,i)] for (n,i,a,b,pv) in sd if n in _trio and b>=22]
+    # Per-person close indicators for the trio interaction (see the hard constraints below):
+    # Gobi/Trinity/Mary may close together freely; James may never close alongside Mary; absent
+    # Mary, the original at-most-1-of-Gobi/James/Trinity cap still applies.
+    _SDF[d,'cl_gobi']   =[x[(n,d,i)] for (n,i,a,b,pv) in sd if n=='Gobi Weathers' and b>=22]
+    _SDF[d,'cl_james']  =[x[(n,d,i)] for (n,i,a,b,pv) in sd if n=='James Baker' and b>=22]
+    _SDF[d,'cl_trinity']=[x[(n,d,i)] for (n,i,a,b,pv) in sd if n=='Trinity Stringer' and b>=22]
+    _SDF[d,'cl_mary']   =[x[(n,d,i)] for (n,i,a,b,pv) in sd if n=='Mary Dean' and b>=22]
     _SDF[d,'e2225'] =[x[(n,d,i)] for (n,i,a,b,pv) in sd if b==22.25]
     _SDF[d,'e225']  =[x[(n,d,i)] for (n,i,a,b,pv) in sd if b==22.5]
     _SDF[d,'e2275'] =[x[(n,d,i)] for (n,i,a,b,pv) in sd if b==22.75]
@@ -310,10 +331,17 @@ for d in range(7):
     if _SDF[d,'dep20']:   _sc(pulp.lpSum(_SDF[d,'dep20']),  _cap_8, f'sdep20_{d}')
     if _SDF[d,'dep205']:  _sc(pulp.lpSum(_SDF[d,'dep205']), 2,      f'sdep205_{d}')
     if _SDF[d,'dep14']:   _sc(pulp.lpSum(_SDF[d,'dep14']),  2,      f'sdep14_{d}')
-    # HARD: at most 1 of Gobi/James/Trinity/Mary Dean closes per day — no penalty tier, since
-    # a soft ceiling here was proven to get silently traded away by the solver for a marginally
-    # better coverage-ceiling fit even when a fully-compliant alternative existed at equal cost.
-    if _SDF[d,'trio_cl']: _hardfloor(-pulp.lpSum(_SDF[d,'trio_cl']), -1)
+    # HARD trio-close rules — no penalty tier, since a soft ceiling here was proven to get
+    # silently traded away by the solver for a marginally better coverage-ceiling fit even when
+    # a fully-compliant alternative existed at equal cost:
+    #  • James never closes alongside Mary Dean.
+    #  • Absent Mary (she's off or unavailable that day), the original at-most-1-of-
+    #    Gobi/James/Trinity cap still holds. When Mary IS closing, Gobi and Trinity may freely
+    #    join her — only James is excluded, by the constraint above.
+    _cl_g=pulp.lpSum(_SDF[d,'cl_gobi']); _cl_j=pulp.lpSum(_SDF[d,'cl_james'])
+    _cl_t=pulp.lpSum(_SDF[d,'cl_trinity']); _cl_m=pulp.lpSum(_SDF[d,'cl_mary'])
+    if _SDF[d,'cl_james'] and _SDF[d,'cl_mary']: prob += _cl_j + _cl_m <= 1
+    prob += _cl_g + _cl_j + _cl_t <= 1 + 2*_cl_m
     # Closer end-time staggering: 2x11pm, 2x10:30pm, 1x10:15pm, 1x10:45pm
     # e23 ceiling is 3 (not 2): shift leaders forced to 23.0 can fill 2 slots,
     # so a manager who also closes would push ceiling of 2 over. Allow 3.
@@ -603,10 +631,17 @@ for d in range(7):
         _fails.append(f"LeaderOpen: {dn[d]} no leader/manager opens")
     if not any(sol[n][d] and sol[n][d][1]>=22 for n in PB):
         _fails.append(f"LeaderClose: {dn[d]} no leader/manager closes")
-# Trio at most 1 close per day (now a hard constraint above; kept as a redundant safety net)
+# Trio-close rules (now hard constraints above; kept as a redundant safety net):
+# James never closes alongside Mary; absent Mary, at most 1 of Gobi/James/Trinity closes.
 for d in range(7):
-    tc=sum(1 for n in _trio if sol[n][d] and sol[n][d][1]>=22)
-    if tc>1: _fails.append(f"TrioClose: {dn[d]} {tc} of Gobi/James/Trinity/Mary Dean closing")
+    g = bool(sol['Gobi Weathers'][d] and sol['Gobi Weathers'][d][1]>=22)
+    j = bool(sol['James Baker'][d] and sol['James Baker'][d][1]>=22)
+    t = bool(sol['Trinity Stringer'][d] and sol['Trinity Stringer'][d][1]>=22)
+    m = bool(sol['Mary Dean'][d] and sol['Mary Dean'][d][1]>=22)
+    if j and m:
+        _fails.append(f"TrioClose: {dn[d]} James closing alongside Mary Dean")
+    elif not m and sum((g,j,t))>1:
+        _fails.append(f"TrioClose: {dn[d]} {sum((g,j,t))} of Gobi/James/Trinity closing without Mary")
 # Overtime check — all hours-under is reported via HoursUnder (_hrs_slk) below
 for n in people:
     raw=sum(sol[n][d][1]-sol[n][d][0] for d in range(7) if sol[n][d])
