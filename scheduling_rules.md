@@ -89,7 +89,7 @@ Complete reference for building the weekly schedule. Given availability sheet, r
 - Example: 11pm close → 10am next day open = ❌ (only 11h)
 
 ### Leader coverage
-- **Every day MUST have a shift leader or manager opening AND closing**
+- **Every day MUST have a shift leader or manager opening AND closing — a hard floor, enforced by the solver (infeasible if unmet), not a preference.**
 - Opening = a PB member working at or before 9am
 - Closing = a PB member working until 10pm or later
 - Leaders/managers available to anchor open & close: Jay, Bowen, James, Trinity, Gobi, Mary. Plan leader coverage around each leader's days off and any request-offs that week.
@@ -162,7 +162,7 @@ The numbers above are **hard floors**, except Sunday where the table shows `hard
 
 ### Coverage priority hierarchy (when a thin day forces tradeoffs)
 From highest to lowest, what the solver protects first:
-1. **Hard floors** (infeasible if unmet): lunch floor, dinner floor, 5 openers/day. Plus the manager and weekly-budget hard bounds.
+1. **Hard floors** (infeasible if unmet): lunch floor, dinner floor, 5 openers/day, at least 1 PB opener AND 1 PB closer per day, the trio-close rules (§5 → Closers). Plus the manager and weekly-budget hard bounds.
 2. **Massive penalty:** closers 2+ below target (4 weekend / 3 weekday) — effectively never allowed.
 3. **Lunch soft target** (Sunday 11) — beats the 6th closer.
 4. **Small penalties:** the 6th weekend closer (5 instead of 6) and the Sunday dinner 12th (sits at 11). Roughly tied with the afternoon over-staffing ceilings.
@@ -198,9 +198,9 @@ From highest to lowest, what the solver protects first:
 
 ### Weak / limited group — "don't pull their weight," spread out, prefer one day each
 - **Full group (all seven): Emily Owens, Brian Carver, Bryan Bishop, Jason Britt, Shayden Howard, Oliver Croasdaile, John Dugan**
-- **Prefer-one-day rule (applies to ALL FOUR):** schedule each of them just one day/shift per week when possible. Only give a second day if coverage genuinely requires it.
+- **Prefer-one-day rule (applies to ALL SEVEN):** schedule each of them just one day/shift per week when possible. Only give a second day if coverage genuinely requires it (hard cap of 2 days/week per person, enforced by the solver).
 - **One-per-meal-period rule (applies ONLY to Brian Carver, Bryan Bishop, Jason Britt):** never more than ONE of these three working the same meal period (lunch or dinner) on any given day. Lunch = on the floor at noon; dinner = working past 5pm. Each lunch and each dinner across the week may contain at most one of them. (One-per-meal exceptions can be approved individually.)
-- Spread them across the week rather than clustering. Prefer stronger people on the busy days (Fri/Sat/Sun) and use these four to fill genuine gaps.
+- Spread them across the week rather than clustering. Prefer stronger people on the busy days (Fri/Sat/Sun) and use these seven to fill genuine gaps.
 
 ### Middle PT (use as needed for coverage, ~10-15h)
 - Kayden Anderson, Amiyah Bartley, Logan Frias, Richard Raglin, Harper Flynn
@@ -285,12 +285,12 @@ From highest to lowest, what the solver protects first:
 - **No one leaves before 2pm** on any day — this is a hard rule with no exceptions. The earliest any non-Sunday shift may end is 2:00pm.
 - **At most 2 people leave at 2:00pm or 2:30pm on any given day.** Don't bunch departures — spread the early-out shifts so no more than two end in that 2:00/2:30 window.
 - **Sunday: no one leaves before 3pm.** The earliest any Sunday shift may end is 3:00pm. To make the Sunday afternoon drop (11 → 9), send exactly 2 people home *at* 3:00 (they end at 3:00, so they count at 2pm but not 3pm).
-- Forbidden end times: **no shift may end strictly between 5:00pm and 8:00pm** (5:00pm and 8:00pm themselves are fine; ends at 5:15, 5:30, … 7:45 are banned) — unless a shift is specifically pinned otherwise. Also none before 2:00pm (3:00pm Sunday).
+- Forbidden end times: **no shift may end strictly between 6:00pm and 8:00pm** (6:00pm and 8:00pm themselves are fine; ends at 6:15, 6:30, … 7:45 are banned) — unless a shift is specifically pinned otherwise. Also none before 2:00pm (3:00pm Sunday).
 - **Evening-departure stagger:** no one ends at 8:15pm or 8:45pm (banned). At most **2 people end at 8:00pm** and **2 at 8:30pm** — except Friday & Saturday, where at most **1 ends at 8:00pm**. (Managers/leaders on fixed shifts are exempt from these counts; the caps govern the flexible staff the solver places.)
 
 ### Shift end times — NEVER end at 6pm or 7pm
-- **Do not schedule anyone to leave between 5:00pm and 8:00pm** (exclusive) — that's the dinner ramp and rush. A shift should either end at **5:00pm or earlier** (a lunch/midday body, off before dinner ramps) OR **8:00pm or later** (a dinner body that works through the rush). The only exception is a shift specifically pinned to end in that window.
-- When shortening a dinner shift to save hours, pull it back to 5pm; when extending a midday shift, push it to 8pm+
+- **Do not schedule anyone to leave between 6:00pm and 8:00pm** (exclusive) — that's the dinner ramp and rush. A shift should either end at **6:00pm or earlier** (a lunch/midday body, off before dinner ramps) OR **8:00pm or later** (a dinner body that works through the rush). The only exception is a shift specifically pinned to end in that window.
+- When shortening a dinner shift to save hours, pull it back to 6pm; when extending a midday shift, push it to 8pm+
 
 ### Evening closes
 - **Closer end-time distribution (target for each day):**
@@ -311,8 +311,8 @@ From highest to lowest, what the solver protects first:
 ### Set schedules (don't change without reason)
 - **Bowen**: Mon-Fri 8a-4p — **always a full 8a-4p, every day he works. Never short his hours** (don't trim him to 8-3, etc.)
 - **Adam**: Mon-Fri, **always ends at 11pm** (e.g. 4p-11p, or starts earlier when more hours are needed). Adam never ends before 11pm.
-- **Mary**: Sat 3p-11p (pinned); other days solver-placed within her 3p-11p avail window
-- **James**: any most days, Wed 3-11, Sun 8-4. **Does not close on any day Gobi or Trinity closes** (move him to mid/open that day).
+- **Mary**: Sat 3p-11p (pinned); every other available day is solver-placed as a close, all but 1 of her available days (see §5 → Closers).
+- **James**: any most days, Wed 3-11, Sun 8-4. **Never closes on the same day as Mary Dean**; absent Mary, does not close alongside Gobi or Trinity either (move him to mid/open that day). See §5 → Closers for the full rule.
 - **Trinity**: rotates between AM and PM days; usually Mon 9-4, Tue 2-11, Wed any, Thu any, Fri 5-11, Sat 9-4, Sun off
 - **Gobi**: Mon 4-11, Tue 11-5, Wed 9-5, Sat 8-4, Sun 3-11. **Tuesday opens at 11a (not 10a)** — opening earlier would break the 12-hour rule after her Monday 11pm close.
 - **Michael**: M-F 9-5 (limited by 2nd job — sometimes ~3 days)

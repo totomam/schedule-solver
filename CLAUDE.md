@@ -20,6 +20,7 @@ Most coverage uses penalised slack variables (`_CPEN=500`) so the feasible regio
 
 **Hard floors** (`_hardfloor` → infeasible, a real fail, if unmet — the solver never returns a schedule that misses them):
 - Lunch floor `Ltar=[9,9,9,9,10,10,10]`; dinner floor `Dhard=[10,10,10,11,14,13,10]`; openers `Otar=5`/day. Plus manager ≥45 and the weekly paid-hours bounds.
+- At least 1 PB opener and 1 PB closer every day (`pb_op`/`pb_cl`) — was a soft floor (`_sf`) until stress testing showed the static `_pb_opener_exists`/`_pb_closer_exists` check (which only decides the manager backstop's backbone shift) doesn't guarantee the solver actually places anyone in that role; a genuinely-available PB member could get optimized into a non-opening/non-closing shift, leaving a day with zero PB coverage.
 - Trio-close rules (hard, not penalised — a soft ceiling here was proven by stress testing to get silently traded away for a marginally better coverage-ceiling fit even when a fully-compliant alternative existed at equal cost):
   - **Mary Dean always closes when available.** Every non-backbone day she works is pruned to closing-only candidates, and a hard floor forces her to work all but 1 of her available days — so in practice she closes on `(available days − 1)`.
   - **James Baker never closes alongside Mary Dean.**
