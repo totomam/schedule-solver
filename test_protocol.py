@@ -225,11 +225,15 @@ def _classify_issues(audit_issues: list, reqoff: dict, var, budget_constrained: 
         if _ft_leader_hu_is_hard(i, reqoff, budget_constrained):
             hard.append(i)
         elif (i.startswith('HoursUnder:') or i.startswith('CovSlack')
-              # Graduated soft-target misses: 1 closer below target & lunch below its 11 aspiration
-              # are by-design soft (small penalty), NOT failures. The massive 2+-below closer tier
-              # ('CLOSER 2+ BELOW TARGET') is left to fall through to hard.
+              # Graduated soft-target misses: 1 closer below target & lunch/dinner below their
+              # soft aspirations are by-design soft (small/tiny penalty), NOT failures. 2+ below
+              # the closer target is now a hard floor (infeasible, not a slack) — see solver2.py.
               or i.startswith('CloserTargetMiss') or i.startswith('LunchTargetMiss')
               or i.startswith('DinnerTargetMiss')
+              # The trio-cap escape valve (>1 of Gobi/James/Trinity closing without Mary) is a
+              # deliberate, high-penalty last resort for meeting the hard closer floor — expected
+              # behavior, not a failure, when it fires.
+              or i.startswith('TrioClose (escape valve')
               or (near_ceiling and (i.startswith('LeaderClose') or i.startswith('LeaderOpen')))):
             soft.append(i)
         else:
