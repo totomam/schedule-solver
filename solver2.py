@@ -1,4 +1,4 @@
-import json, math, pulp, os
+import json, math, pulp, os, sys
 from collections import defaultdict
 from datetime import datetime, timedelta
 from backbone import (STATIC_BACKBONE, JAY_STD, JAY_OPEN, MYLES_STD, MGR_OFFDAY_SHIFT, early_ok,
@@ -169,7 +169,7 @@ for n in people:
 # OPT: flatten the per-day (person, shift-index, start, end) tuples ONCE so the hot constraint
 # helpers don't rebuild the people x shifts cross product on every call.
 SD={d:[(n,i,a,b,paid_val(n,a,b)) for n in people for i,(a,b) in enumerate(shifts[(n,d)])] for d in range(7)}
-_trio={'Gobi Weathers','James Baker','Trinity Stringer'}
+_trio={'Gobi Weathers','James Baker','Trinity Stringer','Mary Dean'}
 # Excluded from the "3 start at 9am" stagger target (see stag9 below). Only Jay: he's the
 # manager backstop opener (starts ≤9 when no other PB can open), not regular 9am floor staff.
 # Bowen IS counted — his fixed 8am start fills one of the three 9am slots, so Mon–Fri the
@@ -257,8 +257,9 @@ def _sfl(e,fl,t):   # lunch soft target floor: e + slack >= fl, slack penalised 
 def _sfd(e,fl,t):   # dinner soft target floor: e + slack >= fl, slack penalised at _DINPEN
     global prob; _s=pulp.LpVariable(t,lowBound=0); prob+=e+_s>=fl; _din_slk.append(_s)
 # Hours floor soft constraints — two priority tiers so PT is sacrificed before SL/FT.
-# _HPEN_HI < _CPEN so coverage still wins; _HPEN_HI >> _HPEN_LO so SL/FT fills first.
-_HPEN_HI=490  # shift leaders + FT non-leaders — last to lose hours
+# _HPEN_HI > _CPEN so an achievable SL/FT hours floor is never sacrificed for a coverage
+# ceiling nick; _HPEN_HI >> _HPEN_LO so SL/FT fills before PT.
+_HPEN_HI=510  # shift leaders + FT non-leaders — last to lose hours
 _HPEN_LO=150  # PT / medium PT — first to lose hours when budget is tight
 _hrs_slk={'hi':[], 'lo':[]}  # (tag, floor, slack) per tier
 def _sh(expr, floor, tag, hi=True, afl=None):
@@ -309,7 +310,10 @@ for d in range(7):
     if _SDF[d,'dep20']:   _sc(pulp.lpSum(_SDF[d,'dep20']),  _cap_8, f'sdep20_{d}')
     if _SDF[d,'dep205']:  _sc(pulp.lpSum(_SDF[d,'dep205']), 2,      f'sdep205_{d}')
     if _SDF[d,'dep14']:   _sc(pulp.lpSum(_SDF[d,'dep14']),  2,      f'sdep14_{d}')
-    if _SDF[d,'trio_cl']: _sc(pulp.lpSum(_SDF[d,'trio_cl']),1,      f'strio_{d}')
+    # HARD: at most 1 of Gobi/James/Trinity/Mary Dean closes per day — no penalty tier, since
+    # a soft ceiling here was proven to get silently traded away by the solver for a marginally
+    # better coverage-ceiling fit even when a fully-compliant alternative existed at equal cost.
+    if _SDF[d,'trio_cl']: _hardfloor(-pulp.lpSum(_SDF[d,'trio_cl']), -1)
     # Closer end-time staggering: 2x11pm, 2x10:30pm, 1x10:15pm, 1x10:45pm
     # e23 ceiling is 3 (not 2): shift leaders forced to 23.0 can fill 2 slots,
     # so a manager who also closes would push ceiling of 2 over. Allow 3.
@@ -533,6 +537,16 @@ else:
     prob.solve(pulp.HiGHS(**_kw))
     _var=round(pulp.value(total_paid)-sum(allowed),2) if pulp.value(total_paid) else '?'
     print("Status:",pulp.LpStatus[prob.status],"| paid",pulp.value(total_paid),"| var",_var,"| zeros",sum(1 for z in zero_pen if z.value() and z.value()>0.5))
+    if pulp.LpStatus[prob.status] != 'Optimal':
+        # No feasible schedule exists for these inputs (the hard floors — openers/lunch/dinner —
+        # are jointly unsatisfiable given this week's availability/req-offs). Fail loud and stop
+        # here rather than falling through to an all-zero schedule/audit/xlsx that looks normal.
+        print(f"\n{'!'*70}\nFATAL: no feasible schedule exists for these inputs "
+              f"(status={pulp.LpStatus[prob.status]}).")
+        print("Req-offs/availability are too constrained to satisfy the hard rules simultaneously.")
+        print("No schedule.json/xlsx was written. Relax req-offs or escalate to a human.")
+        print('!'*70)
+        sys.exit(1)
     _viol=[v.name for v in _cov_slk if v.value() and v.value()>0.001]
     if _viol: print(f"WARNING: {len(_viol)} coverage slack(s) nonzero: {_viol[:5]}...")
     sol={n:[None]*7 for n in people}
@@ -589,10 +603,10 @@ for d in range(7):
         _fails.append(f"LeaderOpen: {dn[d]} no leader/manager opens")
     if not any(sol[n][d] and sol[n][d][1]>=22 for n in PB):
         _fails.append(f"LeaderClose: {dn[d]} no leader/manager closes")
-# Trio at most 1 close per day
+# Trio at most 1 close per day (now a hard constraint above; kept as a redundant safety net)
 for d in range(7):
     tc=sum(1 for n in _trio if sol[n][d] and sol[n][d][1]>=22)
-    if tc>1: _fails.append(f"TrioClose: {dn[d]} {tc} of Gobi/James/Trinity closing")
+    if tc>1: _fails.append(f"TrioClose: {dn[d]} {tc} of Gobi/James/Trinity/Mary Dean closing")
 # Overtime check — all hours-under is reported via HoursUnder (_hrs_slk) below
 for n in people:
     raw=sum(sol[n][d][1]-sol[n][d][0] for d in range(7) if sol[n][d])
