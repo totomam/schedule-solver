@@ -107,6 +107,9 @@ def gen(n,d):
         if lo<=_sa and _sb<=hi: out.append((_sa,_sb))
     for a in ANCH_START:
         if a<lo or a>hi-4: continue
+        # Openers: exactly 3 must start at/before 9:00, exactly 2 at exactly 10:00 — no interior
+        # stagger. 9:15/9:30/9:45 are banned (dead zone), same as the existing 10:01-10:59 ban.
+        if 9 < a < 10: continue
         # No starts strictly between 10am and 11am: openers must be in by 10:00,
         # then the next start slot is 11:00 (10:15/10:30/10:45 are banned).
         if 10 < a < 11: continue
@@ -229,15 +232,17 @@ for d in range(7):
     _SDF[d,'e2275'] =[x[(n,d,i)] for (n,i,a,b,pv) in sd if b==22.75]
     _SDF[d,'e23']   =[x[(n,d,i)] for (n,i,a,b,pv) in sd if b==23.0]
     _SDF[d,'stag9'] =[x[(n,d,i)] for (n,i,a,b,pv) in sd if n not in _no_early and a<=9]
+    _SDF[d,'open10']=[x[(n,d,i)] for (n,i,a,b,pv) in sd if n!='Jay Martin' and a==10.0]
     _SDF[d,'prep9'] =[x[(n,d,i)] for (n,i,a,b,pv) in sd if n in prep and a<=9]
 
 # === COVERAGE TARGETS ===
 twoTar=[8,8,8,8,8,9,11]; threeTar=[6,6,6,6,7,8,8]; fourTar=[5,5,5,5,6,7,6]
-Otar=[5,5,5,5,5,5,5]; Ltar=[9,9,9,9,10,10,10]; Dtar=[10,10,10,11,14,13,11]; Ctar=[5,5,5,5,6,6,6]
+Otar=[5,5,5,5,5,5,5]; Ltar=[9,9,9,9,10,10,10]; Ctar=[5,5,5,5,6,6,6]
 # Dinner HARD floor (Dhard) is the per-day minimum that must be met or the week is infeasible.
-# It equals the Dtar target everywhere except Sunday, where the hard floor is 10 and the 11th
-# is only a small soft penalty (a depleted Sunday may sit at 10 rather than fail).
-Dhard=[10,10,10,11,14,13,10]
+# Dtar is a tiny, uniform soft aspiration of "one better than the hard floor" on every day
+# (not just Sunday) — see _DINPEN below.
+Dhard=[10,10,10,11,13,13,10]
+Dtar=[d+1 for d in Dhard]
 # Closer target (graduated penalty, see _close_graded): 5 weekday / 6 weekend.
 # Lunch soft target (above the hard Ltar floor): aim for 11 on Sunday. Penalised, not hard.
 # Lunch's penalty outranks the single 6th-closer slot, so a thin Sunday prefers 11 lunch and
@@ -249,17 +254,19 @@ Lsoft=[9,9,9,9,10,10,11]
 # solution — the final schedule is identical, but the feasible region is much larger, letting
 # HiGHS find the first integer-feasible point dramatically faster.
 _CPEN=500
-# Closer penalty is GRADUATED (no hard floor): 1 below target (5 wknd / 4 wkday) is a small
-# penalty; 2+ below (4 wknd / 3 wkday) is massive. Lunch (11) sits between the two so on a thin
-# day the solver prefers an 11th lunch over the 6th closer (closers slip to 5), but never lets
-# closers fall to 4 to chase lunch.  Order: CLOSE_MASSIVE >> LUNCH(800) > DIN(790) > _CPEN(ceilings,500) > CLOSE_SMALL(300)
-_CLOSE_SMALL=300     # 1st closer below target (e.g. 5 instead of 6) — minor
-_CLOSE_MASSIVE=4000  # 2nd+ closer below target (e.g. 4 instead of 6) — basically never
+# Closer target is HARD at tgt-1 (never allowed to fall 2+ below target — e.g. 4 wknd / 3 wkday
+# is infeasible now, not just heavily penalised): 1 below target (5 wknd / 4 wkday) is still a
+# small penalty, since a thin day may legitimately land there.
+_CLOSE_SMALL=300     # 1st closer below target (e.g. 5 instead of 6) — minor, the only slack left
 _LUNCHPEN=800        # missing the lunch soft target (Lsoft, e.g. 11 Sun); beats the 6th closer
-_DINPEN=790          # missing the dinner soft target (Dtar, e.g. 11 Sun); ranks just below lunch (800),
-                     # above ceilings & the 6th closer, but below the massive closer floor
+_DINPEN=20           # tiny: missing dinner's hard-floor+1 aspiration (Dtar), every day of the week —
+                     # deliberately far below every other coverage penalty; a nice-to-have nudge only
+_TRIO_ESCAPE=1000    # breaking the "≤1 of Gobi/James/Trinity closes" cap (absent Mary) — higher than
+                     # every other soft weight so it's never worth paying except as a last resort when
+                     # the hard closer floor genuinely can't be met without a 2nd trio closer.
 _cov_slk=[]
-_close_small_slk=[]; _close_massive_slk=[]
+_close_small_slk=[]
+_trio_slk=[]
 _lunch_slk=[]; _din_slk=[]
 def _sc(e,cap,t):   # soft ceiling: e <= cap + slack
     global prob; _s=pulp.LpVariable(t,lowBound=0); prob+=e<=cap+_s; _cov_slk.append(_s)
@@ -267,12 +274,12 @@ def _sf(e,fl,t):    # soft floor: e + slack >= fl
     global prob; _s=pulp.LpVariable(t,lowBound=0); prob+=e+_s>=fl; _cov_slk.append(_s)
 def _hardfloor(e,fl):  # HARD minimum — infeasible (fail) rather than a penalty if unmet
     global prob; prob += e >= fl
-def _close_graded(e,tgt,t):  # graduated closer floor: small penalty 1 below tgt, massive 2+ below
+def _close_graded(e,tgt,t):  # HARD floor at tgt-1; small penalty for sitting exactly 1 below tgt
     global prob
-    _s1=pulp.LpVariable(f'{t}_s1',lowBound=0,upBound=1)   # first unit short of target → small
-    _s2=pulp.LpVariable(f'{t}_s2',lowBound=0)             # second+ unit short → massive
-    prob += e + _s1 + _s2 >= tgt
-    _close_small_slk.append(_s1); _close_massive_slk.append(_s2)
+    _hardfloor(e, tgt-1)
+    _s1=pulp.LpVariable(f'{t}_s1',lowBound=0,upBound=1)   # the one unit short of target → small
+    prob += e + _s1 >= tgt
+    _close_small_slk.append(_s1)
 def _sfl(e,fl,t):   # lunch soft target floor: e + slack >= fl, slack penalised at _LUNCHPEN
     global prob; _s=pulp.LpVariable(t,lowBound=0); prob+=e+_s>=fl; _lunch_slk.append(_s)
 def _sfd(e,fl,t):   # dinner soft target floor: e + slack >= fl, slack penalised at _DINPEN
@@ -305,13 +312,12 @@ for d in range(7):
     _hardfloor(pulp.lpSum(_SDF[d,'lunch']),  Ltar[d])
     _hardfloor(pulp.lpSum(_SDF[d,'dinner']), Dhard[d])
     _hardfloor(_op,    Otar[d])
-    # Closers (end ≥10:30pm): graduated penalty toward Ctar (5 wk / 6 wknd) — small for the 1st
-    # short, massive for the 2nd+. Not a hard floor; the massive tier keeps it from ever sinking
-    # two below target while letting lunch (11) outrank the single 6th-closer slot on a thin day.
+    # Closers (end ≥10:30pm): hard floor at Ctar-1 (5 wk / 6 wknd, so never below 4/5) — small
+    # penalty for sitting exactly 1 below target, via _close_graded.
     _close_graded(_cl225, Ctar[d], f'scl_{d}')
     if Lsoft[d] > Ltar[d]:               # soft lunch aspiration above the hard floor (e.g. 11 Sun)
         _sfl(pulp.lpSum(_SDF[d,'lunch']), Lsoft[d], f'slunchx_{d}')
-    if Dtar[d] > Dhard[d]:               # soft dinner aspiration above the hard floor (e.g. 12 Sun)
+    if Dtar[d] > Dhard[d]:               # tiny dinner aspiration, hard-floor+1, every day
         _sfd(pulp.lpSum(_SDF[d,'dinner']), Dtar[d], f'sdinx_{d}')
     _sf(pulp.lpSum(_SDF[d,'cl215']),(7 if d>=4 else 6), f'scl215f_{d}')
     # HARD: every day must have a PB (leader/manager) opener AND closer — scheduling_rules.md
@@ -336,17 +342,22 @@ for d in range(7):
     if _SDF[d,'dep20']:   _sc(pulp.lpSum(_SDF[d,'dep20']),  _cap_8, f'sdep20_{d}')
     if _SDF[d,'dep205']:  _sc(pulp.lpSum(_SDF[d,'dep205']), 2,      f'sdep205_{d}')
     if _SDF[d,'dep14']:   _sc(pulp.lpSum(_SDF[d,'dep14']),  2,      f'sdep14_{d}')
-    # HARD trio-close rules — no penalty tier, since a soft ceiling here was proven to get
-    # silently traded away by the solver for a marginally better coverage-ceiling fit even when
-    # a fully-compliant alternative existed at equal cost:
-    #  • James never closes alongside Mary Dean.
-    #  • Absent Mary (she's off or unavailable that day), the original at-most-1-of-
-    #    Gobi/James/Trinity cap still holds. When Mary IS closing, Gobi and Trinity may freely
-    #    join her — only James is excluded, by the constraint above.
+    # Trio-close rules:
+    #  • James never closes alongside Mary Dean — HARD, no penalty tier, since a soft ceiling
+    #    here was proven to get silently traded away for a marginally better coverage-ceiling
+    #    fit even when a fully-compliant alternative existed at equal cost.
+    #  • Absent Mary (she's off or unavailable that day), at most 1 of Gobi/James/Trinity closes
+    #    — but this one is a high-penalty SOFT ceiling (_TRIO_ESCAPE), not hard: it may be broken
+    #    only as an escape valve when the hard closer floor (_close_graded, Ctar-1) genuinely
+    #    can't be met otherwise. The weight is high enough that it's never worth paying for any
+    #    other reason — it only fires when a 2nd trio closer is the sole way to reach the floor.
+    #    When Mary IS closing, Gobi and Trinity may freely join her — only James is excluded.
     _cl_g=pulp.lpSum(_SDF[d,'cl_gobi']); _cl_j=pulp.lpSum(_SDF[d,'cl_james'])
     _cl_t=pulp.lpSum(_SDF[d,'cl_trinity']); _cl_m=pulp.lpSum(_SDF[d,'cl_mary'])
     if _SDF[d,'cl_james'] and _SDF[d,'cl_mary']: prob += _cl_j + _cl_m <= 1
-    prob += _cl_g + _cl_j + _cl_t <= 1 + 2*_cl_m
+    _trio_s=pulp.LpVariable(f'strio_{d}',lowBound=0)
+    prob += _cl_g + _cl_j + _cl_t <= 1 + 2*_cl_m + _trio_s
+    _trio_slk.append(_trio_s)
     # Closer end-time staggering: 2x11pm, 2x10:30pm, 1x10:15pm, 1x10:45pm
     # e23 ceiling is 3 (not 2): shift leaders forced to 23.0 can fill 2 slots,
     # so a manager who also closes would push ceiling of 2 over. Allow 3.
@@ -359,9 +370,14 @@ for d in range(7):
             _sc(_e,_ceil, f's{_key}c_{d}')
     if _SDF[d,'e2225']:
         _sc(pulp.lpSum(_SDF[d,'e2225']),1,f'se2225c_{d}')
-    if _SDF[d,'stag9']:    # exactly 3 in by 9am (Mon–Fri: Bowen + 2 others; weekends: 3 others)
+    # HARD: exactly 3 in by 9am (Mon–Fri: Bowen + 2 others; weekends: 3 others), and exactly 2
+    # more starting at exactly 10:00 (the 9:15/9:30/9:45 stagger is gone — see gen()'s dead zone).
+    if _SDF[d,'stag9']:
         _stag9=pulp.lpSum(_SDF[d,'stag9'])
-        _sc(_stag9, 3, f'sstag9_{d}'); _sf(_stag9, 3, f'sstag9f_{d}')
+        _hardfloor(_stag9,3); _hardfloor(-_stag9,-3)
+    if _SDF[d,'open10']:
+        _open10=pulp.lpSum(_SDF[d,'open10'])
+        _hardfloor(_open10,2); _hardfloor(-_open10,-2)
     for _key in ('la1725','la175','la1775','la18'):
         if _SDF[d,_key]: _sc(pulp.lpSum(_SDF[d,_key]),1,   f's{_key}_{d}')
     if _SDF[d,'w3_ln']: _sc(pulp.lpSum(_SDF[d,'w3_ln']),1, f'sw3ln_{d}')
@@ -376,6 +392,7 @@ hours_expr = {n: pulp.lpSum(x[(n,d,i)]*(b-a) for d in range(7) for i,(a,b) in en
 _FLOOR = {n: 33 for n in FT_NONLEADER}
 _FLOOR['Adam Van Bogaert'] = 40                 # Adam: exact-40h closer (cap == floor, see below)
 _FLOOR.update({n: 20 for n in strong_PT})
+_FLOOR['Gracelyn Dailey'] = 30  # not the standard strong_PT 20h — no hard cap, just a 30h target
 _FLOOR.update({n: 12 for n in regular_PT})
 _FLOOR.update({n: 4 for n in weak5})
 _FLOOR.update({'Zac Duffy': 30, 'Trinity Stringer': 39, 'Gobi Weathers': 37,
@@ -405,14 +422,15 @@ for n in FT_NONLEADER:
     min_days = math.ceil(floor / max_per_day)
     if len(avail_days(n)) >= min_days:
         _sh(hours_expr[n],floor+1,n.replace(' ','_'),afl=floor)
-prob += hours_expr['Zac Duffy']<=35
+# Zac: no hard cap — 30h target with a penalty for missing it (falls under the generic 40h
+# ceiling below like everyone else not otherwise specially capped).
 if len(avail_days('Zac Duffy')) >= math.ceil(_FLOOR['Zac Duffy']/10):
     _sh(hours_expr['Zac Duffy'],_FLOOR['Zac Duffy']+1,'Zac_Duffy',afl=_FLOOR['Zac Duffy'])
 for n in regular_PT:
     max_pd = 10.0 if n in TEN_HR else 8.0
     if len(avail_days(n)) >= math.ceil(_FLOOR[n]/max_pd):
         _sh(hours_expr[n],_FLOOR[n],n.replace(' ','_'),hi=False)
-_capped40 = FT_NONLEADER | {'Zac Duffy'}  # already have explicit caps above
+_capped40 = FT_NONLEADER  # already have explicit caps above
 for n in people:
     if n in ('Jay Martin','Myles Palmer') or n in _capped40: continue
     prob += hours_expr[n]<=40
@@ -432,7 +450,8 @@ else:
     _sh(hours_expr['James Baker'], _FLOOR['James Baker'], 'James_Baker')
 if len(avail_days('Mary Dean')) >= math.ceil(_FLOOR['Mary Dean']/8):
     _sh(hours_expr['Mary Dean'],_FLOOR['Mary Dean']+1,'Mary_Dean',afl=_FLOOR['Mary Dean'])
-prob += hours_expr['Gracelyn Dailey']<=30
+# Gracelyn: no hard cap — 30h target with a penalty for missing it (via the strong_PT loop below,
+# using her overridden _FLOOR value; falls under the generic 40h ceiling like everyone else).
 for n in strong_PT:
     max_pd = 10.0 if n in TEN_HR else 8.0
     if len(avail_days(n)) >= math.ceil(_FLOOR[n]/max_pd):
@@ -500,23 +519,18 @@ for d in range(7):
                 prob += pulp.lpSum(x[(_n,d,i)] for i in range(len(_day_shifts))) >= 1
 
 # === ZERO-SHIFT ===
-# No zero-shift for anyone available (>=1 day avail must get >=1 shift) =====
-# Make it a HARD constraint for everyone with availability, EXCEPT allow the solver to drop
-# someone only if infeasible. Use soft with big penalty to stay feasible.
-zero_pen=[]
+# No zero-shift for anyone available: HARD — everyone with at least one available day must get
+# >=1 shift. The only exemption is genuine impossibility (avail_days empty, e.g. they req'd off
+# their entire week's availability) — those people never enter this loop at all.
 for n in people:
     if n in ('Jay Martin','Myles Palmer'): continue  # managers handled by fixed
-    ad=avail_days(n)
-    if not ad: continue
+    if not avail_days(n): continue
     total_shifts=pulp.lpSum(x[(n,d,i)] for d in range(7) for i in range(len(shifts[(n,d)])))
-    z=pulp.LpVariable(f'zero_{pidx[n]}',cat='Binary')  # 1 if person gets ZERO shifts
-    # total_shifts >= 1 - z  (if z=0, must have >=1)
-    prob += total_shifts >= 1 - z
-    zero_pen.append(z)
+    prob += total_shifts >= 1
 
 # === OBJECTIVE ===
-# Land total paid hours in [allowed+25, allowed+30], minimize zero-shift people,
-# minimize weak5 usage, prefer short shifts. No exact target — any value in the window is fine.
+# Land total paid hours in [allowed+25, allowed+30], minimize weak5 usage, prefer short shifts.
+# No exact target — any value in the window is fine.
 # SD already carries pv=paid_val(n,a,b) — use it directly everywhere paid hours are needed.
 total_paid=pulp.lpSum(x[(n,d,i)]*pv for d in range(7) for (n,i,a,b,pv) in SD[d])
 # Per-day labor balance: keep each day's paid hours within a reasonable band of its allowed,
@@ -553,11 +567,11 @@ myles_opens = pulp.lpSum(x[('Myles Palmer',d,i)]
                           for d in range(7)
                           for i,(a,b) in enumerate(shifts[('Myles Palmer',d)])
                           if a <= 10)
-prob += (5000*pulp.lpSum(zero_pen) + 8*weak_use + 0.3*short_pref + 30*mgr_offday
+prob += (8*weak_use + 0.3*short_pref + 30*mgr_offday
          + 20*jay_closes + 20*myles_opens
          + _CPEN*pulp.lpSum(_cov_slk)
          + _CLOSE_SMALL*pulp.lpSum(_close_small_slk)
-         + _CLOSE_MASSIVE*pulp.lpSum(_close_massive_slk)
+         + _TRIO_ESCAPE*pulp.lpSum(_trio_slk)
          + _LUNCHPEN*pulp.lpSum(_lunch_slk)
          + _DINPEN*pulp.lpSum(_din_slk)
          + _HPEN_HI*pulp.lpSum(s for _,_,s in _hrs_slk['hi'])
@@ -582,7 +596,12 @@ else:
     if _HIGHS_SEED >= 0: _kw['randomSeed']=_HIGHS_SEED
     prob.solve(pulp.HiGHS(**_kw))
     _var=round(pulp.value(total_paid)-sum(allowed),2) if pulp.value(total_paid) else '?'
-    print("Status:",pulp.LpStatus[prob.status],"| paid",pulp.value(total_paid),"| var",_var,"| zeros",sum(1 for z in zero_pen if z.value() and z.value()>0.5))
+    # zeros is now a hard constraint (see "No zero-shift" above) so this should always print 0 —
+    # kept as a post-hoc check on the actual solution, not the (now nonexistent) slack variable.
+    _zero_ct=sum(1 for n in people if n not in ('Jay Martin','Myles Palmer') and avail_days(n)
+                 and not any((x[(n,d,i)].value() or 0) > 0.5
+                             for d in range(7) for i in range(len(shifts[(n,d)]))))
+    print("Status:",pulp.LpStatus[prob.status],"| paid",pulp.value(total_paid),"| var",_var,"| zeros",_zero_ct)
     if pulp.LpStatus[prob.status] != 'Optimal':
         # No feasible schedule exists for these inputs (the hard floors — openers/lunch/dinner —
         # are jointly unsatisfiable given this week's availability/req-offs). Fail loud and stop
@@ -649,8 +668,9 @@ for d in range(7):
         _fails.append(f"LeaderOpen: {dn[d]} no leader/manager opens")
     if not any(sol[n][d] and sol[n][d][1]>=22 for n in PB):
         _fails.append(f"LeaderClose: {dn[d]} no leader/manager closes")
-# Trio-close rules (now hard constraints above; kept as a redundant safety net):
-# James never closes alongside Mary; absent Mary, at most 1 of Gobi/James/Trinity closes.
+# Trio-close rules — James-vs-Mary is hard above (this is a redundant safety net for it); the
+# at-most-1-of-Gobi/James/Trinity cap (absent Mary) is a high-penalty escape valve now, so seeing
+# it broken here means the closer floor genuinely couldn't be met otherwise, not a bug.
 for d in range(7):
     g = bool(sol['Gobi Weathers'][d] and sol['Gobi Weathers'][d][1]>=22)
     j = bool(sol['James Baker'][d] and sol['James Baker'][d][1]>=22)
@@ -659,7 +679,8 @@ for d in range(7):
     if j and m:
         _fails.append(f"TrioClose: {dn[d]} James closing alongside Mary Dean")
     elif not m and sum((g,j,t))>1:
-        _fails.append(f"TrioClose: {dn[d]} {sum((g,j,t))} of Gobi/James/Trinity closing without Mary")
+        _fails.append(f"TrioClose (escape valve — closer floor required it): {dn[d]} "
+                      f"{sum((g,j,t))} of Gobi/James/Trinity closing without Mary")
 # Overtime check — all hours-under is reported via HoursUnder (_hrs_slk) below
 for n in people:
     raw=sum(sol[n][d][1]-sol[n][d][0] for d in range(7) if sol[n][d])
@@ -684,11 +705,9 @@ for d in range(7):
 # Coverage slacks (soft constraints violated)
 _sviol=[] if _XLSX_ONLY else [v.name for v in _cov_slk if v.value() and v.value()>0.001]
 if _sviol: _fails.append(f"CovSlack({len(_sviol)}): {_sviol[:4]}{'...' if len(_sviol)>4 else ''}")
-# Closer target misses (above the hard floor) — extreme-penalty slack nonzero
-_cviol  =[] if _XLSX_ONLY else [v.name for v in _close_small_slk   if v.value() and v.value()>0.001]
-_cviol2 =[] if _XLSX_ONLY else [v.name for v in _close_massive_slk if v.value() and v.value()>0.001]
+# Closer target misses (above the hard floor at tgt-1 — 2+ below is now infeasible, not a slack)
+_cviol  =[] if _XLSX_ONLY else [v.name for v in _close_small_slk if v.value() and v.value()>0.001]
 if _cviol:  _fails.append(f"CloserTargetMiss({len(_cviol)}): {_cviol} (1 below target — minor)")
-if _cviol2: _fails.append(f"CLOSER 2+ BELOW TARGET({len(_cviol2)}): {_cviol2} (massive penalty!)")
 # Lunch soft-target misses (above the hard floor) — aimed at 11 (Sun) but couldn't reach it
 _lviol=[] if _XLSX_ONLY else [v.name for v in _lunch_slk if v.value() and v.value()>0.001]
 if _lviol: _fails.append(f"LunchTargetMiss({len(_lviol)}): {_lviol} (below soft target)")
