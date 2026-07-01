@@ -314,8 +314,13 @@ for d in range(7):
     if Dtar[d] > Dhard[d]:               # soft dinner aspiration above the hard floor (e.g. 12 Sun)
         _sfd(pulp.lpSum(_SDF[d,'dinner']), Dtar[d], f'sdinx_{d}')
     _sf(pulp.lpSum(_SDF[d,'cl215']),(7 if d>=4 else 6), f'scl215f_{d}')
-    _sf(pulp.lpSum(_SDF[d,'pb_op']),1,           f'spbop_{d}')
-    _sf(pulp.lpSum(_SDF[d,'pb_cl']),1,           f'spbcl_{d}')
+    # HARD: every day must have a PB (leader/manager) opener AND closer — scheduling_rules.md
+    # calls this a firm requirement ("Every day MUST have..."), not a preference. It was a soft
+    # floor before, which meant a genuinely-available-on-paper PB member (per the static
+    # opener/closer-exists check that positions the manager backstop) could still get optimized
+    # into a non-opening/non-closing shift, leaving a day with no PB coverage at all.
+    _hardfloor(pulp.lpSum(_SDF[d,'pb_op']),1)
+    _hardfloor(pulp.lpSum(_SDF[d,'pb_cl']),1)
     _sf(pulp.lpSum(_SDF[d,'prep9']),1,           f'sprep9_{d}')
     _sf(_cl21,(8 if d in (4,5) else 7),          f'scl21f_{d}')
     # Soft ceilings/targets — penalised, not hard. Ceiling == exact target → soft equality.
@@ -374,7 +379,14 @@ _FLOOR.update({n: 20 for n in strong_PT})
 _FLOOR.update({n: 12 for n in regular_PT})
 _FLOOR.update({n: 4 for n in weak5})
 _FLOOR.update({'Zac Duffy': 30, 'Trinity Stringer': 39, 'Gobi Weathers': 37,
-               'James Baker': 40, 'Mary Dean': 39, 'Myles Palmer': 45, 'Jay Martin': 45})
+               'James Baker': 40, 'Mary Dean': 39, 'Bowen Benedict': 39,
+               'Myles Palmer': 45, 'Jay Martin': 45})
+# Bowen's backbone already pins him to 8h Mon-Fri when available (naturally 40h if he works all
+# 5), but that pin silently vanishes on a day he's req'd off — this floor is what pushes his
+# hours back up on his OTHER available days if a req-off costs him a backbone day, matching
+# scheduling_rules.md's "Shift leaders 39-40h raw" for all five leaders, Bowen included.
+if len(avail_days('Bowen Benedict')) >= math.ceil(_FLOOR['Bowen Benedict']/8):
+    _sh(hours_expr['Bowen Benedict'],_FLOOR['Bowen Benedict']+1,'Bowen_Benedict',afl=_FLOOR['Bowen Benedict'])
 if len(avail_days('Trinity Stringer')) >= math.ceil(_FLOOR['Trinity Stringer']/8):
     _sh(hours_expr['Trinity Stringer'],_FLOOR['Trinity Stringer']+1,'Trinity_Stringer',afl=_FLOOR['Trinity Stringer'])
 if len(avail_days('Gobi Weathers')) >= math.ceil(_FLOOR['Gobi Weathers']/8):
@@ -432,6 +444,12 @@ for n in weak5:
 for n in weak5:
     cap = WEAK5_MAX_DAYS.get(n, 2)
     prob += pulp.lpSum(x[(n,d,i)] for d in range(7) for i in range(len(shifts[(n,d)]))) <= cap
+
+# Jacob Cothern: PT, 2 shifts only (per scheduling_rules.md) — a hard weekly shift-count cap,
+# same pattern as the weak5 cap above, since his own availability (4 days) doesn't limit him.
+if 'Jacob Cothern' in people:
+    prob += pulp.lpSum(x[('Jacob Cothern',d,i)] for d in range(7)
+                        for i in range(len(shifts[('Jacob Cothern',d)]))) <= 2
 
 # Per-person above-floor incentive: small penalty for hours exceeding individual floor.
 # Nudges the solver to stay near each floor without a hard ceiling — if coverage or another
