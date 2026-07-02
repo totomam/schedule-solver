@@ -139,9 +139,11 @@ Complete reference for building the weekly schedule. Given availability sheet, r
 - Counting follows the standard convention: a person counts toward a time only if they're working *past* it (a shift ending exactly at 9:00pm does not count toward the 9pm floor).
 - This is broader than the closer count (closers work to 10:30/11pm); it keeps enough hands on the floor through the back half of the dinner rush before close.
 
-### Dinner (people working past 5pm)
-- **Hard floor per day** (see table below): Mon–Wed 10, Thu 11, Fri 13, Sat 13, **Sun 11**. The solver must meet these or report the week infeasible. (Sunday matches Thursday's 11, not the generic 10 — human preference: Sunday reliably hitting 11 outranks Thursday reaching a 12th body. Tried first as a soft nudge, even at a weight larger than every other soft penalty in the model, but the solver's time-limited search didn't reliably find it even though it's provably free — promoted to a hard floor instead, matching how the PB opener/closer floors were promoted for the same reliability reason.)
+### Dinner (people starting at/before 6pm AND ending at/after 8pm)
+- **Both conditions are required, not just a late end.** Someone who works a lunch/midday shift ending at 5, 6, or 7pm does NOT count as dinner, even though they worked into the evening — they have to still be on the floor at 8pm. (Previously this was defined as simply "ends after 5pm"; tightened per human request so "working dinner" means genuinely covering the dinner rush, not just a late-afternoon departure.)
+- **Hard floor per day** (see table below): Mon–Wed 10, Thu 11, Fri 13, Sat 13, **Sun 11**. The solver must meet these or report the week infeasible. (Sunday matches Thursday's 11, not the generic 10 — human preference: Sunday reliably hitting 11 outranks Thursday reaching a 12th body.)
 - **Every day** has a *tiny* soft aspiration of hard-floor+1 — a nice-to-have nudge only, deliberately weighted far below every other coverage penalty. Flagged `DinnerTargetMiss` when a day sits at the floor instead of floor+1.
+- **Known risk accepted:** under this tighter definition, Friday and Saturday's floor of 13 has essentially zero slack — even a perfectly-staffed week with no req-offs maxes out at exactly 13. Any req-off that removes a dinner-eligible person on those days can push the week into a genuine infeasibility that wouldn't have happened under the old, looser definition. This is a known, accepted tradeoff, not a bug — confirmed via stress testing before shipping.
 
 ### Lunch/Dinner targets by day
 *(may shift week-to-week based on forecasted sales — these are the current working targets)*
@@ -198,6 +200,7 @@ can actually support as possible, at the same priority as their tier.
 
 ### Strong PT (give more hours, 20h+ target)
 - Cai Cotton
+- Diana Castaneda — new hire, joining as of this schedule. Available any Mon-Sat, 12p-11p Sunday.
 - Kara Thompson
 - Nathan Paaswee
 - Peyton Shaw
@@ -208,7 +211,7 @@ can actually support as possible, at the same priority as their tier.
 ### Weak / limited group — "don't pull their weight," spread out, prefer one day each
 - **Full group (all seven): Emily Owens, Brian Carver, Bryan Bishop, Jason Britt, Shayden Howard, Oliver Croasdaile, John Dugan**
 - **Prefer-one-day rule (applies to ALL SEVEN):** schedule each of them just one day/shift per week when possible. Only give a second day if coverage genuinely requires it (hard cap of 2 days/week per person, enforced by the solver). **Exception: Bryan Bishop is hard-capped at 1 day/week** (`WEAK5_MAX_DAYS` override in `backbone.py`), not 2.
-- **One-per-meal-period rule (applies ONLY to Brian Carver, Bryan Bishop, Jason Britt):** never more than ONE of these three working the same meal period (lunch or dinner) on any given day. Lunch = on the floor at noon; dinner = working past 5pm. Each lunch and each dinner across the week may contain at most one of them. (One-per-meal exceptions can be approved individually.)
+- **One-per-meal-period rule (applies ONLY to Brian Carver, Bryan Bishop, Jason Britt):** never more than ONE of these three working the same meal period (lunch or dinner) on any given day. Lunch = on the floor at noon; dinner = starting at/before 6pm AND ending at/after 8pm. Each lunch and each dinner across the week may contain at most one of them. (One-per-meal exceptions can be approved individually.)
 - Spread them across the week rather than clustering. Prefer stronger people on the busy days (Fri/Sat/Sun) and use these seven to fill genuine gaps.
 
 ### Middle PT (use as needed for coverage, 12h target)
