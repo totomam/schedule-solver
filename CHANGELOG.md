@@ -21,6 +21,9 @@ Notable changes to the scheduler, newest first. Routine weekly data updates
   only; a weekday req-off now automatically unlocks his usual 1pm-11pm pattern on Sat and/or
   Sun (whichever he hasn't also req'd off), so he can still hit his hours. No `avail.json`
   editing required — handled in `avwin()`.
+- **Reilly Weakley's 3-shift cap.** Hard-capped at 3 shifts/week (`SHIFT_CAP` in `backbone.py`,
+  shared with `test_protocol.py`); his `FT_NONLEADER` hour floor is overridden to 24h to match
+  what 3 shifts can actually deliver.
 
 ### Stress test / CI
 - **CI smoke test now actually fails** on a bad run (the harness exits non-zero; seed pinned for
@@ -29,6 +32,10 @@ Notable changes to the scheduler, newest first. Routine weekly data updates
   windows" sum, so it no longer over-states a person's max hours and false-flags shortfalls.
 - **Fixed the 10-hour-shift list:** the prep full-timers (Michael, Molly, Noah, Reilly) leave by
   5pm and can't work 10h, so they're correctly excluded from `TEN_HR` (the test had over-counted them).
+- **`SHIFT_CAP_GRID_TOLERANCE_H`:** people with a below-default `SHIFT_CAP` (currently only
+  Reilly) have their achievable hours quantized in whole-shift increments, so a legitimate MIP
+  near-miss can be close to a full hour rather than the generic half-hour `GRID_TOLERANCE_H` —
+  a 50-run stress batch caught this misclassifying Reilly's floor as a hard failure.
 
 ### Cleanups
 - Single-sourced per-person hour floors, the 12-hour rest predicate, and per-person special rules

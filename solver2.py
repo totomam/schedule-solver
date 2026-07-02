@@ -432,14 +432,6 @@ for n in FT_NONLEADER:
         else:
             _sh(hours_expr[n], _FLOOR[n], 'Adam_Van_Bogaert')
         continue
-    if n == 'Reilly Weakley':                   # hard-capped at 3 shifts/week (see below) — his
-        # own ~8h/day availability makes 24h a real ceiling, not a headroom-padded estimate, so
-        # (unlike the generic FT_NONLEADER floor below) no +1 buffer: a +1 target would be
-        # permanently unreachable and pay a needless penalty every week.
-        prob += hours_expr[n]<=40
-        if len(avail_days(n)) >= 3:
-            _sh(hours_expr[n], _FLOOR[n], 'Reilly_Weakley', afl=_FLOOR[n])
-        continue
     prob += hours_expr[n]<=40
     floor = _FLOOR[n]
     max_per_day = 10.0 if n in TEN_HR else 8.0
