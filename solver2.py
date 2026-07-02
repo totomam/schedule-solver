@@ -3,7 +3,8 @@ from collections import defaultdict
 from datetime import datetime, timedelta
 from backbone import (STATIC_BACKBONE, JAY_STD, JAY_OPEN, MYLES_STD, MGR_OFFDAY_SHIFT, early_ok,
                       PB, NO_BREAK, FT_NONLEADER, TEN_HR, LATE_CLOSE, rest_floor, rest_conflict,
-                      LATEST_END, WEAK5_MAX_DAYS, MUST_CLOSE_AT, EXTRA_SHIFTS, WEEKEND_MAKEUP)
+                      LATEST_END, WEAK5_MAX_DAYS, MUST_CLOSE_AT, EXTRA_SHIFTS, WEEKEND_MAKEUP,
+                      SHIFT_CAP)
 
 # === CONFIG ===
 _OUT = os.environ.get('SCHED_OUT', 'schedule.json')   # tests set SCHED_OUT to write elsewhere
@@ -405,6 +406,7 @@ hours_expr = {n: pulp.lpSum(x[(n,d,i)]*(b-a) for d in range(7) for i,(a,b) in en
 # below and the above-floor incentive (_floor_map). Edit a target here and both pick it up.
 _FLOOR = {n: 33 for n in FT_NONLEADER}
 _FLOOR['Adam Van Bogaert'] = 40                 # Adam: exact-40h closer (cap == floor, see below)
+_FLOOR['Reilly Weakley'] = 24                   # hard-capped at 3 shifts/week (~8h each) — see below
 _FLOOR.update({n: 20 for n in strong_PT})
 _FLOOR['Gracelyn Dailey'] = 30  # not the standard strong_PT 20h — no hard cap, just a 30h target
 _FLOOR.update({n: 12 for n in regular_PT})
@@ -429,6 +431,14 @@ for n in FT_NONLEADER:
             prob += hours_expr[n] >= _FLOOR[n]
         else:
             _sh(hours_expr[n], _FLOOR[n], 'Adam_Van_Bogaert')
+        continue
+    if n == 'Reilly Weakley':                   # hard-capped at 3 shifts/week (see below) — his
+        # own ~8h/day availability makes 24h a real ceiling, not a headroom-padded estimate, so
+        # (unlike the generic FT_NONLEADER floor below) no +1 buffer: a +1 target would be
+        # permanently unreachable and pay a needless penalty every week.
+        prob += hours_expr[n]<=40
+        if len(avail_days(n)) >= 3:
+            _sh(hours_expr[n], _FLOOR[n], 'Reilly_Weakley', afl=_FLOOR[n])
         continue
     prob += hours_expr[n]<=40
     floor = _FLOOR[n]
@@ -478,11 +488,13 @@ for n in weak5:
     cap = WEAK5_MAX_DAYS.get(n, 2)
     prob += pulp.lpSum(x[(n,d,i)] for d in range(7) for i in range(len(shifts[(n,d)]))) <= cap
 
-# Jacob Cothern: PT, 2 shifts only (per scheduling_rules.md) — a hard weekly shift-count cap,
-# same pattern as the weak5 cap above, since his own availability (4 days) doesn't limit him.
-if 'Jacob Cothern' in people:
-    prob += pulp.lpSum(x[('Jacob Cothern',d,i)] for d in range(7)
-                        for i in range(len(shifts[('Jacob Cothern',d)]))) <= 2
+# Per-person hard weekly shift-count caps below the generic ≤5/week (Jacob Cothern: PT, 2 shifts
+# only; Reilly Weakley: max 3 shifts — his hour floor above is sized to match), per
+# scheduling_rules.md. SHIFT_CAP lives in backbone.py so test_protocol.py's reachability DP
+# can't overstate either person's max achievable hours by assuming the generic 5-shift cap.
+for _n, _cap in SHIFT_CAP.items():
+    if _n in people:
+        prob += pulp.lpSum(x[(_n,d,i)] for d in range(7) for i in range(len(shifts[(_n,d)]))) <= _cap
 
 # Per-person above-floor incentive: small penalty for hours exceeding individual floor.
 # Nudges the solver to stay near each floor without a hard ceiling — if coverage or another

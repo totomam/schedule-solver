@@ -41,8 +41,9 @@ Complete reference for building the weekly schedule. Given availability sheet, r
 
 ### FT target hours (raw hours)
 - Shift leaders (Bowen, James, Trinity, Gobi, Mary): **39–40h raw**. Gobi is capped at ~37h raw by her fixed schedule and the 12h close-then-open rule — she's the exception.
-- Other FT non-leaders (Adam, Mason, Michael, Molly, Noah, Ava, Izzy, Remi, Reilly): **33–40h raw**
+- Other FT non-leaders (Adam, Mason, Michael, Molly, Noah, Ava, Izzy, Remi): **33–40h raw**
 - Zac Duffy: **30h target, no hard cap** (penalty for missing it; generic 40h ceiling applies above that)
+- Reilly Weakley: **hard-capped at 3 shifts/week — 24h target**, not the standard 33-40h FT band (see §10)
 
 ---
 
@@ -320,7 +321,7 @@ From highest to lowest, what the solver protects first:
 - **Noah**: M-F 9-5 area, often using 9:15 start trick
 - **Ava**: any, prefers mornings (FT)
 - **Mason**: any 10-10, varied shifts
-- **Reilly**: prefers 9-5 (FT non-leader, 33–40h raw target — no shift-count cap, see §7)
+- **Reilly**: max 3 shifts, prefers 9-5. Hard shift-count cap (enforced in solver), 24h target — not the standard FT 33-40h band (see §7).
 - **Remi (kitchen)**: 9a-11p avail M/T/Th/F/Sat. Works afternoon/evening prep shifts (3p-11p typical), NOT late-night close
 
 ---
