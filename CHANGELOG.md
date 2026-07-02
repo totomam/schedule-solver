@@ -24,6 +24,16 @@ Notable changes to the scheduler, newest first. Routine weekly data updates
 - **Reilly Weakley's 3-shift cap.** Hard-capped at 3 shifts/week (`SHIFT_CAP` in `backbone.py`,
   shared with `test_protocol.py`); his `FT_NONLEADER` hour floor is overridden to 24h to match
   what 3 shifts can actually deliver.
+- **Hours-floor reachable fallback.** Previously, when someone's availability shrank below the
+  days needed for their full weekly floor (e.g. a heavy req-off week), most groups just dropped
+  the hour-floor incentive entirely — found via Ava Shade: 1 available day, no floor pressure at
+  all, left at the 4h minimum shift instead of the 10h her one day could support. `_sh_floor()`
+  now falls back to pushing toward the actual achievable ceiling (`_reachable_hours()`) instead
+  of giving up, generalizing the fallback Jay/Myles/James/Adam already had individually.
+- **5-tier hours-floor priority cascade.** Replaced the old 2-tier HI/LO split with
+  `leader(520) > ft(510) > strong(200) > reg(150) > weak(100)`, matching the existing role
+  hierarchy, so when multiple people compete for the same scarce leftover hours, the
+  harder-working tiers fill first.
 
 ### Stress test / CI
 - **CI smoke test now actually fails** on a bad run (the harness exits non-zero; seed pinned for
