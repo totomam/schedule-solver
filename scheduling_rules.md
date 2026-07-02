@@ -208,7 +208,7 @@ can actually support as possible, at the same priority as their tier.
 - Reese Bezehertny
 - Sandy Wright
 - **Ryder Buccola** — new hire, available any day/time, PT standard (max 8h shifts, takes break, max 5 days per week)
-- Gracelyn Dailey — **30h target (not the standard 18h), no hard cap, penalty for missing it.** Availability changes every month and is NOT in the standard availability sheet. She prints and brings her own calendar. Always verify her current availability before each build; do NOT assume she's "any"/open. (Example: for 6/22-6/28 she was available Saturday only.)
+- Gracelyn Dailey — standard 18h target like the rest of this group (her old 30h override was removed). Availability changes every month and is NOT in the standard availability sheet. She prints and brings her own calendar. Always verify her current availability before each build; do NOT assume she's "any"/open. (Example: for 6/22-6/28 she was available Saturday only.)
 
 ### Weak / limited group — "don't pull their weight," spread out, prefer one day each
 - **Full group (nine): Emily Owens, Brian Carver, Bryan Bishop, Jason Britt, Shayden Howard, Oliver Croasdaile, John Dugan, Jacob Cothern, Jonathan Beacham**

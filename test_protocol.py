@@ -21,7 +21,8 @@ import json, os, random, re, subprocess, sys, time
 from pathlib import Path
 
 from backbone import (STATIC_BACKBONE, early_ok, PB, NO_BREAK, FT_NONLEADER, TEN_HR, rest_floor,
-                      LATEST_END, JAY_STD, MGR_OFFDAY_SHIFT, WEEKEND_MAKEUP, SHIFT_CAP)
+                      LATEST_END, JAY_STD, MGR_OFFDAY_SHIFT, WEEKEND_MAKEUP, SHIFT_CAP,
+                      GRID_TOLERANCE_H, SHIFT_CAP_GRID_TOLERANCE_H, grid_tolerance)
 
 # ── Config ──────────────────────────────────────────────────────────────────────────
 SEED    = int(os.environ.get('TEST_SEED',  str(random.randint(0, 2**31 - 1))))
@@ -177,18 +178,9 @@ def _max_achievable_raw(person: str, reqoff: dict) -> float:
 # ~4h of that ceiling the solver can't extend a close shift, so leader open/close gaps go soft.
 BUDGET_CEILING  = 30.0   # top of the weekly paid band (var ceiling)
 NEAR_CEILING_VAR = 26    # var ≥ this → exempt LeaderClose/LeaderOpen from hard status
-GRID_TOLERANCE_H = 0.5   # shortfall ≤ this is grid/structural rounding, not a real miss
-# Anyone with a below-default SHIFT_CAP (e.g. Reilly Weakley, 3 shifts) has their achievable
-# hours quantized in whole-shift increments (up to 8-10h) rather than the smooth few-tenths-of-
-# an-hour a full 5-shift-eligible person can dial in via shorter/longer shift choices — so a
-# "grid miss" for them can legitimately be close to a full hour, not the generic half-hour
-# gapRel/rounding slop. Confirmed via a 50-run stress batch: Reilly landed exactly 1.0h under
-# his (reachable) 24h target repeatedly — a real MIP near-miss, not an avoidable solver failure,
-# but > GRID_TOLERANCE_H so it was getting mis-flagged as hard.
-SHIFT_CAP_GRID_TOLERANCE_H = 1.5
-
-def _grid_tolerance(person: str) -> float:
-    return SHIFT_CAP_GRID_TOLERANCE_H if person in SHIFT_CAP else GRID_TOLERANCE_H
+# GRID_TOLERANCE_H / SHIFT_CAP_GRID_TOLERANCE_H / grid_tolerance() now live in backbone.py
+# (shared with solver2.py's own live audit, so the two can't disagree on what's a real miss).
+_grid_tolerance = grid_tolerance
 
 def _compute_budget_constrained(audit_issues: list, var) -> bool:
     """True if total FT/SL raw-hour shortfall exceeds paid budget headroom (+30 ceiling)."""

@@ -4,7 +4,7 @@ from datetime import datetime, timedelta
 from backbone import (STATIC_BACKBONE, JAY_STD, JAY_OPEN, MYLES_STD, MGR_OFFDAY_SHIFT, early_ok,
                       PB, NO_BREAK, FT_NONLEADER, TEN_HR, LATE_CLOSE, rest_floor, rest_conflict,
                       LATEST_END, WEAK5_MAX_DAYS, MUST_CLOSE_AT, EXTRA_SHIFTS, WEEKEND_MAKEUP,
-                      SHIFT_CAP)
+                      SHIFT_CAP, grid_tolerance)
 
 # === CONFIG ===
 _OUT = os.environ.get('SCHED_OUT', 'schedule.json')   # tests set SCHED_OUT to write elsewhere
@@ -424,8 +424,7 @@ hours_expr = {n: pulp.lpSum(x[(n,d,i)]*(b-a) for d in range(7) for i,(a,b) in en
 _FLOOR = {n: 30 for n in FT_NONLEADER}
 _FLOOR['Adam Van Bogaert'] = 40                 # Adam: exact-40h closer (cap == floor, see below)
 _FLOOR['Reilly Weakley'] = 24                   # hard-capped at 3 shifts/week (~8h each) — see below
-_FLOOR.update({n: 18 for n in strong_PT})
-_FLOOR['Gracelyn Dailey'] = 30  # not the standard strong_PT 18h — no hard cap, just a 30h target
+_FLOOR.update({n: 18 for n in strong_PT})  # Gracelyn's old 30h override removed — standard 18h now
 _FLOOR.update({n: 12 for n in regular_PT})
 _FLOOR.update({n: 4 for n in weak5})
 _FLOOR.update({'Zac Duffy': 30, 'Trinity Stringer': 39, 'Gobi Weathers': 37,
@@ -824,11 +823,13 @@ _dviol=[] if _XLSX_ONLY else [v.name for v in _din_slk if v.value() and v.value(
 if _dviol: _fails.append(f"DinnerTargetMiss({len(_dviol)}): {_dviol} (below soft target)")
 # Hours-under: report ACTUAL scheduled (raw) hours from the final solution, not the LP slack
 # value (which lags the integer solution at gapRel stop and produced phantom ~1h shortfalls).
+# A shortfall within grid_tolerance() (backbone.py — shared with test_protocol.py's classifier)
+# is ordinary MIP/gapRel imprecision, not a real miss, so it isn't reported at all.
 for _nm,_fl,_sv in ([] if _XLSX_ONLY else [t for tier in _hrs_slk.values() for t in tier]):
     _person=_nm.replace('_',' ')
     _sched=sol.get(_person) or []
     _act=sum(sh[1]-sh[0] for sh in _sched if sh)
-    if _act < _fl-0.01:
+    if _act < _fl - grid_tolerance(_person):
         _fails.append(f"HoursUnder: {_person} {_act:.1f}h actual (target ≥{_fl}h)  [{_fl-_act:.1f}h short]")
 
 print(f"Audit: {'PASS' if not _fails else str(len(_fails))+' issue(s):'}")

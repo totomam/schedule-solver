@@ -95,6 +95,22 @@ WEEKEND_MAKEUP = {'Adam Van Bogaert': (14.0, 23.0)}
 # already applies its own default 2-day/week cap to every member (matching his old value).
 SHIFT_CAP = {'Reilly Weakley': 3}
 
+# ── Hours-floor "grid tolerance" — how much shortfall is normal MIP/gapRel imprecision, ──
+# ── not a real miss. Shared by solver2.py's live audit AND test_protocol.py's hard/soft ──
+# ── classifier, so the two can't disagree about what counts as a genuine shortfall. ──
+GRID_TOLERANCE_H = 0.5   # shortfall ≤ this is grid/structural rounding, not a real miss
+# Anyone with a below-default SHIFT_CAP (e.g. Reilly Weakley, 3 shifts) has their achievable
+# hours quantized in whole-shift increments (up to 8-10h) rather than the smooth few-tenths-of-
+# an-hour a full 5-shift-eligible person can dial in via shorter/longer shift choices — so a
+# "grid miss" for them can legitimately be close to a full hour, not the generic half-hour
+# gapRel/rounding slop. Confirmed via a 50-run stress batch: Reilly landed exactly 1.0h under
+# his (reachable) 24h target repeatedly — a real MIP near-miss, not an avoidable solver failure,
+# but > GRID_TOLERANCE_H so it was getting mis-flagged as hard.
+SHIFT_CAP_GRID_TOLERANCE_H = 1.5
+
+def grid_tolerance(person):
+    return SHIFT_CAP_GRID_TOLERANCE_H if person in SHIFT_CAP else GRID_TOLERANCE_H
+
 # ── 12-hour close-then-open rest rule (one definition for the constraint, audit, and test) ──
 REST_HOURS = 12   # required rest between a late close and the next day's opening shift
 LATE_CLOSE = 21   # a shift ending at/AFTER this (9pm) is a "late close" that triggers the rule

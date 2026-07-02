@@ -14,6 +14,15 @@ Notable changes to the scheduler, newest first. Routine weekly data updates
   rules all live here, imported by both `solver2.py` and `test_protocol.py` so they can't drift.
 
 ### Solver
+- **`HoursUnder` audit now suppresses shortfalls within `grid_tolerance()`.** Moved
+  `GRID_TOLERANCE_H`(0.5h)/`SHIFT_CAP_GRID_TOLERANCE_H`(1.5h) from `test_protocol.py` into
+  `backbone.py` as a shared `grid_tolerance(person)` helper, and applied it in `solver2.py`'s own
+  live audit (previously only a 0.01h floating-point epsilon) so ordinary MIP/gapRel imprecision
+  (e.g. Trinity Stringer's frequent ~0.5h misses) no longer prints as a `HoursUnder` issue at all
+  — matching what the stress-test classifier already treated as a non-failure. Real shortfalls
+  above tolerance are unaffected.
+- **Removed Gracelyn Dailey's 30h `_FLOOR` override** — she now uses the standard `strong_PT` 18h
+  target like the rest of that group.
 - **Jacob Cothern and Jonathan Beacham moved into `weak5`** (were `regular_PT`, 12h target) — now
   a 4h target with the group's 2-day/week cap and "prefer one day" treatment. Jacob's separate
   2-shift `SHIFT_CAP` entry in `backbone.py` was removed as redundant (weak5's own default 2-day
