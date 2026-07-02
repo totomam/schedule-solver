@@ -245,9 +245,15 @@ for d in range(7):
 twoTar=[8,8,8,8,8,9,11]; threeTar=[6,6,6,6,7,8,8]; fourTar=[5,5,5,5,6,7,6]
 Otar=[5,5,5,5,5,5,5]; Ltar=[9,9,9,9,10,10,10]; Ctar=[5,5,5,5,6,6,6]
 # Dinner HARD floor (Dhard) is the per-day minimum that must be met or the week is infeasible.
-# Dtar is a tiny, uniform soft aspiration of "one better than the hard floor" on every day
-# (not just Sunday) — see _DINPEN below.
-Dhard=[10,10,10,11,13,13,10]
+# Dtar is a tiny soft aspiration of "one better than the hard floor" on every day — see _DINPEN
+# below. Sunday's hard floor matches Thursday's (11, not the generic 10) — human preference:
+# Sunday reliably hitting 11 beats, say, Thursday reaching a 12th body. A soft nudge (even a very
+# large one, tested up to 5000 — larger than every other soft weight in the model) wasn't
+# reliably honored: HiGHS's time-limited heuristic search doesn't discover the specific
+# combinatorial move needed even though it's provably free (verified: forcing Sunday to 11 costs
+# nothing and doesn't touch Thursday). Promoting it to a hard floor is the same class of upgrade
+# already applied to the PB opener/closer floors for the same reason.
+Dhard=[10,10,10,11,13,13,11]
 Dtar=[d+1 for d in Dhard]
 # Closer target (graduated penalty, see _close_graded): 5 weekday / 6 weekend.
 # Lunch soft target (above the hard Ltar floor): aim for 11 on Sunday. Penalised, not hard.

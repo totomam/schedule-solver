@@ -34,6 +34,12 @@ Notable changes to the scheduler, newest first. Routine weekly data updates
   `leader(520) > ft(510) > strong(200) > reg(150) > weak(100)`, matching the existing role
   hierarchy, so when multiple people compete for the same scarce leftover hours, the
   harder-working tiers fill first.
+- **Sunday's dinner hard floor raised to 11** (was 10, now matches Thursday's 11) — human
+  preference for Sunday reliably hitting 11 over Thursday reaching a 12th body. A soft-weight
+  nudge was tried first (up to 5000, larger than every other soft penalty including
+  `_TRIO_ESCAPE`) but HiGHS's time-limited search didn't reliably find the improvement even
+  though it's provably free; promoted to a hard floor instead, same reliability fix already
+  applied to the PB opener/closer floors.
 
 ### Stress test / CI
 - **CI smoke test now actually fails** on a bad run (the harness exits non-zero; seed pinned for

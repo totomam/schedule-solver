@@ -19,7 +19,7 @@ Primary file: `solver2.py`. Read `scheduling_rules.md` for the full business rul
 Most coverage uses penalised slack variables (`_CPEN=500`) so the feasible region stays wide and HiGHS converges fast. Helpers: `_sc` ceiling, `_sf` floor, `_sh` hours floor (tiered), `_close_graded` graduated closers, `_sfl`/`_sfd` lunch/dinner soft targets.
 
 **Hard floors** (`_hardfloor` → infeasible, a real fail, if unmet — the solver never returns a schedule that misses them):
-- Lunch floor `Ltar=[9,9,9,9,10,10,10]`; dinner floor `Dhard=[10,10,10,11,13,13,10]`; manager ≥45 and the weekly paid-hours bounds.
+- Lunch floor `Ltar=[9,9,9,9,10,10,10]`; dinner floor `Dhard=[10,10,10,11,13,13,11]` (Sunday matches Thursday's 11, not the generic weekday 10 — see "Soft targets" below); manager ≥45 and the weekly paid-hours bounds.
 - Openers: exactly 3 people in by 9:00 (`stag9`, counting Bowen's 8a anchor) AND exactly 2 more starting at exactly 10:00 (`open10`) — both hard equalities, together always totaling 5/day. The old 9:15/9:30/9:45 stagger is gone (`gen()` now bans starts strictly between 9 and 10, same as the existing 10-11 ban), so an opener's only two valid start slots are "by 9" or "exactly 10".
 - Closer floor: hard at `Ctar-1` (5 Mon-Thu / 6 Fri-Sun → floor 4/5) — never allowed 2+ below target. Only sitting exactly 1 below is still just a small penalty (`_close_graded`).
 - At least 1 PB opener and 1 PB closer every day (`pb_op`/`pb_cl`) — was a soft floor (`_sf`) until stress testing showed the static `_pb_opener_exists`/`_pb_closer_exists` check (which only decides the manager backstop's backbone shift) doesn't guarantee the solver actually places anyone in that role; a genuinely-available PB member could get optimized into a non-opening/non-closing shift, leaving a day with zero PB coverage.
@@ -31,7 +31,7 @@ Most coverage uses penalised slack variables (`_CPEN=500`) so the feasible regio
 
 **Soft targets above those floors** (penalised, not hard):
 - Sunday lunch aims for 11 (`Lsoft`, `_LUNCHPEN=800`).
-- Dinner: tiny uniform aspiration of hard-floor+1 on **every** day (`Dtar=Dhard+1`, `_DINPEN=20`) — deliberately far below every other coverage penalty, a nice-to-have nudge only. (No longer Sunday-specific/heavy.)
+- Dinner: tiny aspiration of hard-floor+1 on **every** day (`Dtar=Dhard+1`, `_DINPEN=20`) — deliberately far below every other coverage penalty, a nice-to-have nudge only. Sunday's floor itself (not the soft aspiration) was raised to match Thursday's (11, not the generic 10) — human preference: Sunday reliably hitting 11 outranks Thursday reaching a 12th body. Tried as a soft nudge first (even at 5000 — larger than every other soft weight, including `_TRIO_ESCAPE`) but HiGHS's time-limited heuristic search didn't reliably discover the improvement even though it's provably free (confirmed: forcing Sunday to 11 costs nothing and doesn't touch Thursday). Promoted to a hard floor instead, the same class of upgrade already applied to the PB opener/closer floors for the same reliability reason.
 - Closers: `_CLOSE_SMALL=300` for sitting exactly 1 below `Ctar` — the only closer slack left; 2+ below is now the hard floor above.
 - Trio-cap escape valve: `_TRIO_ESCAPE=1000` lets a 2nd of Gobi/James/Trinity close (absent Mary) **only** as a last resort when the hard closer floor can't be met otherwise. The weight is higher than every other soft penalty so it's never worth paying for any other reason — verified it does NOT fire when the trio cap isn't the actual bottleneck, and DOES fire (via an isolated synthetic-model test) when it's the only way to reach the floor.
 - Zac Duffy and Gracelyn Dailey: no hard hour cap for either — both target 30h with a penalty for missing it (Zac at `_HPEN_FT`/510 tier, Gracelyn at `_HPEN_STRONG`/200 tier via `strong_PT`), then fall under the generic 40h ceiling like everyone else.
@@ -163,6 +163,18 @@ English, not Git jargon. Report *what shipped*, not *whether to ship it*.
 - Default `TEST_RUNS=10` for any randomized `test_protocol.py` stress run. Only use a larger count
   (e.g. 30/50) when the human explicitly asks for one, and treat that as a one-time request — the
   default reverts to 10 afterward, not to whatever was last requested.
+
+### Stress-test seeds: don't hand-pick/reuse a seed as a stand-in for real verification
+`TEST_SEED` pins the RNG so a run is exactly reproducible — that's it. Do NOT treat "run it again
+with some seed" as a second, independent data point; a single seed's outcome doesn't generalize,
+and re-running the *same* seed produces a byte-identical result, so it proves nothing new no
+matter how many times it's repeated. There is exactly one legitimate reason to fix a seed:
+isolating the effect of one specific code change via a controlled before/after comparison (same
+random conditions, only the code differs — as done for the `WEEKEND_MAKEUP`/Reilly-cap
+regression tests). Outside that specific use, always let `TEST_SEED` auto-randomize (the
+default) — never hand-pick a seed, and never call a repeat run at a fixed or newly-hand-picked
+seed "extra confidence." If genuinely more confidence is wanted, that means more `TEST_RUNS` in
+one unseeded batch, not another single seeded run.
 
 ## Weekly workflow — the human provides inputs, Claude does the rest
 **The human only supplies the three input files for the new week** (availability, request-offs,
