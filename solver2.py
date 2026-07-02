@@ -38,10 +38,10 @@ def paid_val(n,a,b):
     if round(b,2) >= 23: p -= 0.25
     return p
 weak3={'Brian Carver','Bryan Bishop','Jason Britt'}
-weak5=weak3|{'Emily Owens','Shayden Howard','Oliver Croasdaile','John Dugan','Jacob Cothern','Jonathan Beacham'}
+weak5=weak3|{'Emily Owens','Shayden Howard','Oliver Croasdaile','John Dugan','Jacob Cothern','Jonathan Beacham','Harper Flynn'}
 prep={'Michael Calderon','Tiffany Huffman','Noah Hiner','Gracelyn Dailey','Molly Summers','Reilly Weakley'}
 strong_PT={'Gracelyn Dailey','Cai Cotton','Sandy Wright','Kara Thompson','Nathan Paaswee','Peyton Shaw','Reese Bezehertny','Diana Castaneda','Kayden Anderson','Ryder Buccola'}
-regular_PT={'Amiyah Bartley','Harper Flynn',
+regular_PT={'Amiyah Bartley',
             'Hayden Roush','Logan Frias',
             'Richard Raglin'}
 
@@ -321,12 +321,35 @@ _HPEN_FT=510      # FT non-leaders + Zac Duffy — same weight as the old HPEN_H
 _HPEN_STRONG=200  # strong PT — above regular PT, below CLOSE_SMALL
 _HPEN_REG=150     # regular PT — same weight as the old HPEN_LO tier
 _HPEN_WEAK=100    # weak group — first to lose hours when budget is tight
+# Convex "second tranche" weights for strong/reg/weak — a fixed total shortfall in a tier is
+# cheaper to the objective spread across many people's cheap first tranche than concentrated
+# into one person's expensive second tranche, since sum(weight*slack) is linear per slack but
+# a person can't get MORE than `breakpoint` hours into the cheap tranche before spilling into
+# the pricier one. Sandwiched to preserve the full leader>ft>strong>reg>weak ordering: each
+# tier's _HI stays below the tier above's base weight, and above its own tier's base weight.
+_HPEN_STRONG_HI=505  # < _HPEN_FT(510), > _HPEN_STRONG(200)
+_HPEN_REG_HI=199     # < _HPEN_STRONG(200), > _HPEN_REG(150)
+_HPEN_WEAK_HI=149    # < _HPEN_REG(150), > _HPEN_WEAK(100)
 _hrs_slk={'leader':[], 'ft':[], 'strong':[], 'reg':[], 'weak':[]}  # (tag, floor, slack) per tier
+_hrs_slk_hi={'strong':[], 'reg':[], 'weak':[]}  # second-tranche slacks, same tiers only
 def _sh(expr, floor, tag, tier='ft', afl=None):
     global prob
     _s = pulp.LpVariable(f'hs_{tag}', lowBound=0)
     prob += expr + _s >= floor
     _hrs_slk[tier].append((tag, afl if afl is not None else floor, _s))
+
+def _sh_tiered(expr, floor, tag, tier, breakpoint, afl=None):
+    """Convex version of _sh(): shortfall below `breakpoint` is cheap (this tier's normal
+    weight); shortfall beyond it is expensive (the tier's _HI weight, in _hrs_slk_hi). Splitting
+    a fixed amount of shortfall this way is always at-least-as-cheap when spread across several
+    people's cheap tranche as when concentrated in one person's expensive tranche, so the
+    objective naturally prefers an even spread within a tier over one person absorbing it all."""
+    global prob
+    _lo = pulp.LpVariable(f'hs_{tag}_lo', lowBound=0, upBound=breakpoint)
+    _hi = pulp.LpVariable(f'hs_{tag}_hi', lowBound=0)
+    prob += expr + _lo + _hi >= floor
+    _hrs_slk[tier].append((tag, afl if afl is not None else floor, _lo))
+    _hrs_slk_hi[tier].append(_hi)
 
 # === COVERAGE CONSTRAINTS ===
 for d in range(7):
@@ -442,7 +465,7 @@ def _reachable_hours(n, cap):
     """
     return min(cap, sum(max((b-a for (a,b) in shifts[(n,d)]), default=0.0) for d in range(7)))
 
-def _sh_floor(n, floor, tag, max_per_day, tier='ft'):
+def _sh_floor(n, floor, tag, max_per_day, tier='ft', convex=False):
     """Push hours_expr[n] toward `floor` (standard +1 buffer). If this week's availability
     can't reach the full floor (avail_days < ceil(floor/max_per_day)), still push toward
     the actual achievable ceiling instead of dropping the incentive entirely — a req-off
@@ -451,14 +474,21 @@ def _sh_floor(n, floor, tag, max_per_day, tier='ft'):
     it so everyone else — Bowen/Trinity/Gobi/Mary and the FT_NONLEADER/regular_PT/strong_PT
     groups — gets the same treatment instead of silently going untracked, per the bug found
     with Ava Shade: 1 available day, no floor pressure at all, left at the 4h minimum.)
+
+    convex=True (strong/reg/weak only) routes through _sh_tiered instead of _sh, so a deep
+    shortfall for one person costs more per-hour than a shallow one — the objective then
+    prefers spreading a tier's total shortfall across several people rather than concentrating
+    it on whoever's availability happens to be cheapest to under-serve.
     """
     min_days = math.ceil(floor / max_per_day)
+    _push = (lambda expr, fl, af: _sh_tiered(expr, fl, tag, tier, fl/3, afl=af)) if convex \
+        else (lambda expr, fl, af: _sh(expr, fl, tag, tier=tier, afl=af))
     if len(avail_days(n)) >= min_days:
-        _sh(hours_expr[n], floor+1, tag, tier=tier, afl=floor)
+        _push(hours_expr[n], floor+1, floor)
     else:
         reach = _reachable_hours(n, floor)
         if reach > 0:
-            _sh(hours_expr[n], reach, tag, tier=tier, afl=reach)
+            _push(hours_expr[n], reach, reach)
 
 # Bowen's backbone already pins him to 8h Mon-Fri when available (naturally 40h if he works all
 # 5), but that pin silently vanishes on a day he's req'd off — this floor is what pushes his
@@ -487,7 +517,7 @@ for n in FT_NONLEADER:
     # ceiling above like everyone else not otherwise specially capped.
 for n in regular_PT:
     max_pd = 10.0 if n in TEN_HR else 8.0
-    _sh_floor(n, _FLOOR[n], n.replace(' ','_'), max_pd, tier='reg')
+    _sh_floor(n, _FLOOR[n], n.replace(' ','_'), max_pd, tier='reg', convex=True)
 _capped40 = FT_NONLEADER  # already have explicit caps above
 for n in people:
     if n in ('Jay Martin','Myles Palmer') or n in _capped40: continue
@@ -514,9 +544,9 @@ _sh_floor('Mary Dean', _FLOOR['Mary Dean'], 'Mary_Dean', max_per_day=10, tier='l
 # using her overridden _FLOOR value; falls under the generic 40h ceiling like everyone else).
 for n in strong_PT:
     max_pd = 10.0 if n in TEN_HR else 8.0
-    _sh_floor(n, _FLOOR[n], n.replace(' ','_'), max_pd, tier='strong')
+    _sh_floor(n, _FLOOR[n], n.replace(' ','_'), max_pd, tier='strong', convex=True)
 for n in weak5:
-    _sh_floor(n, _FLOOR[n], n.replace(' ','_'), 8.0, tier='weak')
+    _sh_floor(n, _FLOOR[n], n.replace(' ','_'), 8.0, tier='weak', convex=True)
 # weak5: prefer 1 day each. Default hard cap 2 days; per-person overrides in WEAK5_MAX_DAYS.
 for n in weak5:
     cap = WEAK5_MAX_DAYS.get(n, 2)
@@ -640,6 +670,9 @@ prob += (8*weak_use + 0.3*short_pref + 30*mgr_offday
          + _HPEN_STRONG*pulp.lpSum(s for _,_,s in _hrs_slk['strong'])
          + _HPEN_REG*pulp.lpSum(s for _,_,s in _hrs_slk['reg'])
          + _HPEN_WEAK*pulp.lpSum(s for _,_,s in _hrs_slk['weak'])
+         + _HPEN_STRONG_HI*pulp.lpSum(_hrs_slk_hi['strong'])
+         + _HPEN_REG_HI*pulp.lpSum(_hrs_slk_hi['reg'])
+         + _HPEN_WEAK_HI*pulp.lpSum(_hrs_slk_hi['weak'])
          + _AFLOOR_PEN*pulp.lpSum(_afloor_terms))
 
 # === SOLVE ===

@@ -51,6 +51,25 @@ most call sites. LEADER/FT stay above `_CPEN`(500) — same reasoning as the old
 STRONG/REG/WEAK stay well below `_CLOSE_PEN`(900) — same relative position the old single "LO" tier
 had, just subdivided three ways instead of lumped together.
 
+### Within-tier fairness (convex shortfall penalty for strong/reg/weak)
+A flat linear penalty per tier has no preference for *how* a fixed total shortfall is
+distributed among that tier's members — "1 person 7h short" and "3 people ~2h short each" cost
+the objective the same, so a person whose availability happens to be marginally less useful for
+other coverage needs can end up absorbing an entire tier's shortfall alone, run after run (found
+via a live complaint: Logan Frias sitting 7h under while his regular_PT tier-mates sat 1-2h
+under, despite having 33h of real reachable capacity — not an availability problem, an objective
+design gap). `_sh_floor(..., convex=True)` (enabled for `strong`/`reg`/`weak` only — `leader`/`ft`
+keep the simple linear `_sh`, since their weight gap to the tier above is too tight to safely
+split) routes through `_sh_tiered()` instead: shortfall up to `floor/3` stays at the tier's normal
+weight, but shortfall beyond that costs a separate, higher `_HI` weight
+(`_HPEN_STRONG_HI`=505, `_HPEN_REG_HI`=199, `_HPEN_WEAK_HI`=149 — each sandwiched just below the
+tier above's base weight and above its own tier's base weight, so the full
+leader>ft>strong>reg>weak ordering across tiers is unaffected). Since a convex penalty is
+minimized by spreading a fixed total across many small shares rather than concentrating it,
+this makes the solver prefer several people ending up moderately short over one person ending
+up deeply short. Confirmed via re-solve: regular_PT's spread tightened from a 7h person next to
+two ~2h people, to all three landing within 1.5h of each other.
+
 ### Hours floor: reachable-hours fallback (don't drop the incentive when the full floor is out of reach)
 `_sh_floor()`'s gate (`avail_days(n) >= ceil(floor/max_per_day)`) decides whether the *full*
 floor is reachable this week. When it isn't (e.g. someone req'd off most of the week), the old
@@ -113,11 +132,11 @@ says so explicitly ("Diagnostic inconclusive... outside coverage floors") rather
 - `NO_BREAK` — Jay + Myles (no break deduction)
 - `TEN_HR` — PB + Adam Van Bogaert, Mason Doyle, Ava Shade, Remi Sullinger, Izzy Simpson, Zac Duffy, Kara Thompson
 - `weak3` — Brian Carver, Bryan Bishop, Jason Britt (1-per-meal-period rule)
-- `weak5` — weak3 + Emily Owens, Shayden Howard, Oliver Croasdaile, John Dugan, Jacob Cothern, Jonathan Beacham (4h target, prefer-1-day rule, hard 2-day/week cap — Jacob's old standalone 2-shift `SHIFT_CAP` entry in `backbone.py` was removed since this group cap already covers him)
+- `weak5` — weak3 + Emily Owens, Shayden Howard, Oliver Croasdaile, John Dugan, Jacob Cothern, Jonathan Beacham, Harper Flynn (4h target, prefer-1-day rule, hard 2-day/week cap — Jacob's old standalone 2-shift `SHIFT_CAP` entry in `backbone.py` was removed since this group cap already covers him; Harper moved here after her old `regular_PT` 12h floor turned out to be structurally unreachable — her 2 available days cap her at 9h)
 - `prep` — Michael Calderon, Tiffany Huffman, Noah Hiner, Gracelyn Dailey, Molly Summers, Reilly Weakley (≥1 starting ≤9am each day)
 - `FT_nonleader` — Adam Van Bogaert, Mason Doyle, Michael Calderon, Molly Summers, Noah Hiner, Ava Shade, Izzy Simpson, Remi Sullinger, Reilly Weakley, Zac Duffy (30–40h target; Adam/Reilly/Zac each carry their own `_FLOOR` override — 40h/24h/30h respectively — same group, different per-person target)
 - `strong_PT` — Gracelyn Dailey, Cai Cotton, Sandy Wright, Kara Thompson, Nathan Paaswee, Peyton Shaw, Reese Bezehertny, Diana Castaneda, Kayden Anderson, Ryder Buccola (18h target)
-- `regular_PT` — Amiyah Bartley, Harper Flynn, Hayden Roush, Logan Frias, Richard Raglin (12h target)
+- `regular_PT` — Amiyah Bartley, Hayden Roush, Logan Frias, Richard Raglin (12h target)
 - `_trio` — Gobi, James, Trinity, Mary Dean: Mary always closes when available (hard); James never closes with Mary (hard); absent Mary, at most 1 of Gobi/James/Trinity closes (soft escape valve — see "Constraint model" above)
 
 ## Session preferences

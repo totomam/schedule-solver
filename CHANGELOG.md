@@ -14,6 +14,21 @@ Notable changes to the scheduler, newest first. Routine weekly data updates
   rules all live here, imported by both `solver2.py` and `test_protocol.py` so they can't drift.
 
 ### Solver
+- **Convex within-tier fairness penalty for strong/reg/weak hours floors.** The old flat linear
+  penalty had no preference for how a fixed tier-wide shortfall got distributed, so one person
+  could absorb an entire tier's shortfall (found via Logan Frias: 7h under while regular_PT
+  tier-mates sat 1-2h under, despite having far more real reachable capacity than his target).
+  `_sh_floor(..., convex=True)` now splits shortfall into a cheap tranche (first `floor/3`
+  hours, normal tier weight) and an expensive tranche (`_HPEN_STRONG_HI`=505/`_HPEN_REG_HI`=199/
+  `_HPEN_WEAK_HI`=149, each sandwiched to preserve the leader>ft>strong>reg>weak ordering) via a
+  new `_sh_tiered()` helper — spreading a fixed shortfall is always cheaper than concentrating
+  it once the expensive tranche kicks in. `leader`/`ft` stay on the simple linear `_sh` since
+  their weight gap to the tier above is too tight to split safely. Confirmed: regular_PT's
+  spread tightened from one person at 7h short next to others at 1-2h, to everyone landing
+  within 1.5h of each other.
+- **Harper Flynn moved into `weak5`** (was `regular_PT`, 12h target) — her 2 available days
+  give a true ceiling of 9h, which the day-count-only reachability gate didn't catch (same class
+  of bug as Jacob/Jonathan's moves last entry, caught while investigating Logan's shortfall).
 - **`HoursUnder` audit now suppresses shortfalls within `grid_tolerance()`.** Moved
   `GRID_TOLERANCE_H`(0.5h)/`SHIFT_CAP_GRID_TOLERANCE_H`(1.5h) from `test_protocol.py` into
   `backbone.py` as a shared `grid_tolerance(person)` helper, and applied it in `solver2.py`'s own
