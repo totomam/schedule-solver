@@ -52,7 +52,10 @@ STATIC_BACKBONE = {
 # Manager standard / fallback candidate shifts (the SOLVER picks among these dynamically:
 # Jay falls back to the OPEN variant when no other PB member can open that day; Myles shifts
 # to (14,23) when he's the only PB closer). Compensation shifts apply on manager off-days.
-JAY_STD   = {0: (6, 15), 3: (10, 20), 4: (10, 20), 5: (10, 20), 6: (11, 17)}
+# Sun (9,17) is a ONE-WEEK boost from his standard (11,17) — 7/13-7/19 only, to bring him
+# closer to his 45h target after losing Saturday to a req-off. RESET to (11,17) next week
+# (scheduling_rules.md's documented default) unless a new reason to extend it shows up.
+JAY_STD   = {0: (6, 15), 3: (10, 20), 4: (10, 20), 5: (10, 20), 6: (9, 17)}
 JAY_OPEN  = {            3: (9, 19),  4: (9, 19),  5: (9, 19),  6: (9, 17)}
 MYLES_STD = {0: (12, 21), 1: (11, 20), 2: (11, 20), 5: (11, 20), 6: (12, 21)}
 MGR_OFFDAY_SHIFT = {
