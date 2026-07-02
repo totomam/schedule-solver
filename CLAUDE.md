@@ -113,11 +113,11 @@ says so explicitly ("Diagnostic inconclusive... outside coverage floors") rather
 - `NO_BREAK` — Jay + Myles (no break deduction)
 - `TEN_HR` — PB + Adam Van Bogaert, Mason Doyle, Ava Shade, Remi Sullinger, Izzy Simpson, Zac Duffy, Kara Thompson
 - `weak3` — Brian Carver, Bryan Bishop, Jason Britt (1-per-meal-period rule)
-- `weak5` — weak3 + Emily Owens, Shayden Howard, Oliver Croasdaile, John Dugan (prefer-1-day rule)
+- `weak5` — weak3 + Emily Owens, Shayden Howard, Oliver Croasdaile, John Dugan, Jacob Cothern, Jonathan Beacham (4h target, prefer-1-day rule, hard 2-day/week cap — Jacob's old standalone 2-shift `SHIFT_CAP` entry in `backbone.py` was removed since this group cap already covers him)
 - `prep` — Michael Calderon, Tiffany Huffman, Noah Hiner, Gracelyn Dailey, Molly Summers, Reilly Weakley (≥1 starting ≤9am each day)
 - `FT_nonleader` — Adam Van Bogaert, Mason Doyle, Michael Calderon, Molly Summers, Noah Hiner, Ava Shade, Izzy Simpson, Remi Sullinger, Reilly Weakley, Zac Duffy (30–40h target; Adam/Reilly/Zac each carry their own `_FLOOR` override — 40h/24h/30h respectively — same group, different per-person target)
 - `strong_PT` — Gracelyn Dailey, Cai Cotton, Sandy Wright, Kara Thompson, Nathan Paaswee, Peyton Shaw, Reese Bezehertny, Diana Castaneda, Kayden Anderson, Ryder Buccola (18h target; Gracelyn carries her own 30h `_FLOOR` override)
-- `regular_PT` — Amiyah Bartley, Harper Flynn, Jonathan Beacham, Hayden Roush, Logan Frias, Richard Raglin, Jacob Cothern (12h target; Jacob carries his own 10h `_FLOOR` override — hard-capped at 2 shifts/week with a ~5h dinner-only window, so 12h isn't reachable)
+- `regular_PT` — Amiyah Bartley, Harper Flynn, Hayden Roush, Logan Frias, Richard Raglin (12h target)
 - `_trio` — Gobi, James, Trinity, Mary Dean: Mary always closes when available (hard); James never closes with Mary (hard); absent Mary, at most 1 of Gobi/James/Trinity closes (soft escape valve — see "Constraint model" above)
 
 ## Session preferences

@@ -14,6 +14,11 @@ Notable changes to the scheduler, newest first. Routine weekly data updates
   rules all live here, imported by both `solver2.py` and `test_protocol.py` so they can't drift.
 
 ### Solver
+- **Jacob Cothern and Jonathan Beacham moved into `weak5`** (were `regular_PT`, 12h target) — now
+  a 4h target with the group's 2-day/week cap and "prefer one day" treatment. Jacob's separate
+  2-shift `SHIFT_CAP` entry in `backbone.py` was removed as redundant (weak5's own default 2-day
+  cap already matched it); his custom 10h `_FLOOR` override was also removed since 4h is well
+  within his real ceiling and needs no special-casing anymore.
 - **Lowered hours-floor targets: FT non-leader 33h→30h, strong PT 20h→18h.** Tested empirically
   against a heavy req-off week (~919h nominal demand vs. a ~740h paid-hours budget ceiling — a
   structural gap that exists every week): the moderate cut eliminated more than half the flagged

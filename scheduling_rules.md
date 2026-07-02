@@ -211,20 +211,19 @@ can actually support as possible, at the same priority as their tier.
 - Gracelyn Dailey — **30h target (not the standard 18h), no hard cap, penalty for missing it.** Availability changes every month and is NOT in the standard availability sheet. She prints and brings her own calendar. Always verify her current availability before each build; do NOT assume she's "any"/open. (Example: for 6/22-6/28 she was available Saturday only.)
 
 ### Weak / limited group — "don't pull their weight," spread out, prefer one day each
-- **Full group (all seven): Emily Owens, Brian Carver, Bryan Bishop, Jason Britt, Shayden Howard, Oliver Croasdaile, John Dugan**
-- **Prefer-one-day rule (applies to ALL SEVEN):** schedule each of them just one day/shift per week when possible. Only give a second day if coverage genuinely requires it (hard cap of 2 days/week per person, enforced by the solver). **Exception: Bryan Bishop is hard-capped at 1 day/week** (`WEAK5_MAX_DAYS` override in `backbone.py`), not 2.
+- **Full group (nine): Emily Owens, Brian Carver, Bryan Bishop, Jason Britt, Shayden Howard, Oliver Croasdaile, John Dugan, Jacob Cothern, Jonathan Beacham**
+- **Prefer-one-day rule (applies to ALL NINE):** schedule each of them just one day/shift per week when possible. Only give a second day if coverage genuinely requires it (hard cap of 2 days/week per person, enforced by the solver). **Exception: Bryan Bishop is hard-capped at 1 day/week** (`WEAK5_MAX_DAYS` override in `backbone.py`), not 2. Jacob Cothern's old standalone 2-shift cap is now just this same group default (his separate `SHIFT_CAP` entry was removed as redundant).
 - **One-per-meal-period rule (applies ONLY to Brian Carver, Bryan Bishop, Jason Britt):** never more than ONE of these three working the same meal period (lunch or dinner) on any given day. Lunch = on the floor at noon; dinner = starting at/before 6pm AND ending at/after 8pm. Each lunch and each dinner across the week may contain at most one of them. (One-per-meal exceptions can be approved individually.)
-- Spread them across the week rather than clustering. Prefer stronger people on the busy days (Fri/Sat/Sun) and use these seven to fill genuine gaps.
+- Spread them across the week rather than clustering. Prefer stronger people on the busy days (Fri/Sat/Sun) and use these nine to fill genuine gaps.
+- **Target: 4h** (one modest shift), same as the rest of this group — Jacob and Jonathan moved
+  here from `regular_PT` (12h target), since Jacob's 2-shift/dinner-only-window ceiling and
+  Jonathan's persistent large shortfalls made the 12h target unreachable in practice.
 
 ### Middle PT (use as needed for coverage, 12h target)
-- Amiyah Bartley, Logan Frias, Richard Raglin, Harper Flynn, Jonathan Beacham, Hayden Roush
-- **Jacob Cothern** — now grouped here (`regular_PT`), but carries his own **10h target** (not
-  the standard 12h): hard-capped at 2 shifts/week with a dinner-only window (Mon-Thu 5p-9:30p,
-  ~5h/shift), so 2 shifts × 5h = 10h is his true ceiling, same pattern as Reilly's 24h override
-  within `FT_nonleader`.
+- Amiyah Bartley, Logan Frias, Richard Raglin, Harper Flynn, Hayden Roush
 
 ### New / occasional
-- **Jacob Cothern**: PT, 2 shifts only, available Mon-Thu 5p-9:30p (dinner shifts). Place on the higher-volume of his available days. See Middle PT above for his hours target.
+- **Jacob Cothern**: PT, 2 shifts only, available Mon-Thu 5p-9:30p (dinner shifts). Place on the higher-volume of his available days. See "Weak / limited group" above for his hours target (4h).
 - **Zac Duffy**: college kid (CK), cleared for 10h shifts. **30h target, no hard cap, penalty for missing it** (falls under the generic 40h ceiling like everyone else). Available Mon/Tue/Thu/Sun.
 - **Keegan**: cleared for 10h shifts. Add to avail JSON when onboarded.
 

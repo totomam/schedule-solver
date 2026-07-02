@@ -38,12 +38,12 @@ def paid_val(n,a,b):
     if round(b,2) >= 23: p -= 0.25
     return p
 weak3={'Brian Carver','Bryan Bishop','Jason Britt'}
-weak5=weak3|{'Emily Owens','Shayden Howard','Oliver Croasdaile','John Dugan'}
+weak5=weak3|{'Emily Owens','Shayden Howard','Oliver Croasdaile','John Dugan','Jacob Cothern','Jonathan Beacham'}
 prep={'Michael Calderon','Tiffany Huffman','Noah Hiner','Gracelyn Dailey','Molly Summers','Reilly Weakley'}
 strong_PT={'Gracelyn Dailey','Cai Cotton','Sandy Wright','Kara Thompson','Nathan Paaswee','Peyton Shaw','Reese Bezehertny','Diana Castaneda','Kayden Anderson','Ryder Buccola'}
-regular_PT={'Amiyah Bartley','Harper Flynn','Jonathan Beacham',
+regular_PT={'Amiyah Bartley','Harper Flynn',
             'Hayden Roush','Logan Frias',
-            'Richard Raglin','Jacob Cothern'}
+            'Richard Raglin'}
 
 # === AVAILABILITY ===
 def avwin(n,d):
@@ -427,7 +427,6 @@ _FLOOR['Reilly Weakley'] = 24                   # hard-capped at 3 shifts/week (
 _FLOOR.update({n: 18 for n in strong_PT})
 _FLOOR['Gracelyn Dailey'] = 30  # not the standard strong_PT 18h — no hard cap, just a 30h target
 _FLOOR.update({n: 12 for n in regular_PT})
-_FLOOR['Jacob Cothern'] = 10  # hard-capped at 2 shifts/week, dinner-only window (~5h/shift) — see below
 _FLOOR.update({n: 4 for n in weak5})
 _FLOOR.update({'Zac Duffy': 30, 'Trinity Stringer': 39, 'Gobi Weathers': 37,
                'James Baker': 40, 'Mary Dean': 39, 'Bowen Benedict': 39,
@@ -524,10 +523,11 @@ for n in weak5:
     cap = WEAK5_MAX_DAYS.get(n, 2)
     prob += pulp.lpSum(x[(n,d,i)] for d in range(7) for i in range(len(shifts[(n,d)]))) <= cap
 
-# Per-person hard weekly shift-count caps below the generic ≤5/week (Jacob Cothern: PT, 2 shifts
-# only; Reilly Weakley: max 3 shifts — his hour floor above is sized to match), per
-# scheduling_rules.md. SHIFT_CAP lives in backbone.py so test_protocol.py's reachability DP
-# can't overstate either person's max achievable hours by assuming the generic 5-shift cap.
+# Per-person hard weekly shift-count caps below the generic ≤5/week (Reilly Weakley: max 3
+# shifts — his hour floor above is sized to match), per scheduling_rules.md. SHIFT_CAP lives
+# in backbone.py so test_protocol.py's reachability DP can't overstate his max achievable
+# hours by assuming the generic 5-shift cap applies. (Jacob Cothern's old 2-shift cap is now
+# covered by the weak5 group's own default 2-day cap — see the weak5 loop above.)
 for _n, _cap in SHIFT_CAP.items():
     if _n in people:
         prob += pulp.lpSum(x[(_n,d,i)] for d in range(7) for i in range(len(shifts[(_n,d)]))) <= _cap
