@@ -185,6 +185,18 @@ run the solver; that's the whole point of this split.
 Given the new inputs, Claude:
 1. Overwrites `avail.json` / `reqoff.json` / `forecast.json` with the new week's contents (set
    `week_start` in `forecast.json`). Filenames are stable — no rename, no code edit to point at them.
+   **`avail.json` must always start from each person's standard/default availability** (the master
+   roster PDF + the documented FT patterns in `scheduling_rules.md` §10, e.g. Jay's Mon/Thu/Fri/Sat/
+   Sun working days with only Tue/Wed off) — never carry a prior week's one-off request-off forward
+   as a baked-in "X". Request-offs are week-scoped and belong ONLY in `reqoff.json`; if a person's
+   day-off request from a previous week ends up sitting in `avail.json` as unavailability, that's a
+   bug, not a standing pattern — restore it. This applies to literally everyone, managers included
+   (caught once: Jay Martin's Monday had been stuck at "X" for several weeks from a stale edit,
+   silently cutting his hours from 45 to as low as 26 before it was traced and fixed). The only
+   legitimate reasons `avail.json` deviates from someone's standard pattern are a genuine standing
+   availability change (e.g. Gracelyn's monthly calendar, always re-verified fresh) or a real
+   ongoing note for *this specific* week that isn't a simple day-off (e.g. Gobi needing to leave by
+   2pm on a specific Tuesday) — never a mechanically-carried-over previous week's request-off.
 2. **Derives and updates the backbone in `backbone.py`** from those inputs + `scheduling_rules.md`:
    `STATIC_BACKBONE` for non-managers (who's fixed to which shift this week — e.g. anyone on vacation
    gets no backbone), and `JAY_STD`/`JAY_OPEN`/`MYLES_STD`/`MGR_OFFDAY_SHIFT` for the managers' standard
