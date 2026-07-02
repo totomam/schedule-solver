@@ -77,6 +77,10 @@ EXTRA_SHIFTS  = {'Adam Van Bogaert': [(13.0, 23.0)]}  # seed shifts the anchor g
 # 1pm-11pm pattern on Sat and/or Sun instead (make-up shift, so he can still hit his hours) —
 # only on a weekend day he hasn't ALSO requested off himself.
 WEEKEND_MAKEUP = {'Adam Van Bogaert': (13.0, 23.0)}
+# Per-person hard weekly shift-count caps, below the generic ≤5/week cap everyone else gets.
+# Shared with test_protocol.py's reachability DP so it can't overstate someone's max achievable
+# hours by assuming the generic 5-shift cap applies to them.
+SHIFT_CAP = {'Jacob Cothern': 2, 'Reilly Weakley': 3}
 
 # ── 12-hour close-then-open rest rule (one definition for the constraint, audit, and test) ──
 REST_HOURS = 12   # required rest between a late close and the next day's opening shift

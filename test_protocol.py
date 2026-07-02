@@ -21,7 +21,7 @@ import json, os, random, re, subprocess, sys, time
 from pathlib import Path
 
 from backbone import (STATIC_BACKBONE, early_ok, PB, NO_BREAK, FT_NONLEADER, TEN_HR, rest_floor,
-                      LATEST_END, JAY_STD, MGR_OFFDAY_SHIFT, WEEKEND_MAKEUP)
+                      LATEST_END, JAY_STD, MGR_OFFDAY_SHIFT, WEEKEND_MAKEUP, SHIFT_CAP)
 
 # ── Config ──────────────────────────────────────────────────────────────────────────
 SEED    = int(os.environ.get('TEST_SEED',  str(random.randint(0, 2**31 - 1))))
@@ -114,7 +114,7 @@ def _max_achievable_raw(person: str, reqoff: dict) -> float:
     preceding day's shift, shifts used so far); we maximise total raw hours."""
     max_shift = 10.0 if person in _TEN_HR else 8.0
     GRID = 0.25
-    limit = 5  # ≤5 shifts/week for everyone — matches the solver's hard per-person cap
+    limit = SHIFT_CAP.get(person, 5)  # ≤5/week default; per-person overrides — matches the solver
 
     # Per-day window: None (off), ('fixed', a, b) for a backbone shift, or ('free', lo, hi).
     day_win: list = []
