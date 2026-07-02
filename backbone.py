@@ -75,14 +75,15 @@ def early_ok(person, d):
 # ── Per-person special constraints (collected here so they're visible in one place) ──
 LATEST_END = {'Molly Summers': 17}            # never scheduled to end after this hour
 WEAK5_MAX_DAYS = {'Bryan Bishop': 1}          # overrides the default weak5 cap of 2 days/week
-# Adam Van Bogaert works a fixed 1pm–11pm closing pattern:
+# Adam Van Bogaert works a fixed 2pm–11pm closing pattern (9h/day, changed from 1pm-11pm):
 MUST_CLOSE_AT = {'Adam Van Bogaert': 23.0}    # when working, the shift must END exactly here
-EXTRA_SHIFTS  = {'Adam Van Bogaert': [(13.0, 23.0)]}  # seed shifts the anchor grid can't make
-                                                       # (13:00 is a dead-zone start time)
+# EXTRA_SHIFTS not needed for him anymore: 14:00 is a normal anchor-grid start (unlike the old
+# 13:00, which was a dead zone and needed seeding — see ANCH_START in solver2.py).
+EXTRA_SHIFTS  = {}
 # Adam is normally Mon-Fri only. If he requests a weekday off, he's available for his usual
-# 1pm-11pm pattern on Sat and/or Sun instead (make-up shift, so he can still hit his hours) —
+# 2pm-11pm pattern on Sat and/or Sun instead (make-up shift, so he can still hit his hours) —
 # only on a weekend day he hasn't ALSO requested off himself.
-WEEKEND_MAKEUP = {'Adam Van Bogaert': (13.0, 23.0)}
+WEEKEND_MAKEUP = {'Adam Van Bogaert': (14.0, 23.0)}
 # Per-person hard weekly shift-count caps, below the generic ≤5/week cap everyone else gets.
 # Shared with test_protocol.py's reachability DP so it can't overstate someone's max achievable
 # hours by assuming the generic 5-shift cap applies to them.

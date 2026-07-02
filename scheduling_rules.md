@@ -323,7 +323,7 @@ can actually support as possible, at the same priority as their tier.
 
 ### Set schedules (don't change without reason)
 - **Bowen**: Mon-Fri 8a-4p — **always a full 8a-4p, every day he works. Never short his hours** (don't trim him to 8-3, etc.)
-- **Adam**: Mon-Fri, **always ends at 11pm** (e.g. 4p-11p, or starts earlier when more hours are needed). Adam never ends before 11pm. **Weekend make-up**: if he requests a weekday off, he becomes available for his usual 1p-11p pattern on Sat and/or Sun instead, so he can still hit his hours — only on a weekend day he hasn't also requested off. Automatic in the solver (`WEEKEND_MAKEUP` in `backbone.py`); doesn't require editing his weekend `avail.json` entries by hand.
+- **Adam**: Mon-Fri, **always ends at 11pm** (e.g. 4p-11p, or starts earlier when more hours are needed). Adam never ends before 11pm. Standard start is **2p-11p** (9h/day, changed from 1p-11p). **Weekend make-up**: if he requests a weekday off, he becomes available for his usual 2p-11p pattern on Sat and/or Sun instead, so he can still hit his hours — only on a weekend day he hasn't also requested off. Automatic in the solver (`WEEKEND_MAKEUP` in `backbone.py`); doesn't require editing his weekend `avail.json` entries by hand.
 - **Mary**: Sat 3p-11p (pinned); every other available day is solver-placed as a close, all but 1 of her available days (see §5 → Closers).
 - **James**: any most days, Wed 3-11, Sun 8-4. **Never closes on the same day as Mary Dean**; absent Mary, does not close alongside Gobi or Trinity either (move him to mid/open that day). See §5 → Closers for the full rule.
 - **Trinity**: rotates between AM and PM days; usually Mon 9-4, Tue 2-11, Wed any, Thu any, Fri 5-11, Sat 9-4, Sun off

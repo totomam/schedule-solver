@@ -471,7 +471,9 @@ _sh_floor('Gobi Weathers', _FLOOR['Gobi Weathers'], 'Gobi_Weathers', max_per_day
 for n in FT_NONLEADER:
     if n == 'Adam Van Bogaert':                 # exact hours: cap == floor
         prob += hours_expr[n]<=_FLOOR[n]
-        if len(avail_days(n)) >= 4:
+        # Gate needs ceil(40/9)=5 days now that his shift is 9h (2pm-11pm, was 10h at 1pm-11pm,
+        # which only needed 4 days to reach 40h exactly).
+        if len(avail_days(n)) >= 5:
             prob += hours_expr[n] >= _FLOOR[n]
         else:
             reach = _reachable_hours(n, _FLOOR[n])
