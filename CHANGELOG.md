@@ -14,6 +14,23 @@ Notable changes to the scheduler, newest first. Routine weekly data updates
   rules all live here, imported by both `solver2.py` and `test_protocol.py` so they can't drift.
 
 ### Solver
+- **Lowered hours-floor targets: FT non-leader 33h→30h, strong PT 20h→18h.** Tested empirically
+  against a heavy req-off week (~919h nominal demand vs. a ~740h paid-hours budget ceiling — a
+  structural gap that exists every week): the moderate cut eliminated more than half the flagged
+  `HoursUnder` shortfall with zero coverage-quality tradeoffs, vs. a more aggressive cut (28h/15h)
+  that started breaking the Friday closer end-time staggering target. Regular PT stays at 12h
+  (already matched the target level).
+- **Zac Duffy moved into `FT_NONLEADER`** (was a standalone `_sh_floor()` call with the same
+  `ft`-tier weight) — keeps his own 30h `_FLOOR` override, same pattern as Adam (40h) and Reilly
+  (24h) within the group. Removed the now-redundant duplicate call in `solver2.py`.
+- **Jacob Cothern moved into `regular_PT`** (was ungrouped, no hours target at all) — keeps his
+  own 10h `_FLOOR` override since his 2-shift cap + ~5h dinner-only window (Mon-Thu 5p-9:30p)
+  puts his true ceiling below the group's 12h floor, same pattern as Reilly's 24h override.
+- **Adam Van Bogaert's standard shift changed to 2pm-11pm (was 1pm-11pm)** — 9h/day instead of
+  10h. Removed the now-unused `EXTRA_SHIFTS` dead-zone seed (14:00 is a normal anchor-grid start,
+  unlike 13:00); updated `WEEKEND_MAKEUP` to match; his exact-40h floor gate needed
+  `ceil(40/9)=5` available days instead of 4 (tuned for the old 10h shift) to avoid a latent
+  infeasibility at exactly 4 available days.
 - **11pm closers counted as 10:45 in `paid_val`.** Closers scheduled to 11pm clock out ~10:45,
   so paid hours count an 11pm end as 22.75 everywhere (incl. the weekly/daily budget band),
   giving the solver ~4h/week more clock time. Applied *on top of* the break deduction.

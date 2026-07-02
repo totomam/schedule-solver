@@ -43,7 +43,7 @@ prep={'Michael Calderon','Tiffany Huffman','Noah Hiner','Gracelyn Dailey','Molly
 strong_PT={'Gracelyn Dailey','Cai Cotton','Sandy Wright','Kara Thompson','Nathan Paaswee','Peyton Shaw','Reese Bezehertny','Diana Castaneda','Kayden Anderson','Ryder Buccola'}
 regular_PT={'Amiyah Bartley','Harper Flynn','Jonathan Beacham',
             'Hayden Roush','Logan Frias',
-            'Richard Raglin'}
+            'Richard Raglin','Jacob Cothern'}
 
 # === AVAILABILITY ===
 def avwin(n,d):
@@ -421,12 +421,13 @@ for n in people:
 hours_expr = {n: pulp.lpSum(x[(n,d,i)]*(b-a) for d in range(7) for i,(a,b) in enumerate(shifts[(n,d)])) for n in people}
 # Per-person weekly RAW-hour floors — the SINGLE source used by BOTH the floor constraints
 # below and the above-floor incentive (_floor_map). Edit a target here and both pick it up.
-_FLOOR = {n: 33 for n in FT_NONLEADER}
+_FLOOR = {n: 30 for n in FT_NONLEADER}
 _FLOOR['Adam Van Bogaert'] = 40                 # Adam: exact-40h closer (cap == floor, see below)
 _FLOOR['Reilly Weakley'] = 24                   # hard-capped at 3 shifts/week (~8h each) — see below
-_FLOOR.update({n: 20 for n in strong_PT})
-_FLOOR['Gracelyn Dailey'] = 30  # not the standard strong_PT 20h — no hard cap, just a 30h target
+_FLOOR.update({n: 18 for n in strong_PT})
+_FLOOR['Gracelyn Dailey'] = 30  # not the standard strong_PT 18h — no hard cap, just a 30h target
 _FLOOR.update({n: 12 for n in regular_PT})
+_FLOOR['Jacob Cothern'] = 10  # hard-capped at 2 shifts/week, dinner-only window (~5h/shift) — see below
 _FLOOR.update({n: 4 for n in weak5})
 _FLOOR.update({'Zac Duffy': 30, 'Trinity Stringer': 39, 'Gobi Weathers': 37,
                'James Baker': 40, 'Mary Dean': 39, 'Bowen Benedict': 39,

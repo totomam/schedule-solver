@@ -41,9 +41,9 @@ Complete reference for building the weekly schedule. Given availability sheet, r
 
 ### FT target hours (raw hours)
 - Shift leaders (Bowen, James, Trinity, Gobi, Mary): **39–40h raw**. Gobi is capped at ~37h raw by her fixed schedule and the 12h close-then-open rule — she's the exception.
-- Other FT non-leaders (Adam, Mason, Michael, Molly, Noah, Ava, Izzy, Remi): **33–40h raw**
-- Zac Duffy: **30h target, no hard cap** (penalty for missing it; generic 40h ceiling applies above that)
-- Reilly Weakley: **hard-capped at 3 shifts/week — 24h target**, not the standard 33-40h FT band (see §10)
+- Other FT non-leaders (Adam, Mason, Michael, Molly, Noah, Ava, Izzy, Remi): **30–40h raw**
+- Zac Duffy: **30h target, no hard cap** (penalty for missing it; generic 40h ceiling applies above that). Grouped in `FT_nonleader` alongside the others (same priority weight); his 30h override just happens to match the group's current 30h floor.
+- Reilly Weakley: **hard-capped at 3 shifts/week — 24h target**, not the standard 30-40h FT band (see §10)
 
 ---
 
@@ -198,7 +198,7 @@ someone's own availability shrinks below what their normal weekly target needs �
 giving up on their hours entirely, the solver pushes them as close to what THEIR available days
 can actually support as possible, at the same priority as their tier.
 
-### Strong PT (give more hours, 20h+ target)
+### Strong PT (give more hours, 18h+ target)
 - Cai Cotton
 - Diana Castaneda — new hire, joining as of this schedule. Available any Mon-Sat, 12p-11p Sunday.
 - Kara Thompson
@@ -208,7 +208,7 @@ can actually support as possible, at the same priority as their tier.
 - Reese Bezehertny
 - Sandy Wright
 - **Ryder Buccola** — new hire, available any day/time, PT standard (max 8h shifts, takes break, max 5 days per week)
-- Gracelyn Dailey — **30h target (not the standard 20h), no hard cap, penalty for missing it.** Availability changes every month and is NOT in the standard availability sheet. She prints and brings her own calendar. Always verify her current availability before each build; do NOT assume she's "any"/open. (Example: for 6/22-6/28 she was available Saturday only.)
+- Gracelyn Dailey — **30h target (not the standard 18h), no hard cap, penalty for missing it.** Availability changes every month and is NOT in the standard availability sheet. She prints and brings her own calendar. Always verify her current availability before each build; do NOT assume she's "any"/open. (Example: for 6/22-6/28 she was available Saturday only.)
 
 ### Weak / limited group — "don't pull their weight," spread out, prefer one day each
 - **Full group (all seven): Emily Owens, Brian Carver, Bryan Bishop, Jason Britt, Shayden Howard, Oliver Croasdaile, John Dugan**
@@ -218,9 +218,13 @@ can actually support as possible, at the same priority as their tier.
 
 ### Middle PT (use as needed for coverage, 12h target)
 - Amiyah Bartley, Logan Frias, Richard Raglin, Harper Flynn, Jonathan Beacham, Hayden Roush
+- **Jacob Cothern** — now grouped here (`regular_PT`), but carries his own **10h target** (not
+  the standard 12h): hard-capped at 2 shifts/week with a dinner-only window (Mon-Thu 5p-9:30p,
+  ~5h/shift), so 2 shifts × 5h = 10h is his true ceiling, same pattern as Reilly's 24h override
+  within `FT_nonleader`.
 
 ### New / occasional
-- **Jacob Cothern**: PT, 2 shifts only, available Mon-Thu 5p-9:30p (dinner shifts). Place on the higher-volume of his available days.
+- **Jacob Cothern**: PT, 2 shifts only, available Mon-Thu 5p-9:30p (dinner shifts). Place on the higher-volume of his available days. See Middle PT above for his hours target.
 - **Zac Duffy**: college kid (CK), cleared for 10h shifts. **30h target, no hard cap, penalty for missing it** (falls under the generic 40h ceiling like everyone else). Available Mon/Tue/Thu/Sun.
 - **Keegan**: cleared for 10h shifts. Add to avail JSON when onboarded.
 
@@ -232,7 +236,7 @@ can actually support as possible, at the same priority as their tier.
 - **Hayden Roush**: depending on week — may request off entirely
 - **Sandy Wright**: weekdays-only normally (school); summer break may change
 - **Tiffany Huffman**: set schedule Mon 9a–4p only (backbone-fixed). No hours floor — backbone handles her one shift.
-- **Izzy Simpson**: FT non-leader, 33–40h target
+- **Izzy Simpson**: FT non-leader, 30–40h target
 
 ---
 
@@ -333,7 +337,7 @@ can actually support as possible, at the same priority as their tier.
 - **Noah**: M-F 9-5 area, often using 9:15 start trick
 - **Ava**: any, prefers mornings (FT)
 - **Mason**: any 10-10, varied shifts
-- **Reilly**: max 3 shifts, prefers 9-5. Hard shift-count cap (enforced in solver), 24h target — not the standard FT 33-40h band (see §7).
+- **Reilly**: max 3 shifts, prefers 9-5. Hard shift-count cap (enforced in solver), 24h target — not the standard FT 30-40h band (see §7).
 - **Remi (kitchen)**: 9a-11p avail M/T/Th/F/Sat. Works afternoon/evening prep shifts (3p-11p typical), NOT late-night close
 
 ---
@@ -361,7 +365,7 @@ When building a new schedule:
    - [ ] Every day has leader open (PB member ≤9am) AND close (PB member ≥10pm)
    - [ ] Mary Dean closes all but 1 of her available days (hard); James never closes with Mary (hard); absent Mary, at most ONE of Gobi/James/Trinity closes per day (soft escape valve — may break only if the closer floor needs it)
    - [ ] No close-then-open under 12h (incl. leaders — Gobi opens Tue at 11a)
-   - [ ] No hourly over 40h; Adam exactly 40 and always ends 11pm; FT non-leaders 33-40h; Zac 30-35h
+   - [ ] No hourly over 40h; Adam exactly 40 and always ends 11pm; FT non-leaders 30-40h; Zac 30-35h
    - [ ] No one starts before 9am except Jay/Bowen/Gobi(Sat)/Trinity(Sat)/James(Sun)
    - [ ] No one leaves before 2pm; Sunday no one leaves before 3pm
    - [ ] ≤2 people leave at 2:00/2:30pm; ≤1 person starts at each of 5:15/5:30/5:45/6:00pm
