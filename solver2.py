@@ -3,7 +3,7 @@ from collections import defaultdict
 from datetime import datetime, timedelta
 from backbone import (STATIC_BACKBONE, JAY_STD, JAY_OPEN, MYLES_STD, MGR_OFFDAY_SHIFT, early_ok,
                       PB, NO_BREAK, FT_NONLEADER, TEN_HR, LATE_CLOSE, rest_floor, rest_conflict,
-                      LATEST_END, WEAK5_MAX_DAYS, MUST_CLOSE_AT, EXTRA_SHIFTS)
+                      LATEST_END, WEAK5_MAX_DAYS, MUST_CLOSE_AT, EXTRA_SHIFTS, WEEKEND_MAKEUP)
 
 # === CONFIG ===
 _OUT = os.environ.get('SCHED_OUT', 'schedule.json')   # tests set SCHED_OUT to write elsewhere
@@ -47,6 +47,11 @@ regular_PT={'Amiyah Bartley','Harper Flynn','Jonathan Beacham',
 # === AVAILABILITY ===
 def avwin(n,d):
     w=av[n][d]
+    # Weekend make-up (e.g. Adam): a weekday req-off unlocks his usual pattern on Sat/Sun,
+    # unless he's also req'd off that specific weekend day.
+    if (w=='X' and d in (5,6) and n in WEEKEND_MAKEUP and n not in req[dn[d]]
+            and any(n in req[dn[wd]] for wd in range(5))):
+        w = list(WEEKEND_MAKEUP[n])
     if w=='X' or n in req[dn[d]]: return None
     if w in('any','open'): return [6,23]
     return w

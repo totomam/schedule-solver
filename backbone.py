@@ -73,6 +73,10 @@ WEAK5_MAX_DAYS = {'Bryan Bishop': 1}          # overrides the default weak5 cap 
 MUST_CLOSE_AT = {'Adam Van Bogaert': 23.0}    # when working, the shift must END exactly here
 EXTRA_SHIFTS  = {'Adam Van Bogaert': [(13.0, 23.0)]}  # seed shifts the anchor grid can't make
                                                        # (13:00 is a dead-zone start time)
+# Adam is normally Mon-Fri only. If he requests a weekday off, he's available for his usual
+# 1pm-11pm pattern on Sat and/or Sun instead (make-up shift, so he can still hit his hours) —
+# only on a weekend day he hasn't ALSO requested off himself.
+WEEKEND_MAKEUP = {'Adam Van Bogaert': (13.0, 23.0)}
 
 # ── 12-hour close-then-open rest rule (one definition for the constraint, audit, and test) ──
 REST_HOURS = 12   # required rest between a late close and the next day's opening shift
