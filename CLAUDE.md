@@ -34,10 +34,41 @@ Most coverage uses penalised slack variables (`_CPEN=500`) so the feasible regio
 - Dinner: tiny uniform aspiration of hard-floor+1 on **every** day (`Dtar=Dhard+1`, `_DINPEN=20`) — deliberately far below every other coverage penalty, a nice-to-have nudge only. (No longer Sunday-specific/heavy.)
 - Closers: `_CLOSE_SMALL=300` for sitting exactly 1 below `Ctar` — the only closer slack left; 2+ below is now the hard floor above.
 - Trio-cap escape valve: `_TRIO_ESCAPE=1000` lets a 2nd of Gobi/James/Trinity close (absent Mary) **only** as a last resort when the hard closer floor can't be met otherwise. The weight is higher than every other soft penalty so it's never worth paying for any other reason — verified it does NOT fire when the trio cap isn't the actual bottleneck, and DOES fire (via an isolated synthetic-model test) when it's the only way to reach the floor.
-- Zac Duffy and Gracelyn Dailey: no hard hour cap for either — both target 30h with a penalty for missing it (Zac at `_HPEN_HI`/510 tier, Gracelyn at `_HPEN_LO`/150 tier via `strong_PT`), then fall under the generic 40h ceiling like everyone else.
+- Zac Duffy and Gracelyn Dailey: no hard hour cap for either — both target 30h with a penalty for missing it (Zac at `_HPEN_FT`/510 tier, Gracelyn at `_HPEN_STRONG`/200 tier via `strong_PT`), then fall under the generic 40h ceiling like everyone else.
 - Reilly Weakley: hard-capped at 3 shifts/week (same pattern as Jacob Cothern's 2-shift cap) — his `FT_NONLEADER` floor is overridden to 24h (not the standard 33h) to match what 3 shifts can actually deliver, using the standard generic-loop floor+1 buffer like everyone else (no special case needed in `solver2.py`). Note the buffer is a no-op for him specifically: with floor == his real ceiling (no headroom above 24h to push into), `expr+slack>=24` and `expr+slack>=25` yield the identical optimal `expr` for every feasible value — the +1 trick only helps when true-max > floor. A 50-run stress batch showed the solver occasionally landing him at 23h even when 24h was reachable (ordinary MIP/gapRel imprecision on a floor quantized in whole 8h-shift increments, same class as Trinity Stringer's frequent 0.2h misses, just landing in a bigger unit). That's not a solver defect worth chasing — it's absorbed on the test side via `SHIFT_CAP_GRID_TOLERANCE_H` in `test_protocol.py` (anyone with a below-default `SHIFT_CAP` gets a wider grid-tolerance allowance than the generic `GRID_TOLERANCE_H`, since their achievable hours move in whole-shift jumps, not smooth fractions).
 
-Priority order: `hard floors >> TRIO_ESCAPE(1000) > LUNCH(800) > HPEN_HI(510) > ceilings(_CPEN 500) > CLOSE_SMALL(300) > HPEN_LO(150) > DIN(20, every day)`. `HPEN_HI` (shift-leader/FT-nonleader hours floor) sits just above the generic coverage ceilings — deliberately, after stress testing showed an achievable leader/FT hours floor was occasionally sacrificed to avoid a trivial coverage-ceiling nick when it sat below. `TRIO_ESCAPE` sits above everything else soft so it's genuinely a last resort, only ever paid when the hard closer floor has no other way to be met.
+Priority order: `hard floors >> TRIO_ESCAPE(1000) > LUNCH(800) > HPEN_LEADER(520) > HPEN_FT(510) > ceilings(_CPEN 500) > CLOSE_SMALL(300) > HPEN_STRONG(200) > HPEN_REG(150) > HPEN_WEAK(100) > DIN(20, every day)`. `HPEN_LEADER`/`HPEN_FT` (leader/FT-nonleader hours floor) sit just above the generic coverage ceilings — deliberately, after stress testing showed an achievable leader/FT hours floor was occasionally sacrificed to avoid a trivial coverage-ceiling nick when it sat below. `TRIO_ESCAPE` sits above everything else soft so it's genuinely a last resort, only ever paid when the hard closer floor has no other way to be met.
+
+### Hours-floor priority cascade (`_hrs_slk`, 5 tiers)
+When multiple people are competing for the same scarce leftover hours (a thin week, req-offs
+depleting the flexible pool), the objective fills the "harder-working" tiers first, mirroring
+the existing role hierarchy rather than a new ranking: **`leader` (PB, 520) > `ft` (FT
+non-leaders + Zac Duffy, 510) > `strong` (strong_PT, 200) > `reg` (regular_PT, 150) > `weak`
+(weak5, 100)**. `_sh(expr, floor, tag, tier=..., afl=None)` takes the tier explicitly;
+`_sh_floor(n, floor, tag, max_per_day, tier=...)` is the per-person convenience wrapper used by
+most call sites. LEADER/FT stay above `_CPEN`(500) — same reasoning as the old single "HI" tier;
+STRONG/REG/WEAK stay below `_CLOSE_SMALL`(300) — same relative position the old single "LO" tier
+had, just subdivided three ways instead of lumped together.
+
+### Hours floor: reachable-hours fallback (don't drop the incentive when the full floor is out of reach)
+`_sh_floor()`'s gate (`avail_days(n) >= ceil(floor/max_per_day)`) decides whether the *full*
+floor is reachable this week. When it isn't (e.g. someone req'd off most of the week), the old
+behavior for most groups (`FT_NONLEADER`/`regular_PT`/`strong_PT`/`weak5` loops, and the
+individual Bowen/Trinity/Gobi/Mary calls) was to skip the hours-floor incentive **entirely** —
+found via a live-schedule bug report: Ava Shade had exactly 1 available day this week (req'd off
+the other 5, unavailable the 6th), her 33h floor needs 4 days to even engage the gate, so she got
+*zero* hour-floor pressure and was left at the 4h minimum shift length, even though her one
+available day could easily fit a full 10h shift (she's `TEN_HR`-eligible) with no cost to anyone
+else. Jay/Myles/James/Adam already had individual hand-written fallbacks for this (push toward
+the floor anyway even below the day-count gate) — `_sh_floor()` now generalizes that fallback to
+everyone via `_reachable_hours(n, cap)`: sum of the longest candidate shift per available day
+(from the already-`gen()`-filtered `shifts[(n,d)]`, so it respects availability/backbone/
+`MUST_CLOSE_AT`/etc.), capped at the person's normal floor. This ignores cross-day interactions
+(12h rest rule, the ≤5-shift cap) and can slightly overstate the true max — harmless, since it's
+only an objective incentive; `_sh`'s slack absorbs whatever turns out unreachable, same as the
++1 buffer does for a normal floor. The audit's reported target (`afl`) is this scaled reachable
+value instead of the person's full nominal floor, so "HoursUnder: Ava Shade Xh (target ≥Yh)"
+tells you what was actually achievable *this week*, not a permanently-unreachable nominal number.
 
 ### Pre-filtered variable lists (`_SDF`)
 Built once before the constraint loop at `# === MIP VARIABLES ===`. Maps `(day, tag) → list[LpVariable]`. Grep that section for full tag list.
@@ -50,10 +81,10 @@ All others: paid = raw − 0.5 if raw ≥ 5h, else raw.
 **11pm → 10:45 paid adjustment.** Closers scheduled to 11pm (end 23.0) almost always finish and clock out ~10:45, so `paid_val` counts an 11pm end as 22.75 (a −0.25h deduction, same principle as the break). Because it lives in `paid_val`, it flows through **everywhere paid hours matter** — including the weekly `[allowed+25, allowed+30]` and per-day budget bands — giving the solver ~0.25h/closer (~4h/week) more clock time to schedule. Hours-FLOOR constraints use raw `b−a` (not `paid_val`), so target hours are untouched. The schedule grid still SHOWS 11pm (cells render raw shift times). The `Status: … var` solver line and the `TOTAL var` reporting now agree (both on adjusted hours).
 
 ### Hours floor buffer
-All `hi=True` penalty targets are set +1h above the real floor (e.g. floor=39 → penalty target=40). The `afl=` param stores the real floor for audit display. Absorbs ~0.75h gapRel undershoot so early-stop never reports a false miss.
+All full-floor (gate-passed) penalty targets are set +1h above the real floor (e.g. floor=39 → penalty target=40). The `afl=` param stores the real floor for audit display. Absorbs ~0.75h gapRel undershoot so early-stop never reports a false miss. (The reachable-hours fallback path — see above — does NOT use this +1 buffer: when `floor == the real achievable ceiling` for the week, floor and floor+1 targets are mathematically identical optimization problems, so the buffer would be a pure no-op, same lesson learned from Reilly Weakley's 3-shift cap.)
 
 ### Objective (minimise)
-`8*weak_use + 0.3*short_pref + 30*mgr_offday + 20*jay_closes + 20*myles_opens + 500*cov_slk + 300*close_small + 1000*trio_escape + 800*lunch_slk + 20*din_slk + 510*hrs_hi_slk + 150*hrs_lo_slk` (+ small per-person above-floor nudge). The ≥1-shift rule, the closer floor at `Ctar-1`, the exact opener timing, and James-never-with-Mary are all hard constraints, not part of this objective — only the at-most-1-of-Gobi/James/Trinity cap (absent Mary) is soft, via `trio_escape`.
+`8*weak_use + 0.3*short_pref + 30*mgr_offday + 20*jay_closes + 20*myles_opens + 500*cov_slk + 300*close_small + 1000*trio_escape + 800*lunch_slk + 20*din_slk + 520*hrs_leader_slk + 510*hrs_ft_slk + 200*hrs_strong_slk + 150*hrs_reg_slk + 100*hrs_weak_slk` (+ small per-person above-floor nudge). The ≥1-shift rule, the closer floor at `Ctar-1`, the exact opener timing, and James-never-with-Mary are all hard constraints, not part of this objective — only the at-most-1-of-Gobi/James/Trinity cap (absent Mary) is soft, via `trio_escape`.
 - Weekly paid hours hard-bounded to `[sum(allowed)+25, sum(allowed)+30]`
 - `weak_use` — discourage weak5 extra shifts
 - `short_pref` — light penalty for 5–5.5h shifts (prefer 4–4.5h)

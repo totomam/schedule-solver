@@ -299,17 +299,23 @@ def _sfl(e,fl,t):   # lunch soft target floor: e + slack >= fl, slack penalised 
     global prob; _s=pulp.LpVariable(t,lowBound=0); prob+=e+_s>=fl; _lunch_slk.append(_s)
 def _sfd(e,fl,t):   # dinner soft target floor: e + slack >= fl, slack penalised at _DINPEN
     global prob; _s=pulp.LpVariable(t,lowBound=0); prob+=e+_s>=fl; _din_slk.append(_s)
-# Hours floor soft constraints — two priority tiers so PT is sacrificed before SL/FT.
-# _HPEN_HI > _CPEN so an achievable SL/FT hours floor is never sacrificed for a coverage
-# ceiling nick; _HPEN_HI >> _HPEN_LO so SL/FT fills before PT.
-_HPEN_HI=510  # shift leaders + FT non-leaders — last to lose hours
-_HPEN_LO=150  # PT / medium PT — first to lose hours when budget is tight
-_hrs_slk={'hi':[], 'lo':[]}  # (tag, floor, slack) per tier
-def _sh(expr, floor, tag, hi=True, afl=None):
+# Hours floor soft constraints — a 5-tier priority cascade so, when hours are scarce, the
+# "harder-working" groups fill first and the more casual ones are sacrificed first. Mirrors
+# the existing role hierarchy (PB leaders/managers > FT non-leaders > strong PT > regular PT >
+# weak) rather than inventing a new ranking. LEADER/FT stay > _CPEN(500) — an achievable
+# leader/FT hours floor is never sacrificed for a trivial coverage-ceiling nick — while
+# STRONG/REG/WEAK stay < _CLOSE_SMALL(300), same relative position the old single "LO" tier had.
+_HPEN_LEADER=520  # PB (managers + shift leaders) — most essential, last to lose hours
+_HPEN_FT=510      # FT non-leaders + Zac Duffy — same weight as the old HPEN_HI tier
+_HPEN_STRONG=200  # strong PT — above regular PT, below CLOSE_SMALL
+_HPEN_REG=150     # regular PT — same weight as the old HPEN_LO tier
+_HPEN_WEAK=100    # weak group — first to lose hours when budget is tight
+_hrs_slk={'leader':[], 'ft':[], 'strong':[], 'reg':[], 'weak':[]}  # (tag, floor, slack) per tier
+def _sh(expr, floor, tag, tier='ft', afl=None):
     global prob
     _s = pulp.LpVariable(f'hs_{tag}', lowBound=0)
     prob += expr + _s >= floor
-    _hrs_slk['hi' if hi else 'lo'].append((tag, afl if afl is not None else floor, _s))
+    _hrs_slk[tier].append((tag, afl if afl is not None else floor, _s))
 
 # === COVERAGE CONSTRAINTS ===
 for d in range(7):
@@ -414,38 +420,62 @@ _FLOOR.update({n: 4 for n in weak5})
 _FLOOR.update({'Zac Duffy': 30, 'Trinity Stringer': 39, 'Gobi Weathers': 37,
                'James Baker': 40, 'Mary Dean': 39, 'Bowen Benedict': 39,
                'Myles Palmer': 45, 'Jay Martin': 45})
+def _reachable_hours(n, cap):
+    """Rough per-week hours ceiling given THIS week's actual availability: sum of the
+    longest already-generated candidate shift per available day (shifts[(n,d)] already
+    encodes availability, early-start rules, LATEST_END, backbone, MUST_CLOSE_AT, etc.).
+    Ignores cross-day interactions (12h rest rule, the ≤5-shift/week cap), so it can
+    slightly OVERSTATE the true max — harmless here since it only feeds a soft objective
+    incentive: _sh's slack absorbs whatever turns out unreachable with zero side effects,
+    exactly like the existing +1 buffer does for a normal floor. Capped at `cap` (the
+    person's normal floor) so someone with lots of availability isn't pushed past it.
+    """
+    return min(cap, sum(max((b-a for (a,b) in shifts[(n,d)]), default=0.0) for d in range(7)))
+
+def _sh_floor(n, floor, tag, max_per_day, tier='ft'):
+    """Push hours_expr[n] toward `floor` (standard +1 buffer). If this week's availability
+    can't reach the full floor (avail_days < ceil(floor/max_per_day)), still push toward
+    the actual achievable ceiling instead of dropping the incentive entirely — a req-off
+    should mean 'get as close to full hours as this week allows', not 'no pressure at all'.
+    (Mirrors the fallback Jay/Myles/James/Adam already had individually; this generalizes
+    it so everyone else — Bowen/Trinity/Gobi/Mary and the FT_NONLEADER/regular_PT/strong_PT
+    groups — gets the same treatment instead of silently going untracked, per the bug found
+    with Ava Shade: 1 available day, no floor pressure at all, left at the 4h minimum.)
+    """
+    min_days = math.ceil(floor / max_per_day)
+    if len(avail_days(n)) >= min_days:
+        _sh(hours_expr[n], floor+1, tag, tier=tier, afl=floor)
+    else:
+        reach = _reachable_hours(n, floor)
+        if reach > 0:
+            _sh(hours_expr[n], reach, tag, tier=tier, afl=reach)
+
 # Bowen's backbone already pins him to 8h Mon-Fri when available (naturally 40h if he works all
 # 5), but that pin silently vanishes on a day he's req'd off — this floor is what pushes his
 # hours back up on his OTHER available days if a req-off costs him a backbone day, matching
 # scheduling_rules.md's "Shift leaders 39-40h raw" for all five leaders, Bowen included.
-if len(avail_days('Bowen Benedict')) >= math.ceil(_FLOOR['Bowen Benedict']/8):
-    _sh(hours_expr['Bowen Benedict'],_FLOOR['Bowen Benedict']+1,'Bowen_Benedict',afl=_FLOOR['Bowen Benedict'])
-if len(avail_days('Trinity Stringer')) >= math.ceil(_FLOOR['Trinity Stringer']/8):
-    _sh(hours_expr['Trinity Stringer'],_FLOOR['Trinity Stringer']+1,'Trinity_Stringer',afl=_FLOOR['Trinity Stringer'])
-if len(avail_days('Gobi Weathers')) >= math.ceil(_FLOOR['Gobi Weathers']/8):
-    _sh(hours_expr['Gobi Weathers'],_FLOOR['Gobi Weathers']+1,'Gobi_Weathers',afl=_FLOOR['Gobi Weathers'])
+_sh_floor('Bowen Benedict', _FLOOR['Bowen Benedict'], 'Bowen_Benedict', max_per_day=10, tier='leader')
+_sh_floor('Trinity Stringer', _FLOOR['Trinity Stringer'], 'Trinity_Stringer', max_per_day=10, tier='leader')
+_sh_floor('Gobi Weathers', _FLOOR['Gobi Weathers'], 'Gobi_Weathers', max_per_day=10, tier='leader')
 for n in FT_NONLEADER:
     if n == 'Adam Van Bogaert':                 # exact hours: cap == floor
         prob += hours_expr[n]<=_FLOOR[n]
         if len(avail_days(n)) >= 4:
             prob += hours_expr[n] >= _FLOOR[n]
         else:
-            _sh(hours_expr[n], _FLOOR[n], 'Adam_Van_Bogaert')
+            reach = _reachable_hours(n, _FLOOR[n])
+            if reach > 0:
+                _sh(hours_expr[n], reach, 'Adam_Van_Bogaert', afl=reach)
         continue
     prob += hours_expr[n]<=40
-    floor = _FLOOR[n]
     max_per_day = 10.0 if n in TEN_HR else 8.0
-    min_days = math.ceil(floor / max_per_day)
-    if len(avail_days(n)) >= min_days:
-        _sh(hours_expr[n],floor+1,n.replace(' ','_'),afl=floor)
+    _sh_floor(n, _FLOOR[n], n.replace(' ','_'), max_per_day)
 # Zac: no hard cap — 30h target with a penalty for missing it (falls under the generic 40h
 # ceiling below like everyone else not otherwise specially capped).
-if len(avail_days('Zac Duffy')) >= math.ceil(_FLOOR['Zac Duffy']/10):
-    _sh(hours_expr['Zac Duffy'],_FLOOR['Zac Duffy']+1,'Zac_Duffy',afl=_FLOOR['Zac Duffy'])
+_sh_floor('Zac Duffy', _FLOOR['Zac Duffy'], 'Zac_Duffy', max_per_day=10)
 for n in regular_PT:
     max_pd = 10.0 if n in TEN_HR else 8.0
-    if len(avail_days(n)) >= math.ceil(_FLOOR[n]/max_pd):
-        _sh(hours_expr[n],_FLOOR[n],n.replace(' ','_'),hi=False)
+    _sh_floor(n, _FLOOR[n], n.replace(' ','_'), max_pd, tier='reg')
 _capped40 = FT_NONLEADER  # already have explicit caps above
 for n in people:
     if n in ('Jay Martin','Myles Palmer') or n in _capped40: continue
@@ -453,28 +483,28 @@ for n in people:
 if len(avail_days('Myles Palmer')) >= 5:
     prob += hours_expr['Myles Palmer'] >= _FLOOR['Myles Palmer']  # hard — solver works off-days to compensate
 else:
-    _sh(hours_expr['Myles Palmer'], _FLOOR['Myles Palmer']+1, 'Myles_Palmer', afl=_FLOOR['Myles Palmer'])  # soft if heavily req'd off
+    reach = _reachable_hours('Myles Palmer', _FLOOR['Myles Palmer'])
+    if reach > 0: _sh(hours_expr['Myles Palmer'], reach, 'Myles_Palmer', tier='leader', afl=reach)  # soft if heavily req'd off
 prob += hours_expr['Myles Palmer']<=52
 if len(avail_days('Jay Martin')) >= 5:
     prob += hours_expr['Jay Martin'] >= _FLOOR['Jay Martin']  # hard — solver works off-days to compensate
 else:
-    _sh(hours_expr['Jay Martin'], _FLOOR['Jay Martin']+1, 'Jay_Martin', afl=_FLOOR['Jay Martin'])  # soft if heavily req'd off
+    reach = _reachable_hours('Jay Martin', _FLOOR['Jay Martin'])
+    if reach > 0: _sh(hours_expr['Jay Martin'], reach, 'Jay_Martin', tier='leader', afl=reach)  # soft if heavily req'd off
 prob += hours_expr['Jay Martin']<=54
 if len(avail_days('James Baker')) >= 5:
     prob += hours_expr['James Baker'] >= _FLOOR['James Baker']
 else:
-    _sh(hours_expr['James Baker'], _FLOOR['James Baker'], 'James_Baker')
-if len(avail_days('Mary Dean')) >= math.ceil(_FLOOR['Mary Dean']/8):
-    _sh(hours_expr['Mary Dean'],_FLOOR['Mary Dean']+1,'Mary_Dean',afl=_FLOOR['Mary Dean'])
+    reach = _reachable_hours('James Baker', _FLOOR['James Baker'])
+    if reach > 0: _sh(hours_expr['James Baker'], reach, 'James_Baker', tier='leader', afl=reach)
+_sh_floor('Mary Dean', _FLOOR['Mary Dean'], 'Mary_Dean', max_per_day=10, tier='leader')
 # Gracelyn: no hard cap — 30h target with a penalty for missing it (via the strong_PT loop below,
 # using her overridden _FLOOR value; falls under the generic 40h ceiling like everyone else).
 for n in strong_PT:
     max_pd = 10.0 if n in TEN_HR else 8.0
-    if len(avail_days(n)) >= math.ceil(_FLOOR[n]/max_pd):
-        _sh(hours_expr[n],_FLOOR[n],n.replace(' ','_'),hi=False)
+    _sh_floor(n, _FLOOR[n], n.replace(' ','_'), max_pd, tier='strong')
 for n in weak5:
-    if len(avail_days(n)) >= 1:
-        _sh(hours_expr[n],_FLOOR[n],n.replace(' ','_'),hi=False)
+    _sh_floor(n, _FLOOR[n], n.replace(' ','_'), 8.0, tier='weak')
 # weak5: prefer 1 day each. Default hard cap 2 days; per-person overrides in WEAK5_MAX_DAYS.
 for n in weak5:
     cap = WEAK5_MAX_DAYS.get(n, 2)
@@ -592,8 +622,11 @@ prob += (8*weak_use + 0.3*short_pref + 30*mgr_offday
          + _TRIO_ESCAPE*pulp.lpSum(_trio_slk)
          + _LUNCHPEN*pulp.lpSum(_lunch_slk)
          + _DINPEN*pulp.lpSum(_din_slk)
-         + _HPEN_HI*pulp.lpSum(s for _,_,s in _hrs_slk['hi'])
-         + _HPEN_LO*pulp.lpSum(s for _,_,s in _hrs_slk['lo'])
+         + _HPEN_LEADER*pulp.lpSum(s for _,_,s in _hrs_slk['leader'])
+         + _HPEN_FT*pulp.lpSum(s for _,_,s in _hrs_slk['ft'])
+         + _HPEN_STRONG*pulp.lpSum(s for _,_,s in _hrs_slk['strong'])
+         + _HPEN_REG*pulp.lpSum(s for _,_,s in _hrs_slk['reg'])
+         + _HPEN_WEAK*pulp.lpSum(s for _,_,s in _hrs_slk['weak'])
          + _AFLOOR_PEN*pulp.lpSum(_afloor_terms))
 
 # === SOLVE ===
@@ -777,7 +810,7 @@ _dviol=[] if _XLSX_ONLY else [v.name for v in _din_slk if v.value() and v.value(
 if _dviol: _fails.append(f"DinnerTargetMiss({len(_dviol)}): {_dviol} (below soft target)")
 # Hours-under: report ACTUAL scheduled (raw) hours from the final solution, not the LP slack
 # value (which lags the integer solution at gapRel stop and produced phantom ~1h shortfalls).
-for _nm,_fl,_sv in ([] if _XLSX_ONLY else (_hrs_slk['hi'] + _hrs_slk['lo'])):
+for _nm,_fl,_sv in ([] if _XLSX_ONLY else [t for tier in _hrs_slk.values() for t in tier]):
     _person=_nm.replace('_',' ')
     _sched=sol.get(_person) or []
     _act=sum(sh[1]-sh[0] for sh in _sched if sh)

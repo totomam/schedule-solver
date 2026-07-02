@@ -188,6 +188,14 @@ From highest to lowest, what the solver protects first:
 
 ## 7. EMPLOYEE PRIORITY TIERS
 
+**When multiple people are competing for the same scarce leftover hours** (a heavy req-off week
+thins out who's available, and there aren't enough hours to fully satisfy everyone's target),
+the solver fills tiers in this order, most-essential first: **shift leaders/managers → FT
+non-leaders → Strong PT → Middle/Regular PT → Weak/limited group.** This also applies when
+someone's own availability shrinks below what their normal weekly target needs — rather than
+giving up on their hours entirely, the solver pushes them as close to what THEIR available days
+can actually support as possible, at the same priority as their tier.
+
 ### Strong PT (give more hours, 20h+ target)
 - Cai Cotton
 - Kara Thompson
