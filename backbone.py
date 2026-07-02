@@ -34,13 +34,16 @@ TEN_HR = PB | {'Adam Van Bogaert', 'Mason Doyle', 'Ava Shade', 'Remi Sullinger',
 # Non-manager backbone: {(person, day): (start_h, end_h)} — fixed shifts for the week.
 STATIC_BACKBONE = {
     **{('Bowen Benedict', d): (8, 16) for d in range(5)},
-    ('Gobi Weathers', 0): (16, 23),
-    ('Gobi Weathers', 1): (11, 17),   # Tue 11a (not 10a): 12h rule after Mon 11p close
+    # Mon trimmed to end 8:30p (not her usual 11p close) so the 12h rest rule doesn't push
+    # her Tue start past 10a — she needs to leave by 2pm Tue this week (7/13-7/19 request).
+    # Another PB member (Mary Dean/James Baker) covers Monday's close instead; the hard
+    # >=1-PB-closer/day floor forces the solver to pick one of them automatically.
+    ('Gobi Weathers', 0): (16, 20.5),
+    ('Gobi Weathers', 1): (10, 14),   # Tue: needs to leave by 2pm this week (see Mon note above)
     ('Gobi Weathers', 2): (9, 17),
     ('Gobi Weathers', 5): (9, 17),
     ('Gobi Weathers', 6): (15, 23),
     ('Mary Dean', 5): (15, 23),
-    # James Baker requested off all 7 days this week (vacation) — no backbone.
     ('Tiffany Huffman', 0): (9, 16),
     ('Trinity Stringer', 4): (17, 23),
     ('Zac Duffy', 6): (9, 17),        # Zac opens Sunday 9-5 (8h, longest valid 9-start under his 10h cap)
