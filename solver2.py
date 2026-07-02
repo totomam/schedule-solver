@@ -40,10 +40,10 @@ def paid_val(n,a,b):
 weak3={'Brian Carver','Bryan Bishop','Jason Britt'}
 weak5=weak3|{'Emily Owens','Shayden Howard','Oliver Croasdaile','John Dugan'}
 prep={'Michael Calderon','Tiffany Huffman','Noah Hiner','Gracelyn Dailey','Molly Summers','Reilly Weakley'}
-strong_PT={'Gracelyn Dailey','Cai Cotton','Sandy Wright','Kara Thompson','Nathan Paaswee','Peyton Shaw','Reese Bezehertny','Diana Castaneda','Kayden Anderson'}
+strong_PT={'Gracelyn Dailey','Cai Cotton','Sandy Wright','Kara Thompson','Nathan Paaswee','Peyton Shaw','Reese Bezehertny','Diana Castaneda','Kayden Anderson','Ryder Buccola'}
 regular_PT={'Amiyah Bartley','Harper Flynn','Jonathan Beacham',
             'Hayden Roush','Logan Frias',
-            'Richard Raglin','Ryder'}
+            'Richard Raglin'}
 
 # === AVAILABILITY ===
 def avwin(n,d):

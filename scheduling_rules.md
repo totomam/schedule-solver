@@ -207,6 +207,7 @@ can actually support as possible, at the same priority as their tier.
 - Peyton Shaw
 - Reese Bezehertny
 - Sandy Wright
+- **Ryder Buccola** — new hire, available any day/time, PT standard (max 8h shifts, takes break, max 5 days per week)
 - Gracelyn Dailey — **30h target (not the standard 20h), no hard cap, penalty for missing it.** Availability changes every month and is NOT in the standard availability sheet. She prints and brings her own calendar. Always verify her current availability before each build; do NOT assume she's "any"/open. (Example: for 6/22-6/28 she was available Saturday only.)
 
 ### Weak / limited group — "don't pull their weight," spread out, prefer one day each
@@ -217,7 +218,6 @@ can actually support as possible, at the same priority as their tier.
 
 ### Middle PT (use as needed for coverage, 12h target)
 - Amiyah Bartley, Logan Frias, Richard Raglin, Harper Flynn, Jonathan Beacham, Hayden Roush
-- **Ryder**: new hire, available any day/time, PT standard (max 8h shifts, takes break, max 5 days per week)
 
 ### New / occasional
 - **Jacob Cothern**: PT, 2 shifts only, available Mon-Thu 5p-9:30p (dinner shifts). Place on the higher-volume of his available days.
