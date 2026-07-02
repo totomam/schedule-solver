@@ -44,6 +44,12 @@ Notable changes to the scheduler, newest first. Routine weekly data updates
   Fri/Sat/Sun bump to 6 (`Ctar` now uniform `[5,5,5,5,5,5,5]`); renamed `_CLOSE_SMALL`(300) to
   `_CLOSE_PEN`(900) — human preference for 4 closers to be rare, not a routine thin-day outcome.
   Weighted between `_LUNCHPEN`(800) and `_TRIO_ESCAPE`(1000).
+- **Dinner redefined: starts ≤6pm AND ends ≥8pm** (was just "ends after 5pm") — per human
+  request, so "working dinner" means actually covering the dinner rush, not just a late-afternoon
+  departure. Accepted tradeoff: Fri/Sat's floor of 13 now has ~zero slack (even a fully-staffed
+  week with no req-offs maxes out at exactly 13), so a req-off touching a dinner-eligible person
+  on those days can newly tip the week into infeasibility. Confirmed via stress testing and kept
+  intentionally, per explicit instruction, rather than lowering the floor or softening it.
 
 ### Stress test / CI
 - **CI smoke test now actually fails** on a bad run (the harness exits non-zero; seed pinned for

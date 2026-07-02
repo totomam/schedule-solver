@@ -40,7 +40,7 @@ def paid_val(n,a,b):
 weak3={'Brian Carver','Bryan Bishop','Jason Britt'}
 weak5=weak3|{'Emily Owens','Shayden Howard','Oliver Croasdaile','John Dugan'}
 prep={'Michael Calderon','Tiffany Huffman','Noah Hiner','Gracelyn Dailey','Molly Summers','Reilly Weakley'}
-strong_PT={'Gracelyn Dailey','Cai Cotton','Sandy Wright','Kara Thompson','Nathan Paaswee','Peyton Shaw','Reese Bezehertny'}
+strong_PT={'Gracelyn Dailey','Cai Cotton','Sandy Wright','Kara Thompson','Nathan Paaswee','Peyton Shaw','Reese Bezehertny','Diana Castaneda'}
 regular_PT={'Amiyah Bartley','Harper Flynn','Jonathan Beacham',
             'Hayden Roush','Logan Frias',
             'Kayden Anderson','Richard Raglin','Ryder'}
@@ -148,7 +148,7 @@ _TH=[9,10,12,14,15,15.5,16,16.5,17,21,21.5,22,22.5]
 def _sig(a,b,n):
     s=[a<=t<b for t in _TH]
     s+=[a<=9,a<=10,a<=12,round(a,2)==17.5,round(a,2)==18,round(b,2) in (14,14.5),
-        b>=22,b>=22.5,b>21,b>21.5,b>17]
+        b>=22,b>=22.5,b>21,b>21.5,b>=20]
     s.append(round(paid_val(n,a,b)*4)); s.append(round((b-a)*4))
     s.append(round(b,2) if b>=21 else 0)        # exact close-end (12hr rule)
     s.append(round(a,2) if a<=11.25 else 0)     # exact early start (12hr rule)
@@ -211,14 +211,18 @@ for d in range(7):
     _SDF[d,'h165']  =[x[(n,d,i)] for (n,i,a,b,pv) in sd if a<=16.5<b]
     _SDF[d,'opener']=[x[(n,d,i)] for (n,i,a,b,pv) in sd if n!='Jay Martin' and a<=10]
     _SDF[d,'lunch'] =[x[(n,d,i)] for (n,i,a,b,pv) in sd if a<=12<b]
-    _SDF[d,'dinner']=[x[(n,d,i)] for (n,i,a,b,pv) in sd if b>17]
+    # Dinner: starts at/before 6pm AND ends at/after 8pm — both conditions required, not just a
+    # late end. (a<=18 is structurally always true given ANCH_START's 18:00 ceiling, so b>=20 is
+    # the only condition that actually discriminates today, but both are kept explicit in case
+    # the anchor grid or EXTRA_SHIFTS ever introduce a later start.)
+    _SDF[d,'dinner']=[x[(n,d,i)] for (n,i,a,b,pv) in sd if a<=18 and b>=20]
     _SDF[d,'cl225'] =[x[(n,d,i)] for (n,i,a,b,pv) in sd if b>=22.5]
     _SDF[d,'cl21']  =[x[(n,d,i)] for (n,i,a,b,pv) in sd if b>21]
     _SDF[d,'cl215'] =[x[(n,d,i)] for (n,i,a,b,pv) in sd if b>21.5]
     _SDF[d,'pb_op'] =[x[(n,d,i)] for (n,i,a,b,pv) in sd if n in PB and a<=9]
     _SDF[d,'pb_cl'] =[x[(n,d,i)] for (n,i,a,b,pv) in sd if n in PB and b>=22]
     _SDF[d,'w3_ln'] =[x[(n,d,i)] for (n,i,a,b,pv) in sd if n in weak3 and a<=12<b]
-    _SDF[d,'w3_dn'] =[x[(n,d,i)] for (n,i,a,b,pv) in sd if n in weak3 and b>17]
+    _SDF[d,'w3_dn'] =[x[(n,d,i)] for (n,i,a,b,pv) in sd if n in weak3 and a<=18 and b>=20]
     _SDF[d,'la1725']=[x[(n,d,i)] for (n,i,a,b,pv) in sd if a==17.25]
     _SDF[d,'la175'] =[x[(n,d,i)] for (n,i,a,b,pv) in sd if a==17.5]
     _SDF[d,'la1775']=[x[(n,d,i)] for (n,i,a,b,pv) in sd if a==17.75]
@@ -335,7 +339,7 @@ for d in range(7):
     _sf(_h15,threeTar[d],                        f'sh15f_{d}')
     _sf(_h16,fourTar[d],                         f'sh16f_{d}')
     # HARD floors — solver must meet these or report the week infeasible (a fail, not a penalty):
-    #  • meal-period minimums (lunch at noon, dinner past 5pm)
+    #  • meal-period minimums (lunch at noon, dinner starts ≤6pm and ends ≥8pm)
     #  • openers (start ≤10am): exactly 5/day (hard floor here + soft ceiling below)
     _hardfloor(pulp.lpSum(_SDF[d,'lunch']),  Ltar[d],  tag=f'hf_lunch_{d}')
     _hardfloor(pulp.lpSum(_SDF[d,'dinner']), Dhard[d], tag=f'hf_dinner_{d}')
@@ -729,7 +733,7 @@ def _pd(sh, n): return paid_val(n, sh[0], sh[1]) if sh else 0  # 11pm→10:45 ha
 def _hd(d,t): return sum(1 for n in sol if sol[n][d] and sol[n][d][0]<=t<sol[n][d][1])
 def _O(d): return sum(1 for n in sol if n!='Jay Martin' and sol[n][d] and sol[n][d][0]<=10)
 def _C(d): return sum(1 for n in sol if sol[n][d] and sol[n][d][1]>=22.5)
-def _D(d): return sum(1 for n in sol if sol[n][d] and sol[n][d][1]>17)  # dinner: ends after 5pm
+def _D(d): return sum(1 for n in sol if sol[n][d] and sol[n][d][0]<=18 and sol[n][d][1]>=20)  # dinner: starts ≤6pm, ends ≥8pm
 # Lunch (present at noon) is exactly _hd(d,12).
 # ★ = over target (excess labor/coverage); ! = under target (shortage); blank = on target
 def _ck(v,t,exact=True):
