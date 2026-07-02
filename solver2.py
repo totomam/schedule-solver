@@ -969,7 +969,7 @@ def _write_xlsx(out_xlsx):
     # Validation table
     ws.cell(sr, 1, 'Final State').font = BD10
     sr += 1
-    val_hdrs = ['Day','Var','Open','Lunch','Dinner','Close','2pm','3pm','4pm','9pm','9:30pm','10pm']
+    val_hdrs = ['Day','Var','Open','Lunch','Dinner','Close','2pm','3pm','4pm','8pm','9pm','9:45pm']
     for i, h in enumerate(val_hdrs):
         c = ws.cell(sr, i+1, h); c.font = WB10; c.fill = GRAY
     sr += 1
@@ -978,8 +978,8 @@ def _write_xlsx(out_xlsx):
         L = _hd(d,12); D = _D(d)
         O = _O(d); C = _C(d)
         h14=_hd(d,14); h15=_hd(d,15); h16=_hd(d,16)
-        cl21=_hd(d,21); cl215=_hd(d,21.5); cl22=_hd(d,22)
-        for i, v in enumerate([dn[d], f'{var_d:+.1f}', O, L, D, C, h14, h15, h16, cl21, cl215, cl22]):
+        cl20=_hd(d,20); cl21=_hd(d,21); cl2145=_hd(d,21.75)
+        for i, v in enumerate([dn[d], f'{var_d:+.1f}', O, L, D, C, h14, h15, h16, cl20, cl21, cl2145]):
             ws.cell(sr, i+1, v)
         sr += 1
     tot = round(sum(_pd(sol[n][d], n) for n in sol for d in range(7)) - sum(allowed), 4)
