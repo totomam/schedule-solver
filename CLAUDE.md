@@ -104,11 +104,12 @@ All others: paid = raw − 0.5 if raw ≥ 5h, else raw.
 All full-floor (gate-passed) penalty targets are set +1h above the real floor (e.g. floor=39 → penalty target=40). The `afl=` param stores the real floor for audit display. Absorbs ~0.75h gapRel undershoot so early-stop never reports a false miss. (The reachable-hours fallback path — see above — does NOT use this +1 buffer: when `floor == the real achievable ceiling` for the week, floor and floor+1 targets are mathematically identical optimization problems, so the buffer would be a pure no-op, same lesson learned from Reilly Weakley's 3-shift cap.)
 
 ### Objective (minimise)
-`8*weak_use + 0.3*short_pref + 30*mgr_offday + 20*jay_closes + 20*myles_opens + 500*cov_slk + 900*close_pen + 1000*trio_escape + 800*lunch_slk + 20*din_slk + 520*hrs_leader_slk + 510*hrs_ft_slk + 200*hrs_strong_slk + 150*hrs_reg_slk + 100*hrs_weak_slk` (+ small per-person above-floor nudge). The ≥1-shift rule, the closer floor at `Ctar-1`, the exact opener timing, and James-never-with-Mary are all hard constraints, not part of this objective — only the at-most-1-of-Gobi/James/Trinity cap (absent Mary) is soft, via `trio_escape`.
+`8*weak_use + 0.3*short_pref + 30*mgr_offday + 20*jay_closes + 20*myles_opens + 40*prep_early_end + 500*cov_slk + 900*close_pen + 1000*trio_escape + 800*lunch_slk + 20*din_slk + 520*hrs_leader_slk + 510*hrs_ft_slk + 200*hrs_strong_slk + 150*hrs_reg_slk + 100*hrs_weak_slk` (+ small per-person above-floor nudge). The ≥1-shift rule, the closer floor at `Ctar-1`, the exact opener timing, and James-never-with-Mary are all hard constraints, not part of this objective — only the at-most-1-of-Gobi/James/Trinity cap (absent Mary) is soft, via `trio_escape`.
 - Weekly paid hours hard-bounded to `[sum(allowed)+25, sum(allowed)+30]`
 - `weak_use` — discourage weak5 extra shifts
 - `short_pref` — light penalty for 5–5.5h shifts (prefer 4–4.5h)
 - `jay_closes`/`myles_opens` — small penalty (20, below `mgr_offday`'s 30) so the backstop manager role stays out of the other's preferred edge (Jay opens, Myles closes) unless coverage genuinely needs it
+- `prep_early_end` — soft preference (weight 40) that whoever actually opens prep that day (a `prep`-group member starting ≤9am, same test as the `prep9` floor) stays until at least 4pm. Deliberately scoped to ≤9am starts only — one person preps per day, so this should be ~7 shifts/week, not every prep-group member's every shift regardless of start time.
 - See "Constraint model" above for the coverage hard-floor / soft-target hierarchy.
 
 ### Solver parameters
@@ -133,7 +134,7 @@ says so explicitly ("Diagnostic inconclusive... outside coverage floors") rather
 - `TEN_HR` — PB + Adam Van Bogaert, Mason Doyle, Ava Shade, Remi Sullinger, Izzy Simpson, Zac Duffy, Kara Thompson
 - `weak3` — Brian Carver, Bryan Bishop, Jason Britt (1-per-meal-period rule)
 - `weak5` — weak3 + Emily Owens, Shayden Howard, Oliver Croasdaile, John Dugan, Jacob Cothern, Jonathan Beacham, Harper Flynn (4h target, prefer-1-day rule, hard 2-day/week cap — Jacob's old standalone 2-shift `SHIFT_CAP` entry in `backbone.py` was removed since this group cap already covers him; Harper moved here after her old `regular_PT` 12h floor turned out to be structurally unreachable — her 2 available days cap her at 9h)
-- `prep` — Michael Calderon, Tiffany Huffman, Noah Hiner, Gracelyn Dailey, Molly Summers, Reilly Weakley (≥1 starting ≤9am each day)
+- `prep` — Michael Calderon, Tiffany Huffman, Noah Hiner, Gracelyn Dailey, Molly Summers (≥1 starting ≤9am each day). Reilly Weakley was removed — he doesn't actually know prep, so his shifts never satisfied this floor even when he happened to start at 9am.
 - `FT_nonleader` — Adam Van Bogaert, Mason Doyle, Michael Calderon, Molly Summers, Noah Hiner, Ava Shade, Izzy Simpson, Remi Sullinger, Reilly Weakley, Zac Duffy (30–40h target; Adam/Reilly/Zac each carry their own `_FLOOR` override — 40h/24h/30h respectively — same group, different per-person target)
 - `strong_PT` — Gracelyn Dailey, Cai Cotton, Sandy Wright, Kara Thompson, Nathan Paaswee, Peyton Shaw, Reese Bezehertny, Diana Castaneda, Kayden Anderson, Ryder Buccola (18h target)
 - `regular_PT` — Amiyah Bartley, Hayden Roush, Logan Frias, Richard Raglin (12h target)

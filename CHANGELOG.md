@@ -14,6 +14,16 @@ Notable changes to the scheduler, newest first. Routine weekly data updates
   rules all live here, imported by both `solver2.py` and `test_protocol.py` so they can't drift.
 
 ### Solver
+- **Only the person actually doing prep that day should run to at least 4pm when possible**
+  (`prep_early_end`, weight 40 — soft, yields to real coverage/hours-floor needs and to a
+  person's own availability window). Scoped to shifts starting ≤9am only (same test as the
+  `prep9` floor) — only one person preps per day, so this should be ~7 shifts/week, not every
+  prep-group member's every shift (an early version wrongly penalized all 18).
+- **Removed Reilly Weakley from the `prep` group.** He doesn't actually know prep, so his shifts
+  never should have satisfied the "1 prep person by 9am" floor or been relied on for Sunday
+  dough duty (previously documented as his job — that was wrong). Gracelyn Dailey now covers
+  the 9am prep floor on both Saturday and Sunday naturally, since she's the only prep-group
+  member available either day.
 - **Convex within-tier fairness penalty for strong/reg/weak hours floors.** The old flat linear
   penalty had no preference for how a fixed tier-wide shortfall got distributed, so one person
   could absorb an entire tier's shortfall (found via Logan Frias: 7h under while regular_PT

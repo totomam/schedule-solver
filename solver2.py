@@ -639,6 +639,12 @@ weak_use=pulp.lpSum(x[(n,d,i)] for d in range(7) for (n,i,a,b,pv) in SD[d] if n 
 # Same labor, more days, no break to manage. Light penalty on 5-5.5h shifts for non-managers.
 short_pref=pulp.lpSum(x[(n,d,i)] for d in range(7) for (n,i,a,b,pv) in SD[d]
                       if n not in NO_BREAK and 5<=(b-a)<=5.5)
+# Soft preference: only the person actually DOING prep that day (i.e. the one satisfying the
+# ≥1-prep-by-9am floor, same a<=9 test as _SDF[d,'prep9']) should run to at least 4pm when
+# possible. NOT every prep-group member's every shift that week — only one person preps per
+# day, and the rest of their shifts are their own regular job, unrelated to prep duty.
+prep_early_end=pulp.lpSum(x[(n,d,i)] for d in range(7) for (n,i,a,b,pv) in SD[d]
+                          if n in prep and a <= 9 and b < 16.0)
 # Soft default-schedule preference for managers: discourage Jay from working Tue/Wed and
 # Myles from working Thu/Fri (their standard off-days). High enough to keep standard schedule;
 # low enough to allow backstop coverage when no other PB opener/closer is available.
@@ -659,7 +665,7 @@ myles_opens = pulp.lpSum(x[('Myles Palmer',d,i)]
                           for i,(a,b) in enumerate(shifts[('Myles Palmer',d)])
                           if a <= 10)
 prob += (8*weak_use + 0.3*short_pref + 30*mgr_offday
-         + 20*jay_closes + 20*myles_opens
+         + 20*jay_closes + 20*myles_opens + 40*prep_early_end
          + _CPEN*pulp.lpSum(_cov_slk)
          + _CLOSE_PEN*pulp.lpSum(_close_pen_slk)
          + _TRIO_ESCAPE*pulp.lpSum(_trio_slk)

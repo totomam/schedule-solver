@@ -278,7 +278,8 @@ can actually support as possible, at the same priority as their tier.
 
 ### Morning starts
 - Opener count and start times: see **§5 → Openers** (the single source for the hard 3-by-9 / 2-at-exactly-10 rule and the 10:01–10:59 ban). The notes below add only the staffing detail.
-- At least one prep person (Michael, Tiffany, Noah, Gracelyn, Molly; Reilly = dough on Sunday) should be among the 9:00 starters.
+- At least one prep person (Michael, Tiffany, Noah, Gracelyn, Molly) should be among the 9:00 starters. Reilly Weakley does NOT know prep and is not part of this group — he's not a substitute for prep/dough coverage even on days he starts at 9am.
+- **Whoever is doing prep that day should stay until at least 4pm when possible** (soft preference, not a hard rule — a real coverage or hours-floor need can still override it). Only one person preps per day — this applies to that one person, not to every prep-group member's shift that week.
 - Bowen anchors morning at 8a (set schedule)
 
 ### Afternoon transitions
