@@ -39,7 +39,7 @@ def paid_val(n,a,b):
     return p
 weak3={'Brian Carver','Bryan Bishop','Jason Britt'}
 weak5=weak3|{'Emily Owens','Shayden Howard','Oliver Croasdaile','John Dugan','Jacob Cothern','Jonathan Beacham','Harper Flynn'}
-prep={'Michael Calderon','Tiffany Huffman','Noah Hiner','Gracelyn Dailey','Molly Summers','Reilly Weakley'}
+prep={'Michael Calderon','Tiffany Huffman','Noah Hiner','Gracelyn Dailey','Molly Summers'}
 strong_PT={'Gracelyn Dailey','Cai Cotton','Sandy Wright','Kara Thompson','Nathan Paaswee','Peyton Shaw','Reese Bezehertny','Diana Castaneda','Kayden Anderson','Ryder Buccola'}
 regular_PT={'Amiyah Bartley',
             'Hayden Roush','Logan Frias',
