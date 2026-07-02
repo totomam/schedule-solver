@@ -202,6 +202,7 @@ can actually support as possible, at the same priority as their tier.
 - Cai Cotton
 - Diana Castaneda — new hire, joining as of this schedule. Available any Mon-Sat, 12p-11p Sunday.
 - Kara Thompson
+- Kayden Anderson
 - Nathan Paaswee
 - Peyton Shaw
 - Reese Bezehertny
@@ -215,7 +216,7 @@ can actually support as possible, at the same priority as their tier.
 - Spread them across the week rather than clustering. Prefer stronger people on the busy days (Fri/Sat/Sun) and use these seven to fill genuine gaps.
 
 ### Middle PT (use as needed for coverage, 12h target)
-- Kayden Anderson, Amiyah Bartley, Logan Frias, Richard Raglin, Harper Flynn, Jonathan Beacham, Hayden Roush
+- Amiyah Bartley, Logan Frias, Richard Raglin, Harper Flynn, Jonathan Beacham, Hayden Roush
 - **Ryder**: new hire, available any day/time, PT standard (max 8h shifts, takes break, max 5 days per week)
 
 ### New / occasional
