@@ -243,7 +243,7 @@ for d in range(7):
 
 # === COVERAGE TARGETS ===
 twoTar=[8,8,8,8,8,9,11]; threeTar=[6,6,6,6,7,8,8]; fourTar=[5,5,5,5,6,7,6]
-Otar=[5,5,5,5,5,5,5]; Ltar=[9,9,9,9,10,10,10]; Ctar=[5,5,5,5,6,6,6]
+Otar=[5,5,5,5,5,5,5]; Ltar=[9,9,9,9,10,10,10]; Ctar=[5,5,5,5,5,5,5]
 # Dinner HARD floor (Dhard) is the per-day minimum that must be met or the week is infeasible.
 # Dtar is a tiny soft aspiration of "one better than the hard floor" on every day — see _DINPEN
 # below. Sunday's hard floor matches Thursday's (11, not the generic 10) — human preference:
@@ -255,10 +255,8 @@ Otar=[5,5,5,5,5,5,5]; Ltar=[9,9,9,9,10,10,10]; Ctar=[5,5,5,5,6,6,6]
 # already applied to the PB opener/closer floors for the same reason.
 Dhard=[10,10,10,11,13,13,11]
 Dtar=[d+1 for d in Dhard]
-# Closer target (graduated penalty, see _close_graded): 5 weekday / 6 weekend.
+# Closer target (graduated penalty, see _close_graded): 5 every day of the week.
 # Lunch soft target (above the hard Ltar floor): aim for 11 on Sunday. Penalised, not hard.
-# Lunch's penalty outranks the single 6th-closer slot, so a thin Sunday prefers 11 lunch and
-# lets closers slip to 5; it never drives closers down to 4 (massive closer penalty).
 Lsoft=[9,9,9,9,10,10,11]
 
 # Soft-constraint helpers: convert tight equality/ceiling constraints to penalised slack variables.
@@ -266,18 +264,21 @@ Lsoft=[9,9,9,9,10,10,11]
 # solution — the final schedule is identical, but the feasible region is much larger, letting
 # HiGHS find the first integer-feasible point dramatically faster.
 _CPEN=500
-# Closer target is HARD at tgt-1 (never allowed to fall 2+ below target — e.g. 4 wknd / 3 wkday
-# is infeasible now, not just heavily penalised): 1 below target (5 wknd / 4 wkday) is still a
-# small penalty, since a thin day may legitimately land there.
-_CLOSE_SMALL=300     # 1st closer below target (e.g. 5 instead of 6) — minor, the only slack left
-_LUNCHPEN=800        # missing the lunch soft target (Lsoft, e.g. 11 Sun); beats the 6th closer
+# Closer target is HARD at tgt-1 (never allowed to fall 2+ below target, i.e. 3 is infeasible
+# every day, not just heavily penalised): sitting at exactly 4 (1 below the 5 target) is still
+# allowed, but carries a LARGE penalty — human preference: 4 closers should be avoided almost as
+# strongly as any other near-last-resort tradeoff in the model, not treated as a routine, cheap
+# miss. Weighted between _LUNCHPEN and _TRIO_ESCAPE — high enough that a thin day accepts other
+# tradeoffs (coverage ceilings, hour floors, even the lunch soft target) before settling for 4.
+_CLOSE_PEN=900       # sitting at exactly 4 closers (1 below the uniform 5 target), any day
+_LUNCHPEN=800        # missing the lunch soft target (Lsoft, e.g. 11 Sun)
 _DINPEN=20           # tiny: missing dinner's hard-floor+1 aspiration (Dtar), every day of the week —
                      # deliberately far below every other coverage penalty; a nice-to-have nudge only
 _TRIO_ESCAPE=1000    # breaking the "≤1 of Gobi/James/Trinity closes" cap (absent Mary) — higher than
                      # every other soft weight so it's never worth paying except as a last resort when
                      # the hard closer floor genuinely can't be met without a 2nd trio closer.
 _cov_slk=[]
-_close_small_slk=[]
+_close_pen_slk=[]
 _trio_slk=[]
 _lunch_slk=[]; _din_slk=[]
 def _sc(e,cap,t):   # soft ceiling: e <= cap + slack
@@ -295,12 +296,12 @@ def _hardfloor(e,fl,tag=None):  # HARD minimum — infeasible (fail) rather than
         con = pulp.LpConstraint(e, sense=pulp.LpConstraintGE, rhs=fl, name=tag)
         prob += con
         _hard_diag_log.append((tag, e, fl))
-def _close_graded(e,tgt,t):  # HARD floor at tgt-1; small penalty for sitting exactly 1 below tgt
+def _close_graded(e,tgt,t):  # HARD floor at tgt-1; large penalty for sitting exactly 1 below tgt
     global prob
     _hardfloor(e, tgt-1, tag=f'hf_{t}')
-    _s1=pulp.LpVariable(f'{t}_s1',lowBound=0,upBound=1)   # the one unit short of target → small
+    _s1=pulp.LpVariable(f'{t}_s1',lowBound=0,upBound=1)   # the one unit short of target → penalised
     prob += e + _s1 >= tgt
-    _close_small_slk.append(_s1)
+    _close_pen_slk.append(_s1)
 def _sfl(e,fl,t):   # lunch soft target floor: e + slack >= fl, slack penalised at _LUNCHPEN
     global prob; _s=pulp.LpVariable(t,lowBound=0); prob+=e+_s>=fl; _lunch_slk.append(_s)
 def _sfd(e,fl,t):   # dinner soft target floor: e + slack >= fl, slack penalised at _DINPEN
@@ -310,7 +311,7 @@ def _sfd(e,fl,t):   # dinner soft target floor: e + slack >= fl, slack penalised
 # the existing role hierarchy (PB leaders/managers > FT non-leaders > strong PT > regular PT >
 # weak) rather than inventing a new ranking. LEADER/FT stay > _CPEN(500) — an achievable
 # leader/FT hours floor is never sacrificed for a trivial coverage-ceiling nick — while
-# STRONG/REG/WEAK stay < _CLOSE_SMALL(300), same relative position the old single "LO" tier had.
+# STRONG/REG/WEAK stay well below _CLOSE_PEN(900), same relative position the old single "LO" tier had.
 _HPEN_LEADER=520  # PB (managers + shift leaders) — most essential, last to lose hours
 _HPEN_FT=510      # FT non-leaders + Zac Duffy — same weight as the old HPEN_HI tier
 _HPEN_STRONG=200  # strong PT — above regular PT, below CLOSE_SMALL
@@ -339,7 +340,7 @@ for d in range(7):
     _hardfloor(pulp.lpSum(_SDF[d,'lunch']),  Ltar[d],  tag=f'hf_lunch_{d}')
     _hardfloor(pulp.lpSum(_SDF[d,'dinner']), Dhard[d], tag=f'hf_dinner_{d}')
     _hardfloor(_op,    Otar[d], tag=f'hf_openagg_{d}')
-    # Closers (end ≥10:30pm): hard floor at Ctar-1 (5 wk / 6 wknd, so never below 4/5) — small
+    # Closers (end ≥10:30pm): hard floor at Ctar-1 (5 every day, so never below 4) — large
     # penalty for sitting exactly 1 below target, via _close_graded.
     _close_graded(_cl225, Ctar[d], f'scl_{d}')
     if Lsoft[d] > Ltar[d]:               # soft lunch aspiration above the hard floor (e.g. 11 Sun)
@@ -624,7 +625,7 @@ myles_opens = pulp.lpSum(x[('Myles Palmer',d,i)]
 prob += (8*weak_use + 0.3*short_pref + 30*mgr_offday
          + 20*jay_closes + 20*myles_opens
          + _CPEN*pulp.lpSum(_cov_slk)
-         + _CLOSE_SMALL*pulp.lpSum(_close_small_slk)
+         + _CLOSE_PEN*pulp.lpSum(_close_pen_slk)
          + _TRIO_ESCAPE*pulp.lpSum(_trio_slk)
          + _LUNCHPEN*pulp.lpSum(_lunch_slk)
          + _DINPEN*pulp.lpSum(_din_slk)
@@ -807,8 +808,8 @@ for d in range(7):
 _sviol=[] if _XLSX_ONLY else [v.name for v in _cov_slk if v.value() and v.value()>0.001]
 if _sviol: _fails.append(f"CovSlack({len(_sviol)}): {_sviol[:4]}{'...' if len(_sviol)>4 else ''}")
 # Closer target misses (above the hard floor at tgt-1 — 2+ below is now infeasible, not a slack)
-_cviol  =[] if _XLSX_ONLY else [v.name for v in _close_small_slk if v.value() and v.value()>0.001]
-if _cviol:  _fails.append(f"CloserTargetMiss({len(_cviol)}): {_cviol} (1 below target — minor)")
+_cviol  =[] if _XLSX_ONLY else [v.name for v in _close_pen_slk if v.value() and v.value()>0.001]
+if _cviol:  _fails.append(f"CloserTargetMiss({len(_cviol)}): {_cviol} (1 below target — heavily penalised, should be rare)")
 # Lunch soft-target misses (above the hard floor) — aimed at 11 (Sun) but couldn't reach it
 _lviol=[] if _XLSX_ONLY else [v.name for v in _lunch_slk if v.value() and v.value()>0.001]
 if _lviol: _fails.append(f"LunchTargetMiss({len(_lviol)}): {_lviol} (below soft target)")

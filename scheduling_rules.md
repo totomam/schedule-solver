@@ -121,13 +121,12 @@ Complete reference for building the weekly schedule. Given availability sheet, r
 
 ### Lunch (people working at noon)
 - **Hard floor per day:** Mon–Thu = 9, Fri/Sat/Sun = 10. The solver must meet these or report the week infeasible — it never returns a schedule below the lunch floor.
-- **Sunday aims for 11** as a *soft* target: a penalty for sitting at 10 (the hard floor), not a failure. This lunch-11 penalty outranks the 6th weekend closer, so on a thin Sunday the solver prefers an 11th lunch over a 6th closer. Flagged as `LunchTargetMiss` when it can't reach 11.
+- **Sunday aims for 11** as a *soft* target: a penalty for sitting at 10 (the hard floor), not a failure. Flagged as `LunchTargetMiss` when it can't reach 11.
 
 ### Closers (people working past 10:30pm — i.e., to 11pm close)
-- **Target: 5 closers per day, 6 on Friday, Saturday, and Sunday. HARD floor at target-1 (4 weekday / 5 weekend) — 2+ below is now infeasible, not just penalized:**
-  - **1 below target (5 weekend / 4 weekday): small penalty, still allowed.** Acceptable on a thin day; flagged `CloserTargetMiss`.
-  - **2+ below target (4 weekend / 3 weekday): INFEASIBLE.** The solver will report the week as unsolvable rather than field this few closers.
-- The 6th weekend closer is only a *small* priority — it loses to the Sunday lunch-11 target and to the afternoon ceilings, so a thin weekend may sit at 5 closers by design.
+- **Target: 5 closers every day of the week (no more weekend bump to 6). HARD floor at target-1 (4) — 2+ below is now infeasible, not just penalized:**
+  - **1 below target (4): large penalty, still allowed.** Human preference: 4 closers should be rare, not a routine thin-day outcome — weighted between the lunch soft target and the trio-cap escape valve, so a thin day gives up other tradeoffs (coverage ceilings, hour floors, even the Sunday lunch-11 target) before settling for 4. Flagged `CloserTargetMiss`.
+  - **2+ below target (3): INFEASIBLE.** The solver will report the week as unsolvable rather than field this few closers.
 - Do not run *more* than the target — too many closers was a recurring problem (soft ceiling).
 - **Mary Dean always closes on every day she's available, except 1 (hard rule, enforced by the solver — not a preference).** She works all but 1 of her available days, and every day she works is a close.
 - **James Baker never closes on the same day as Mary Dean (hard rule).** Move James to a mid or open shift instead — he does not close that day.
@@ -165,8 +164,9 @@ Every day's lunch and dinner number is a **hard minimum**. Above that, dinner ad
 From highest to lowest, what the solver protects first:
 1. **Hard floors** (infeasible if unmet): lunch floor, dinner floor, exact opener timing (3@9/2@10), closer floor at target-1, at least 1 PB opener AND 1 PB closer per day, ≥1 shift for every available person, James-never-with-Mary. Plus the manager and weekly-budget hard bounds.
 2. **Trio-cap escape valve:** breaking "at most 1 of Gobi/James/Trinity" (absent Mary) — a very high penalty, paid only when it's the sole way to meet the hard closer floor above.
-3. **Lunch soft target** (Sunday 11).
-4. **Small penalties:** the 6th weekend closer (5 instead of 6) and the tiny per-day dinner+1 aspiration. Roughly tied with the afternoon over-staffing ceilings.
+3. **Closer target miss:** sitting at 4 closers (1 below the 5 target) — a large penalty, just below the trio-cap escape valve.
+4. **Lunch soft target** (Sunday 11).
+5. **Small penalty:** the tiny per-day dinner+1 aspiration. Roughly tied with the afternoon over-staffing ceilings.
 
 ---
 
@@ -307,7 +307,7 @@ can actually support as possible, at the same priority as their tier.
   - 2 people until 10:30pm
   - 1 person until 10:15pm
   - 1 person until 10:45pm
-- On 5-closer days (Mon–Thu, Sun) the solver will naturally drop one slot (typically 10:45pm).
+- On 5-closer days (every day now) the solver will naturally drop one slot (typically 10:45pm).
 - **Adam always ends at 11:00pm** (set pattern, Mon-Fri). Enforced in solver gen().
 - **All PB (shift leaders AND managers Jay/Myles): if on a closing shift (end ≥ 10pm), must end at exactly 11pm** — leaders are in charge and stay until close; managers on closing backup do the same. Enforced in solver gen().
 - Mary: solver places her freely Mon–Fri; **Saturday only** is pinned as a 3–11pm close.
@@ -364,7 +364,7 @@ When building a new schedule:
    - [ ] Molly never past 5pm
    - [ ] 2/3/4pm hard targets hit exactly (Mon-Thu 8/6/5; Fri 8/7/6; Sat 9/8/7; Sun 11/8/6)
    - [ ] Lunch ≥ hard floor (Mon–Thu 9, Fri/Sat/Sun 10; Sun aims 11); dinner ≥ hard floor (Mon-Wed 10, Thu/Sun 11, Fri/Sat 13; every day has a tiny +1 aspiration)
-   - [ ] Openers (Jay never counts): hard exactly 3 in by 9:00 + exactly 2 at exactly 10:00 (Bowen-counts detail in §5 → Openers). No starts 9:01–9:59 or 10:01–10:59. Closers target 5/day (6 Fri/Sat/Sun) — hard floor at target-1, small penalty for sitting exactly 1 below
+   - [ ] Openers (Jay never counts): hard exactly 3 in by 9:00 + exactly 2 at exactly 10:00 (Bowen-counts detail in §5 → Openers). No starts 9:01–9:59 or 10:01–10:59. Closers target 5/day (every day) — hard floor at target-1 (4), large penalty for sitting exactly 1 below
    - [ ] Every available person gets at least one shift (hard, unless they have zero available days)
    - [ ] Weekly total variance lands in the +25 to +30 range (paid hours over allowed)
    - [ ] No shift under 4h
