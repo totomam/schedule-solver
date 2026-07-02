@@ -115,7 +115,7 @@ says so explicitly ("Diagnostic inconclusive... outside coverage floors") rather
 - `weak3` — Brian Carver, Bryan Bishop, Jason Britt (1-per-meal-period rule)
 - `weak5` — weak3 + Emily Owens, Shayden Howard, Oliver Croasdaile, John Dugan (prefer-1-day rule)
 - `prep` — Michael Calderon, Tiffany Huffman, Noah Hiner, Gracelyn Dailey, Molly Summers, Reilly Weakley (≥1 starting ≤9am each day)
-- `FT_nonleader` — Adam Van Bogaert, Mason Doyle, Michael Calderon, Molly Summers, Noah Hiner, Ava Shade, Izzy Simpson, Remi Sullinger, Reilly Weakley (33–40h target)
+- `FT_nonleader` — Adam Van Bogaert, Mason Doyle, Michael Calderon, Molly Summers, Noah Hiner, Ava Shade, Izzy Simpson, Remi Sullinger, Reilly Weakley, Zac Duffy (33–40h target; Adam/Reilly/Zac each carry their own `_FLOOR` override — 40h/24h/30h respectively — same group, different per-person target)
 - `strong_PT` — Gracelyn Dailey, Cai Cotton, Sandy Wright, Kara Thompson, Nathan Paaswee, Peyton Shaw, Reese Bezehertny, Diana Castaneda, Kayden Anderson, Ryder Buccola (20h target)
 - `regular_PT` — Amiyah Bartley, Harper Flynn, Jonathan Beacham, Hayden Roush, Logan Frias, Richard Raglin (12h target)
 - `_trio` — Gobi, James, Trinity, Mary Dean: Mary always closes when available (hard); James never closes with Mary (hard); absent Mary, at most 1 of Gobi/James/Trinity closes (soft escape valve — see "Constraint model" above)

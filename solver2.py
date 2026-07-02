@@ -483,9 +483,9 @@ for n in FT_NONLEADER:
     prob += hours_expr[n]<=40
     max_per_day = 10.0 if n in TEN_HR else 8.0
     _sh_floor(n, _FLOOR[n], n.replace(' ','_'), max_per_day)
-# Zac: no hard cap — 30h target with a penalty for missing it (falls under the generic 40h
-# ceiling below like everyone else not otherwise specially capped).
-_sh_floor('Zac Duffy', _FLOOR['Zac Duffy'], 'Zac_Duffy', max_per_day=10)
+    # Zac (now a FT_NONLEADER member): no hard cap — 30h target with a penalty for missing
+    # it, handled by this same loop via his _FLOOR override; falls under the generic 40h
+    # ceiling above like everyone else not otherwise specially capped.
 for n in regular_PT:
     max_pd = 10.0 if n in TEN_HR else 8.0
     _sh_floor(n, _FLOOR[n], n.replace(' ','_'), max_pd, tier='reg')

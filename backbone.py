@@ -22,8 +22,12 @@ PB = {'Jay Martin', 'Myles Palmer', 'Bowen Benedict', 'James Baker',
 NO_BREAK = {'Jay Martin', 'Myles Palmer'}
 # Full-time non-leaders (33h+ target). NOTE: being full-time does NOT by itself mean
 # 10h-eligible — the prep full-timers below leave by ~5pm and so top out at 8h. See TEN_HR.
+# Zac Duffy is a member here (ft-tier priority weight) despite being part-time/CK — he keeps
+# his own 30h floor override in solver2.py's _FLOOR dict, same pattern as Adam (40h) and
+# Reilly (24h) already do within this same group.
 FT_NONLEADER = {'Adam Van Bogaert', 'Mason Doyle', 'Michael Calderon', 'Molly Summers',
-                'Noah Hiner', 'Ava Shade', 'Izzy Simpson', 'Remi Sullinger', 'Reilly Weakley'}
+                'Noah Hiner', 'Ava Shade', 'Izzy Simpson', 'Remi Sullinger', 'Reilly Weakley',
+                'Zac Duffy'}
 # 10-hour-shift eligible: leaders/managers + the full-timers who can work late
 # (Adam, Mason, Ava, Remi, Izzy) + Zac & Kara. Deliberately EXCLUDES the prep full-timers
 # (Michael Calderon, Noah Hiner, Molly Summers, Reilly Weakley): they aren't available past
