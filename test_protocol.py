@@ -21,7 +21,7 @@ import json, os, random, re, subprocess, sys, time
 from pathlib import Path
 
 from backbone import (STATIC_BACKBONE, early_ok, PB, NO_BREAK, FT_NONLEADER, TEN_HR, rest_floor,
-                      LATEST_END)
+                      LATEST_END, JAY_STD, MGR_OFFDAY_SHIFT, WEEKEND_MAKEUP)
 
 # ── Config ──────────────────────────────────────────────────────────────────────────
 SEED    = int(os.environ.get('TEST_SEED',  str(random.randint(0, 2**31 - 1))))
@@ -57,18 +57,14 @@ _FT_AND_LEADERS = _LEADERS | FT_NONLEADER
 # Format: (person, day_index 0=Mon…6=Sun) → (start_h, end_h)
 #
 # The NON-manager backbone is imported from backbone.py (the same source solver2.py uses)
-# so it can never drift from the solver. The MANAGER entries below stay local because they
-# approximate the solver's DYNAMIC manager logic, not a fixed backbone:
-#   • Myles working days (Mon/Tue/Wed/Sat/Sun) are omitted: the solver shifts him to (14,23)
-#     when he's the only PB closer that day, so we fall back to raw avail (any → hi=23 → can
-#     close). Thu/Fri are compensation-only days capped at (11,20) → can't close.
-#   • Jay is modelled on his standard shifts.
-_BACKBONE_SHIFTS: dict[tuple, tuple] = {
-    (_JAY,   0): ( 6, 15),  (_JAY,   1): (10, 20),  (_JAY,   2): (10, 20),
-    (_JAY,   3): (10, 20),  (_JAY,   4): (10, 20),
-    (_JAY,   5): (10, 20),  (_JAY,   6): (11, 17),
-    (_MYLES, 3): (11, 20),  (_MYLES, 4): (11, 20),
-}
+# so it can never drift from the solver. The MANAGER entries are built from JAY_STD (Jay's
+# standard shifts) + MGR_OFFDAY_SHIFT (Jay's Tue/Wed and Myles's Thu/Fri compensation shifts)
+# — also imported, so they can't drift either — but Myles's own WORKING days (Mon/Tue/Wed/
+# Sat/Sun) are deliberately left out: the solver shifts him to (14,23) when he's the only PB
+# closer that day, so we fall back to raw avail instead (any → hi=23 → can close) rather than
+# hardcoding a shift the solver only sometimes assigns him.
+_BACKBONE_SHIFTS: dict[tuple, tuple] = {(_JAY, d): shift for d, shift in JAY_STD.items()}
+_BACKBONE_SHIFTS.update(MGR_OFFDAY_SHIFT)
 _BACKBONE_SHIFTS.update(STATIC_BACKBONE)  # non-manager backbone — shared with the solver
 
 def _pb_can_open_day(person: str, day_idx: int) -> bool:
@@ -124,6 +120,12 @@ def _max_achievable_raw(person: str, reqoff: dict) -> float:
     day_win: list = []
     for d, day in enumerate(DAYS):
         w = AVAIL[person][d]
+        # Weekend make-up (e.g. Adam): mirrors avwin() in solver2.py — a weekday req-off
+        # unlocks his usual pattern on Sat/Sun, unless he's also req'd off that specific day.
+        if (w == 'X' and d in (5, 6) and person in WEEKEND_MAKEUP
+                and person not in reqoff.get(day, [])
+                and any(person in reqoff.get(DAYS[wd], []) for wd in range(5))):
+            w = list(WEEKEND_MAKEUP[person])
         if w == 'X' or person in reqoff.get(day, []):
             day_win.append(None); continue
         bk = _BACKBONE_SHIFTS.get((person, d))

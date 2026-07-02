@@ -198,12 +198,12 @@ From highest to lowest, what the solver protects first:
 
 ### Weak / limited group — "don't pull their weight," spread out, prefer one day each
 - **Full group (all seven): Emily Owens, Brian Carver, Bryan Bishop, Jason Britt, Shayden Howard, Oliver Croasdaile, John Dugan**
-- **Prefer-one-day rule (applies to ALL SEVEN):** schedule each of them just one day/shift per week when possible. Only give a second day if coverage genuinely requires it (hard cap of 2 days/week per person, enforced by the solver).
+- **Prefer-one-day rule (applies to ALL SEVEN):** schedule each of them just one day/shift per week when possible. Only give a second day if coverage genuinely requires it (hard cap of 2 days/week per person, enforced by the solver). **Exception: Bryan Bishop is hard-capped at 1 day/week** (`WEAK5_MAX_DAYS` override in `backbone.py`), not 2.
 - **One-per-meal-period rule (applies ONLY to Brian Carver, Bryan Bishop, Jason Britt):** never more than ONE of these three working the same meal period (lunch or dinner) on any given day. Lunch = on the floor at noon; dinner = working past 5pm. Each lunch and each dinner across the week may contain at most one of them. (One-per-meal exceptions can be approved individually.)
 - Spread them across the week rather than clustering. Prefer stronger people on the busy days (Fri/Sat/Sun) and use these seven to fill genuine gaps.
 
-### Middle PT (use as needed for coverage, ~10-15h)
-- Kayden Anderson, Amiyah Bartley, Logan Frias, Richard Raglin, Harper Flynn
+### Middle PT (use as needed for coverage, 12h target)
+- Kayden Anderson, Amiyah Bartley, Logan Frias, Richard Raglin, Harper Flynn, Jonathan Beacham, Hayden Roush
 - **Ryder**: new hire, available any day/time, PT standard (max 8h shifts, takes break, max 5 days per week)
 
 ### New / occasional
@@ -272,7 +272,7 @@ From highest to lowest, what the solver protects first:
 - If a day is running over 5, push the extra early-starters to an 11am start — they still cover lunch and dinner, they're just no longer openers. (Nothing may start 10:01–10:59; the next slot is 11:00.)
 
 ### Afternoon headcount (2pm / 3pm / 4pm) — HARD TARGETS
-- **These are hard targets to hit exactly, not a guide:**
+- **These are targets to hit exactly, not a guide** (enforced as heavily-penalized soft floor+ceiling pairs, `_CPEN=500` — not literal hard-infeasibility floors like lunch/dinner/openers, but weighted so slack is always 0 in the optimal solution, i.e. hit exactly in practice):
   - **Normal days (Mon–Thu): 2pm = 8, 3pm = 6, 4pm = 5**
   - **Friday: 2pm = 8, 3pm = 7, 4pm = 6**
   - **Saturday: 2pm = 9, 3pm = 8, 4pm = 7**
@@ -284,7 +284,7 @@ From highest to lowest, what the solver protects first:
 ### Departure timing
 - **No one leaves before 2pm** on any day — this is a hard rule with no exceptions. The earliest any non-Sunday shift may end is 2:00pm.
 - **At most 2 people leave at 2:00pm or 2:30pm on any given day.** Don't bunch departures — spread the early-out shifts so no more than two end in that 2:00/2:30 window.
-- **Sunday: no one leaves before 3pm.** The earliest any Sunday shift may end is 3:00pm. To make the Sunday afternoon drop (11 → 9), send exactly 2 people home *at* 3:00 (they end at 3:00, so they count at 2pm but not 3pm).
+- **Sunday: no one leaves before 3pm.** The earliest any Sunday shift may end is 3:00pm. To make the Sunday afternoon drop (11 → 8), send exactly 3 people home *at* 3:00 (they end at 3:00, so they count at 2pm but not 3pm).
 - Forbidden end times: **no shift may end strictly between 6:00pm and 8:00pm** (6:00pm and 8:00pm themselves are fine; ends at 6:15, 6:30, … 7:45 are banned) — unless a shift is specifically pinned otherwise. Also none before 2:00pm (3:00pm Sunday).
 - **Evening-departure stagger:** no one ends at 8:15pm or 8:45pm (banned). At most **2 people end at 8:00pm** and **2 at 8:30pm** — except Friday & Saturday, where at most **1 ends at 8:00pm**. (Managers/leaders on fixed shifts are exempt from these counts; the caps govern the flexible staff the solver places.)
 
@@ -320,7 +320,7 @@ From highest to lowest, what the solver protects first:
 - **Noah**: M-F 9-5 area, often using 9:15 start trick
 - **Ava**: any, prefers mornings (FT)
 - **Mason**: any 10-10, varied shifts
-- **Reilly**: max 3 shifts, prefers 9-5
+- **Reilly**: prefers 9-5 (FT non-leader, 33–40h raw target — no shift-count cap, see §7)
 - **Remi (kitchen)**: 9a-11p avail M/T/Th/F/Sat. Works afternoon/evening prep shifts (3p-11p typical), NOT late-night close
 
 ---

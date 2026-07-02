@@ -17,6 +17,10 @@ Notable changes to the scheduler, newest first. Routine weekly data updates
 - **11pm closers counted as 10:45 in `paid_val`.** Closers scheduled to 11pm clock out ~10:45,
   so paid hours count an 11pm end as 22.75 everywhere (incl. the weekly/daily budget band),
   giving the solver ~4h/week more clock time. Applied *on top of* the break deduction.
+- **Adam's weekend make-up rule (`WEEKEND_MAKEUP` in `backbone.py`).** He's normally Mon-Fri
+  only; a weekday req-off now automatically unlocks his usual 1pm-11pm pattern on Sat and/or
+  Sun (whichever he hasn't also req'd off), so he can still hit his hours. No `avail.json`
+  editing required — handled in `avwin()`.
 
 ### Stress test / CI
 - **CI smoke test now actually fails** on a bad run (the harness exits non-zero; seed pinned for
