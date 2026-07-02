@@ -90,6 +90,27 @@ says so explicitly ("Diagnostic inconclusive... outside coverage floors") rather
 
 ## Session preferences
 
+### New rules/instructions: propagate to every relevant file, not just one
+When you add, change, or remove a business rule, constraint, or per-person special case, update
+**every file that rule touches** in the same pass — don't stop at `solver2.py`:
+- `solver2.py` — the actual constraint/logic.
+- `backbone.py` — if it's a shared constant, group, or per-person override. Prefer putting new
+  per-person special cases here (like `WEEKEND_MAKEUP`, `SHIFT_CAP`, `WEAK5_MAX_DAYS`) rather than
+  hardcoding them in `solver2.py`, specifically so `test_protocol.py` can import the same source
+  instead of drifting.
+- `test_protocol.py` — if the rule affects reachable hours/shifts, update the hour-reachability
+  DP (`_max_achievable_raw`) and/or the manager-backbone approximation (`_BACKBONE_SHIFTS`) so the
+  stress test's hard/soft failure classification doesn't silently rely on a stale assumption.
+- `scheduling_rules.md` — the narrative business-rule description a human would read.
+- `CLAUDE.md` (this file) — if it's an architectural/objective/constraint-model detail worth
+  documenting for future sessions.
+- `CHANGELOG.md` — a one-line entry if it's a notable, non-routine-data change.
+Before considering a rule change done, do a quick pass across this list — this repo has already
+drifted more than once when a rule landed in only one file (e.g. `WEEKEND_MAKEUP` shipped without
+a `test_protocol.py` update or a `CHANGELOG.md` entry; Reilly's "max 3 shifts" rule existed only
+in `scheduling_rules.md` with no matching constraint in `solver2.py`). A full audit later caught
+both, but the point is to not need one.
+
 ### Git/GitHub: the human does not use GitHub — never ask, just handle it
 The human knows nothing about Git or GitHub and does not want to. **Never ask them anything
 about branches, commits, pushes, pull requests, or merging** — not "should I open a PR?", not
