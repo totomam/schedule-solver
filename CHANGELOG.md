@@ -40,6 +40,10 @@ Notable changes to the scheduler, newest first. Routine weekly data updates
   `_TRIO_ESCAPE`) but HiGHS's time-limited search didn't reliably find the improvement even
   though it's provably free; promoted to a hard floor instead, same reliability fix already
   applied to the PB opener/closer floors.
+- **Closer target unified to 5 every day, with a large penalty for sitting at 4.** Removed the
+  Fri/Sat/Sun bump to 6 (`Ctar` now uniform `[5,5,5,5,5,5,5]`); renamed `_CLOSE_SMALL`(300) to
+  `_CLOSE_PEN`(900) — human preference for 4 closers to be rare, not a routine thin-day outcome.
+  Weighted between `_LUNCHPEN`(800) and `_TRIO_ESCAPE`(1000).
 
 ### Stress test / CI
 - **CI smoke test now actually fails** on a bad run (the harness exits non-zero; seed pinned for
