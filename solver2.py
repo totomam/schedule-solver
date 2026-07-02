@@ -272,11 +272,20 @@ def _sc(e,cap,t):   # soft ceiling: e <= cap + slack
     global prob; _s=pulp.LpVariable(t,lowBound=0); prob+=e<=cap+_s; _cov_slk.append(_s)
 def _sf(e,fl,t):    # soft floor: e + slack >= fl
     global prob; _s=pulp.LpVariable(t,lowBound=0); prob+=e+_s>=fl; _cov_slk.append(_s)
-def _hardfloor(e,fl):  # HARD minimum — infeasible (fail) rather than a penalty if unmet
-    global prob; prob += e >= fl
+_hard_diag_log=[]  # (tag, expr, floor) for every tagged _hardfloor call — see the infeasibility
+                    # diagnostic near the solve: if the model comes back Infeasible, these are
+                    # replayed as soft constraints on the same problem to find the real shortfall.
+def _hardfloor(e,fl,tag=None):  # HARD minimum — infeasible (fail) rather than a penalty if unmet
+    global prob
+    if tag is None:
+        prob += e >= fl
+    else:
+        con = pulp.LpConstraint(e, sense=pulp.LpConstraintGE, rhs=fl, name=tag)
+        prob += con
+        _hard_diag_log.append((tag, e, fl))
 def _close_graded(e,tgt,t):  # HARD floor at tgt-1; small penalty for sitting exactly 1 below tgt
     global prob
-    _hardfloor(e, tgt-1)
+    _hardfloor(e, tgt-1, tag=f'hf_{t}')
     _s1=pulp.LpVariable(f'{t}_s1',lowBound=0,upBound=1)   # the one unit short of target → small
     prob += e + _s1 >= tgt
     _close_small_slk.append(_s1)
@@ -309,9 +318,9 @@ for d in range(7):
     # HARD floors — solver must meet these or report the week infeasible (a fail, not a penalty):
     #  • meal-period minimums (lunch at noon, dinner past 5pm)
     #  • openers (start ≤10am): exactly 5/day (hard floor here + soft ceiling below)
-    _hardfloor(pulp.lpSum(_SDF[d,'lunch']),  Ltar[d])
-    _hardfloor(pulp.lpSum(_SDF[d,'dinner']), Dhard[d])
-    _hardfloor(_op,    Otar[d])
+    _hardfloor(pulp.lpSum(_SDF[d,'lunch']),  Ltar[d],  tag=f'hf_lunch_{d}')
+    _hardfloor(pulp.lpSum(_SDF[d,'dinner']), Dhard[d], tag=f'hf_dinner_{d}')
+    _hardfloor(_op,    Otar[d], tag=f'hf_openagg_{d}')
     # Closers (end ≥10:30pm): hard floor at Ctar-1 (5 wk / 6 wknd, so never below 4/5) — small
     # penalty for sitting exactly 1 below target, via _close_graded.
     _close_graded(_cl225, Ctar[d], f'scl_{d}')
@@ -325,8 +334,8 @@ for d in range(7):
     # floor before, which meant a genuinely-available-on-paper PB member (per the static
     # opener/closer-exists check that positions the manager backstop) could still get optimized
     # into a non-opening/non-closing shift, leaving a day with no PB coverage at all.
-    _hardfloor(pulp.lpSum(_SDF[d,'pb_op']),1)
-    _hardfloor(pulp.lpSum(_SDF[d,'pb_cl']),1)
+    _hardfloor(pulp.lpSum(_SDF[d,'pb_op']),1, tag=f'hf_pbop_{d}')
+    _hardfloor(pulp.lpSum(_SDF[d,'pb_cl']),1, tag=f'hf_pbcl_{d}')
     _sf(pulp.lpSum(_SDF[d,'prep9']),1,           f'sprep9_{d}')
     _sf(_cl21,(8 if d in (4,5) else 7),          f'scl21f_{d}')
     # Soft ceilings/targets — penalised, not hard. Ceiling == exact target → soft equality.
@@ -374,10 +383,10 @@ for d in range(7):
     # more starting at exactly 10:00 (the 9:15/9:30/9:45 stagger is gone — see gen()'s dead zone).
     if _SDF[d,'stag9']:
         _stag9=pulp.lpSum(_SDF[d,'stag9'])
-        _hardfloor(_stag9,3); _hardfloor(-_stag9,-3)
+        _hardfloor(_stag9,3,tag=f'hf_stag9lo_{d}'); _hardfloor(-_stag9,-3,tag=f'hf_stag9hi_{d}')
     if _SDF[d,'open10']:
         _open10=pulp.lpSum(_SDF[d,'open10'])
-        _hardfloor(_open10,2); _hardfloor(-_open10,-2)
+        _hardfloor(_open10,2,tag=f'hf_open10lo_{d}'); _hardfloor(-_open10,-2,tag=f'hf_open10hi_{d}')
     for _key in ('la1725','la175','la1775','la18'):
         if _SDF[d,_key]: _sc(pulp.lpSum(_SDF[d,_key]),1,   f's{_key}_{d}')
     if _SDF[d,'w3_ln']: _sc(pulp.lpSum(_SDF[d,'w3_ln']),1, f'sw3ln_{d}')
@@ -609,6 +618,50 @@ else:
         print(f"\n{'!'*70}\nFATAL: no feasible schedule exists for these inputs "
               f"(status={pulp.LpStatus[prob.status]}).")
         print("Req-offs/availability are too constrained to satisfy the hard rules simultaneously.")
+        print("Running a diagnostic pass (coverage floors only) to find the real shortfall...")
+        # Replay every tagged hard coverage floor as a soft one on the SAME problem, with the
+        # objective replaced by "minimize total shortfall" — this finds the smallest possible
+        # violation, isolating exactly which floor(s) and day(s) are the true blocker. Purely
+        # diagnostic: no schedule is written from this pass, whatever it finds.
+        _diag_slk = []
+        for _tag, _expr, _floor in _hard_diag_log:
+            if _tag in prob.constraints: del prob.constraints[_tag]
+            _s = pulp.LpVariable(f'diag_{_tag}', lowBound=0)
+            prob += _expr + _s >= _floor
+            _diag_slk.append((_tag, _s))
+        prob.objective = pulp.lpSum(_s for _,_s in _diag_slk)
+        prob.solve(pulp.HiGHS(msg=False, timeLimit=min(_tl,60)))
+        # (label, phrase) — 'floor' violations mean the day fell short; 'ceiling' violations
+        # (the *hi tags, from the exact-count equalities) mean the day would need to exceed
+        # the count instead.
+        _DIAG_LABELS = {
+            'lunch':('Lunch floor','floor'), 'dinner':('Dinner floor','floor'),
+            'openagg':('Opener count (5/day)','floor'), 'pbop':('PB opener (need ≥1)','floor'),
+            'pbcl':('PB closer (need ≥1)','floor'), 'scl':('Closer floor','floor'),
+            'stag9lo':('3-by-9am openers','floor'), 'stag9hi':('3-by-9am openers','ceiling'),
+            'open10lo':('2-at-10am openers','floor'), 'open10hi':('2-at-10am openers','ceiling'),
+        }
+        if pulp.LpStatus[prob.status] == 'Optimal':
+            _byday = {}
+            for _tag, _s in _diag_slk:
+                _v = _s.value() or 0
+                if _v > 0.01:
+                    _body = _tag[len('hf_'):]
+                    _key, _dstr = _body.rsplit('_', 1)
+                    _label, _dir = _DIAG_LABELS.get(_key, (_key,'floor'))
+                    _phrase = f"short by {_v:.1f}" if _dir=='floor' else f"would need {_v:.1f} more than the cap allows"
+                    _byday.setdefault(dn[int(_dstr)], []).append(f"{_label} {_phrase}")
+            if _byday:
+                print("Diagnostic — the shortfall is concentrated on:")
+                for _day, _items in _byday.items():
+                    print(f"  {_day}: " + "; ".join(_items))
+            else:
+                print("Diagnostic found no coverage-floor shortfall — the real blocker is likely a")
+                print("per-person hour rule, shift-count cap, or the 12h rest rule instead.")
+        else:
+            print("Diagnostic inconclusive — even with every coverage floor softened, no solution was")
+            print("found. The blocker is outside coverage floors (e.g. per-person hour rules, shift-")
+            print("count caps, or the 12h rest rule) and needs manual investigation.")
         print("No schedule.json/xlsx was written. Relax req-offs or escalate to a human.")
         print('!'*70)
         sys.exit(1)
